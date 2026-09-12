@@ -124,6 +124,29 @@ export class AssistanceService {
     input: HintRequestInput,
     priorHints: { kind: string; response: string }[],
   ): Promise<TutorResult> {
+    // The curated reference solution beats anything the model would produce on
+    // the spot: it is the implementation we already verified passes the tests,
+    // and it carries the comments explaining the decisions that matter.
+    if (input.kind === 'SHOW_SOLUTION' && attempt.exercise.referenceSolution) {
+      return {
+        message: [
+          attempt.exercise.bugExplanation
+            ? `What was wrong:\n${attempt.exercise.bugExplanation}\n`
+            : '',
+          '```' + attempt.exercise.language,
+          attempt.exercise.referenceSolution.trimEnd(),
+          '```',
+        ]
+          .filter(Boolean)
+          .join('\n'),
+        containsCode: true,
+        question: null,
+        conceptReferenced: null,
+        redacted: false,
+        promptVersion: 'v1',
+      };
+    }
+
     const overBudget = await this.isOverDailyBudget(userId);
 
     if (!this.ai || overBudget) {

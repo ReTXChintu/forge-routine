@@ -23,7 +23,22 @@ pnpm db:seed
 pnpm dev
 ```
 
-`pnpm dev` runs the API on `:4000` and the web app on `:5173` through Turborepo.
+`pnpm dev` runs the API on `:4000` and the web app on `:5173` through Turborepo, along with
+a watcher for every shared package so a change in `packages/*` propagates without a manual
+rebuild.
+
+It deliberately **excludes** `@forgeroutine/sandbox-worker`: that process requires Redis and
+exits immediately without it, so including it would break the default dev run for anyone
+using `EXECUTION_DRIVER=inline`. Start it separately when you are working on queued
+execution:
+
+```bash
+pnpm dev:worker     # sandbox worker only; needs REDIS_ENABLED=true
+pnpm dev:apps       # web + API only, no package watchers
+```
+
+Turbo needs `concurrency` in `turbo.json` to exceed the number of persistent tasks. Adding a
+package with a `dev` script means raising it.
 
 ## Running without infrastructure
 

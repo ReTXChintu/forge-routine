@@ -28,5 +28,6 @@
     "clean": {
       "cache": false
     }
-  }
+  },
+  "concurrency": "16"
 }

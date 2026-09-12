@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=!@forgeroutine/sandbox-worker",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
@@ -21,7 +21,9 @@
     "db:seed": "pnpm --filter @forgeroutine/database seed",
     "db:studio": "pnpm --filter @forgeroutine/database studio",
     "clean": "turbo run clean && rimraf node_modules",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "dev:worker": "turbo run dev --filter=@forgeroutine/sandbox-worker",
+    "dev:apps": "turbo run dev --filter=@forgeroutine/web --filter=@forgeroutine/api"
   },
   "devDependencies": {
     "@types/node": "^20.19.9",

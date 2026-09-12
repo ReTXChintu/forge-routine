@@ -48,6 +48,7 @@ export function AppShell() {
 
         <HStack spacing={1} flex="1">
           <NavItem to="/">Dashboard</NavItem>
+          <NavItem to="/roadmap">Roadmap</NavItem>
           <NavItem to="/technologies">Technologies</NavItem>
         </HStack>
 

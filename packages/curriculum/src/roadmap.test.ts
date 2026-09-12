@@ -129,6 +129,33 @@ describe('technology ordering', () => {
     expect(coding.technologyOrder).toEqual([JS, NODE]);
   });
 
+  it('puts a technology with no content last, whatever its priority', () => {
+    // Docker ranks higher but has no generated curriculum. Opening the user's
+    // very first roadmap on a "being prepared" placeholder would make the
+    // product look broken.
+    const DOCKER = 'tech-docker';
+    const result = build({
+      technologies: [
+        { ...tech(DOCKER), name: 'Docker', priority: 'CRITICAL' },
+        tech(JS, { priority: 'LOW' }),
+      ],
+      concepts: [concept('a', JS)],
+    });
+
+    expect(result.technologyOrder).toEqual([JS, DOCKER]);
+  });
+
+  it('still keeps the contentless technology in the path', () => {
+    const DOCKER = 'tech-docker';
+    const result = build({
+      technologies: [{ ...tech(DOCKER), name: 'Docker' }, tech(JS)],
+      concepts: [concept('a', JS)],
+    });
+
+    expect(result.technologyOrder).toContain(DOCKER);
+    expect(result.phases.some((p) => p.technologyId === DOCKER)).toBe(true);
+  });
+
   it('is deterministic when everything ties', () => {
     const args = {
       technologies: [tech(NODE), tech(JS)],

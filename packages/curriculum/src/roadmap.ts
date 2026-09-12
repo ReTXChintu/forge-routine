@@ -201,6 +201,11 @@ function orderTechnologies(input: BuildRoadmapInput): string[] {
     dependsOn.get(from)?.add(to);
   }
 
+  // A technology with no generated curriculum cannot be started. It stays in
+  // the path so the plan reflects the real commitment, but it must never lead:
+  // opening on a placeholder makes the product look broken on first run.
+  const hasContent = new Set(input.concepts.map((c) => c.technologyId));
+
   // Preference score, used only to break ties the dependency graph leaves open.
   const score = (id: string): number => {
     const tech = byId.get(id);
@@ -227,8 +232,14 @@ function orderTechnologies(input: BuildRoadmapInput): string[] {
     const candidates = ready.length > 0 ? ready : [...remaining];
 
     candidates.sort((a, b) => {
+      // Startable work first, whatever the user's stated priority: a phase
+      // they cannot begin is not a useful place to start.
+      const byContent = Number(hasContent.has(b)) - Number(hasContent.has(a));
+      if (byContent !== 0) return byContent;
+
       const byScore = score(b) - score(a);
       if (byScore !== 0) return byScore;
+
       // Stable and predictable when everything else ties.
       return (byId.get(a)?.slug ?? '').localeCompare(byId.get(b)?.slug ?? '');
     });

@@ -84,35 +84,41 @@ export class TechnologiesService {
       return toUserTechnology(restored);
     }
 
-    const created = await this.prisma.$transaction(async (tx) => {
-      const row = await tx.userTechnology.create({
-        data: {
-          userId,
-          technologyId: technology.id,
-          priority: input.priority,
-          targetProficiency: input.targetProficiency,
-          interviewImportance: input.interviewImportance,
-          frequency: input.frequency,
-          existingKnowledge: input.existingKnowledge,
-        },
-        include: { technology: true },
-      });
-
-      if (input.existingKnowledge !== null && input.existingKnowledge > 0) {
-        const concepts = await tx.concept.findMany({
-          where: { technologyId: technology.id, archivedAt: null },
-          select: { id: true },
+    const created = await this.prisma.$transaction(
+      async (tx) => {
+        const row = await tx.userTechnology.create({
+          data: {
+            userId,
+            technologyId: technology.id,
+            priority: input.priority,
+            targetProficiency: input.targetProficiency,
+            interviewImportance: input.interviewImportance,
+            frequency: input.frequency,
+            existingKnowledge: input.existingKnowledge,
+          },
+          include: { technology: true },
         });
-        await this.skills.seedInitialEstimates(
-          tx,
-          userId,
-          concepts.map((c) => c.id),
-          input.existingKnowledge,
-        );
-      }
 
-      return row;
-    });
+        if (input.existingKnowledge !== null && input.existingKnowledge > 0) {
+          const concepts = await tx.concept.findMany({
+            where: { technologyId: technology.id, archivedAt: null },
+            select: { id: true },
+          });
+          await this.skills.seedInitialEstimates(
+            tx,
+            userId,
+            concepts.map((c) => c.id),
+            input.existingKnowledge,
+          );
+        }
+
+        return row;
+      },
+      // Headroom for a remote database. Seeding is bulk now, but a large
+      // curriculum still means real network latency per statement, and the
+      // 5s default is tuned for a local Postgres.
+      { timeout: 20_000 },
+    );
 
     return toUserTechnology(created);
   }

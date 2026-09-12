@@ -71,7 +71,15 @@ describe('onboarding and roadmap', () => {
         // preference: JavaScript must still come first.
         technologies: [
           { technologyId: nodeId, priority: 'CRITICAL', interviewImportance: 5 },
-          { technologyId: javascriptId, priority: 'LOW', interviewImportance: 1 },
+          {
+            technologyId: javascriptId,
+            priority: 'LOW',
+            interviewImportance: 1,
+            // Non-null on purpose: this is what triggers skill seeding, and
+            // seeding used to blow the transaction timeout on a remote
+            // database by issuing three round-trips per concept.
+            existingKnowledge: 0.25,
+          },
         ],
         dailyMinutes: 60,
         primaryGoal: 'INTERVIEW',
@@ -84,6 +92,27 @@ describe('onboarding and roadmap', () => {
     expect(roadmap.totalMinutes).toBeGreaterThan(0);
     expect(roadmap.generatedBy).toBe('rules');
   }, 120_000);
+
+  it('seeded skills from the declared existing knowledge', async () => {
+    const account = await prisma.user.findUnique({ where: { email: user.email } });
+    const skills = await prisma.skill.findMany({
+      where: { userId: account!.id, concept: { technologyId: javascriptId } },
+    });
+
+    expect(skills.length).toBeGreaterThan(0);
+    for (const skill of skills) {
+      expect(skill.conceptMastery).toBeCloseTo(0.25, 2);
+      // Coding ability is seeded lower than mastery: self-assessment is
+      // systematically overconfident about implementation.
+      expect(skill.codingAbility).toBeLessThan(skill.conceptMastery);
+    }
+
+    // The ledger explains where those numbers came from.
+    const events = await prisma.skillEvent.findMany({
+      where: { userId: account!.id, cause: 'INITIAL_ESTIMATE' },
+    });
+    expect(events.length).toBe(skills.length);
+  });
 
   it('scheduled JavaScript before Node.js, despite Node being ranked higher', async () => {
     const response = await http.get('/api/v1/roadmap').set(auth()).expect(200);

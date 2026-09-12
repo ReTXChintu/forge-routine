@@ -30,6 +30,8 @@ export const queryKeys = {
   conceptDetail: (id: string) => ['concepts', 'detail', id] as const,
   exercises: (conceptId: string) => ['exercises', conceptId] as const,
   exercise: (id: string) => ['exercises', 'detail', id] as const,
+  onboardingStatus: ['onboarding', 'status'] as const,
+  roadmap: ['roadmap'] as const,
   overview: ['progress', 'overview'] as const,
   independence: ['progress', 'independence'] as const,
   weakest: ['skills', 'weakest'] as const,
@@ -65,6 +67,122 @@ export function useLogin() {
     onSuccess: (tokens) => {
       tokenStore.set(tokens.accessToken, tokens.refreshToken);
       void queryClient.invalidateQueries();
+    },
+  });
+}
+
+// -- Onboarding and roadmap ---------------------------------------------------
+
+export interface OnboardingStatus {
+  completed: boolean;
+  technologyCount: number;
+  awaitingContent: boolean;
+  hasRoadmap: boolean;
+}
+
+export interface RoadmapItemView {
+  id: string;
+  kind: string;
+  status: string;
+  title: string;
+  rationale: string;
+  estimatedMinutes: number;
+  conceptId: string | null;
+  exerciseId: string | null;
+}
+
+export interface RoadmapPhaseView {
+  id: string;
+  orderIndex: number;
+  title: string;
+  goal: string;
+  estimatedMinutes: number;
+  items: RoadmapItemView[];
+  doneCount: number;
+}
+
+export interface RoadmapView {
+  id: string;
+  version: number;
+  status: string;
+  generatedBy: string;
+  totalMinutes: number;
+  completedMinutes: number;
+  phases: RoadmapPhaseView[];
+  currentItemId: string | null;
+}
+
+export interface CompleteOnboardingBody {
+  technologies: {
+    technologyId?: string;
+    name?: string;
+    existingKnowledge?: number | null;
+    interviewImportance?: number;
+  }[];
+  dailyMinutes: number;
+  primaryGoal: string;
+  interviewTarget: string;
+  interviewDate: string | null;
+}
+
+export function useOnboardingStatus(): UseQueryResult<OnboardingStatus> {
+  return useQuery({
+    queryKey: queryKeys.onboardingStatus,
+    queryFn: () => apiRequest<OnboardingStatus>('/onboarding/status'),
+    // The first-run redirect depends on this, so a stale answer would bounce
+    // the user back into onboarding they have already finished.
+    staleTime: 0,
+  });
+}
+
+export function useCompleteOnboarding() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CompleteOnboardingBody) =>
+      apiRequest<{ roadmap: RoadmapView; awaitingTechnologies: string[] }>('/onboarding/complete', {
+        method: 'POST',
+        body: input,
+      }),
+    onSuccess: () => {
+      // Onboarding writes technologies, preferences and a roadmap in one go.
+      void queryClient.invalidateQueries();
+    },
+  });
+}
+
+export function useRoadmap(): UseQueryResult<RoadmapView | null> {
+  return useQuery({
+    queryKey: queryKeys.roadmap,
+    queryFn: async () => {
+      const result = await apiRequest<RoadmapView | null>('/roadmap');
+      // An empty body means no roadmap yet, not an empty roadmap.
+      return result && Object.keys(result).length > 0 ? result : null;
+    },
+  });
+}
+
+export function useRegenerateRoadmap() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => apiRequest<RoadmapView>('/roadmap/regenerate', { method: 'POST' }),
+    onSuccess: (roadmap) => {
+      queryClient.setQueryData(queryKeys.roadmap, roadmap);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.overview });
+    },
+  });
+}
+
+export function useUpdateRoadmapItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      apiRequest<RoadmapItemView>(`/roadmap/items/${id}`, { method: 'PATCH', body: { status } }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.roadmap });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.overview });
     },
   });
 }

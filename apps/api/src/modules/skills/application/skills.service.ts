@@ -191,25 +191,51 @@ export class SkillsService {
     conceptIds: readonly string[],
     existingKnowledge: number,
   ): Promise<void> {
+    if (conceptIds.length === 0) return;
+
     const mastery = unit(existingKnowledge);
     const coding = unit(existingKnowledge * 0.6);
 
-    for (const conceptId of conceptIds) {
-      await this.applyEvidenceIn(tx, {
+    // Bulk, not a loop over applyEvidenceIn.
+    //
+    // That loop cost three round-trips per concept inside a single
+    // transaction, so seeding a technology against a remote database blew the
+    // 5s transaction timeout somewhere around the tenth concept. Raising the
+    // timeout would only move the failure to a larger curriculum; this is
+    // three queries regardless of how many concepts there are.
+    //
+    // There is also nothing to average against here, so the read-modify-write
+    // that applyEvidenceIn performs buys nothing.
+    await tx.skill.createMany({
+      data: conceptIds.map((conceptId) => ({
         userId,
         conceptId,
-        cause: 'INITIAL_ESTIMATE',
+        conceptMastery: mastery,
+        recallStrength: round(mastery * 0.8),
+        codingAbility: coding,
+        confidence: mastery,
+      })),
+      // A concept the user has genuinely practised keeps its real history: a
+      // coarse self-rating must never overwrite measured evidence.
+      skipDuplicates: true,
+    });
+
+    const seeded = await tx.skill.findMany({
+      where: { userId, conceptId: { in: [...conceptIds] } },
+      select: { id: true, conceptId: true },
+    });
+
+    await tx.skillEvent.createMany({
+      data: seeded.map((skill) => ({
+        userId,
+        skillId: skill.id,
+        dimension: 'conceptMastery',
+        before: 0,
+        after: mastery,
+        cause: 'INITIAL_ESTIMATE' as const,
         note: 'Self-declared existing knowledge',
-        // Rate 1.0: there is nothing to average against yet.
-        learningRate: 1,
-        evidence: {
-          conceptMastery: mastery,
-          recallStrength: mastery * 0.8,
-          codingAbility: coding,
-          confidence: mastery,
-        },
-      });
-    }
+      })),
+    });
   }
 }
 

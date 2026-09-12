@@ -29,6 +29,7 @@ interface Command {
 
 const COMMANDS: Command[] = [
   { id: 'dashboard', label: 'Open dashboard', run: (n) => n('/') },
+  { id: 'roadmap', label: 'Open roadmap', hint: 'Your whole path', run: (n) => n('/roadmap') },
   { id: 'routine', label: "Start today's routine", run: (n) => n('/') },
   { id: 'technologies', label: 'Add technology', run: (n) => n('/technologies') },
   { id: 'skills', label: 'Review weak skills', hint: 'Weakest first', run: (n) => n('/skills') },

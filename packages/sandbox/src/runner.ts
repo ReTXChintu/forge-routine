@@ -39,8 +39,12 @@ export interface SandboxOptions {
   timeoutMs: number;
   maxMemoryMb: number;
   maxOutputBytes: number;
-  /** Set false only if the Node permission model is unavailable; see `probePermissionModel`. */
-  usePermissionModel?: boolean;
+  /**
+   * Which permission-model flag this Node accepts, or null when it supports
+   * none. Resolve it once with `detectPermissionFlag`; see the note there for
+   * why this is not a boolean.
+   */
+  permissionFlag?: PermissionFlag | null;
   nodeExecutable?: string;
 }
 
@@ -122,9 +126,9 @@ interface SpawnOutcome {
 function spawnHarness(runDir: string, options: SandboxOptions): Promise<SpawnOutcome> {
   const args: string[] = [`--max-old-space-size=${options.maxMemoryMb}`];
 
-  if (options.usePermissionModel !== false) {
+  if (options.permissionFlag) {
     args.push(
-      '--experimental-permission',
+      options.permissionFlag,
       `--allow-fs-read=${runDir}`,
       `--allow-fs-read=${join(runDir, '*')}`,
       `--allow-fs-write=${join(runDir, 'result.json')}`,
@@ -274,42 +278,72 @@ function truncate(value: string, max: number): string {
 }
 
 /**
+ * Which command-line flag enables Node's permission model.
+ *
+ * Node renamed this when the feature stabilised: `--experimental-permission`
+ * through Node 22, `--permission` from 23.5 onwards, with the old spelling
+ * removed. Probing only one name means the sandbox silently loses filesystem
+ * isolation on half the versions people actually run — which is why this
+ * returns the flag rather than a boolean.
+ */
+export type PermissionFlag = '--permission' | '--experimental-permission';
+
+/** Newest spelling first, so a modern runtime is not handed the deprecated one. */
+const PERMISSION_FLAGS: readonly PermissionFlag[] = ['--permission', '--experimental-permission'];
+
+/**
  * One-time probe for Node permission-model support.
  *
- * The flag is experimental and platform-sensitive. On Windows, Node 20 aborts with
- * a native assertion (`!path_prefix.empty()`) when given a drive-letter path, so a
- * naive probe using `--allow-fs-read=*` reports support that does not actually
- * work for real paths.
+ * The probe uses exactly the flag shapes `spawnHarness` uses, against a real
+ * temporary directory, because a cheaper check is actively misleading: on
+ * Windows, Node aborts with a native assertion (`!path_prefix.empty()`) when
+ * given a drive-letter path, yet accepts `--allow-fs-read=*` happily. A probe
+ * using the wildcard reports support that does not work for real paths.
  *
- * This probe therefore uses exactly the flag shapes `spawnHarness` uses, against a
- * real temporary directory. Detecting it once at startup means the operator gets
- * one clear warning instead of a HARNESS_ERROR on every submission.
+ * Resolved once at startup so the operator gets one clear warning instead of a
+ * failure on every submission.
+ *
+ * @returns the flag to use, or null when no permission model is available.
  */
-export async function probePermissionModel(nodeExecutable = process.execPath): Promise<boolean> {
+export async function detectPermissionFlag(
+  nodeExecutable = process.execPath,
+): Promise<PermissionFlag | null> {
   const probeDir = resolve(tmpdir(), `forge-permission-probe-${randomUUID()}`);
 
   try {
     await mkdir(probeDir, { recursive: true });
     await writeFile(join(probeDir, 'probe.mjs'), 'process.exit(0);\n', 'utf8');
 
-    return await new Promise<boolean>((resolvePromise) => {
-      const child = spawn(
-        nodeExecutable,
-        [
-          '--experimental-permission',
-          `--allow-fs-read=${probeDir}`,
-          `--allow-fs-read=${join(probeDir, '*')}`,
-          `--allow-fs-write=${join(probeDir, 'result.json')}`,
-          join(probeDir, 'probe.mjs'),
-        ],
-        { stdio: 'ignore', windowsHide: true },
-      );
-      child.on('error', () => resolvePromise(false));
-      child.on('close', (code) => resolvePromise(code === 0));
-    });
+    for (const flag of PERMISSION_FLAGS) {
+      if (await flagWorks(nodeExecutable, flag, probeDir)) return flag;
+    }
+
+    return null;
   } catch {
-    return false;
+    return null;
   } finally {
     await rm(probeDir, { recursive: true, force: true }).catch(() => undefined);
   }
+}
+
+function flagWorks(
+  nodeExecutable: string,
+  flag: PermissionFlag,
+  probeDir: string,
+): Promise<boolean> {
+  return new Promise<boolean>((resolvePromise) => {
+    const child = spawn(
+      nodeExecutable,
+      [
+        flag,
+        `--allow-fs-read=${probeDir}`,
+        `--allow-fs-read=${join(probeDir, '*')}`,
+        `--allow-fs-write=${join(probeDir, 'result.json')}`,
+        join(probeDir, 'probe.mjs'),
+      ],
+      { stdio: 'ignore', windowsHide: true },
+    );
+    child.on('error', () => resolvePromise(false));
+    child.on('close', (code) => resolvePromise(code === 0));
+  });
 }

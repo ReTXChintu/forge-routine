@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { type SandboxOptions, probePermissionModel, runInSandbox } from '@forgeroutine/sandbox';
+import { type SandboxOptions, detectPermissionFlag, runInSandbox } from '@forgeroutine/sandbox';
 
 import { DEBUGGING_EXERCISES } from './debugging.js';
 
@@ -28,7 +28,7 @@ beforeAll(async () => {
     timeoutMs: 5_000,
     maxMemoryMb: 128,
     maxOutputBytes: 8_192,
-    usePermissionModel: await probePermissionModel(),
+    permissionFlag: await detectPermissionFlag(),
   };
 });
 

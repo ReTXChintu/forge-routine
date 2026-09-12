@@ -54,16 +54,30 @@ Both drivers end at the same `SandboxRunner`. The difference is only _who_ invok
 | CPU limit                | Wall-clock timeout only                                      | **Partial**                 |
 | User/namespace isolation | Not implemented                                              | **Not done**                |
 
+### The flag is not called the same thing on every Node
+
+Node renamed the permission model when it stabilised:
+
+| Node       | Flag                                  |
+| ---------- | ------------------------------------- |
+| 20 – 22    | `--experimental-permission`           |
+| 23.5+ / 24 | `--permission` (old spelling removed) |
+
+`detectPermissionFlag()` probes the newer name first and falls back, returning _which_ flag
+works rather than a boolean. Probing only one name would silently disable filesystem
+isolation on every version that uses the other — a security property quietly lost to a
+rename. CI runs the suite on both Node 22 and 24 so that difference cannot go unnoticed.
+
 ### Windows: the permission model is unavailable
 
 Node 20's `--experimental-permission` **aborts with a native assertion**
 (`!path_prefix.empty()` in `fs_permission.h`) when given a Windows drive-letter path. It is
 not a graceful failure — the process dies before the harness runs.
 
-`probePermissionModel()` therefore runs a real scoped-path probe at startup rather than
-trusting the flag's presence, and the runner drops the permission flags when the probe fails.
-A naive probe using `--allow-fs-read=*` reports success and is wrong, which is exactly the
-trap this avoids.
+`detectPermissionFlag()` therefore runs a real scoped-path probe at startup rather than
+trusting the flag's presence, and the runner drops the permission flags when every probe
+fails. A naive probe using `--allow-fs-read=*` reports success and is wrong, which is exactly
+the trap this avoids.
 
 Consequence: **on Windows, filesystem and subprocess isolation are absent.** Timeout, memory,
 output, and environment isolation still hold. Windows is a development platform here;

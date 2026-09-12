@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { type SandboxOptions, probePermissionModel, runInSandbox } from './runner.js';
+import { type SandboxOptions, detectPermissionFlag, runInSandbox } from './runner.js';
 
 /**
  * These tests execute real child processes. They are slower than unit tests and
@@ -17,14 +17,14 @@ let options: SandboxOptions;
 
 beforeAll(async () => {
   workDir = await mkdtemp(join(tmpdir(), 'forge-sandbox-test-'));
-  const usePermissionModel = await probePermissionModel();
+  const permissionFlag = await detectPermissionFlag();
 
   options = {
     workDir,
     timeoutMs: 5_000,
     maxMemoryMb: 128,
     maxOutputBytes: 8_192,
-    usePermissionModel,
+    permissionFlag,
   };
 });
 
@@ -353,5 +353,63 @@ assert.throws(() => assert.deepEqual({ a: 1 }, { a: 2 }));`,
     );
 
     expect(result.passed).toBe(true);
+  }, 20_000);
+});
+
+describe('detectPermissionFlag', () => {
+  it('returns a flag this runtime actually accepts, or null', async () => {
+    const flag = await detectPermissionFlag();
+
+    expect([null, '--permission', '--experimental-permission']).toContain(flag);
+  }, 20_000);
+
+  it('resolves to the same answer every time', async () => {
+    const [a, b] = await Promise.all([detectPermissionFlag(), detectPermissionFlag()]);
+
+    expect(a).toBe(b);
+  }, 20_000);
+
+  it('reports null rather than throwing when the executable is missing', async () => {
+    // A wrong NODE path must degrade to "no isolation" with a warning, not
+    // crash every submission.
+    expect(await detectPermissionFlag('definitely-not-a-real-node-binary')).toBeNull();
+  }, 20_000);
+
+  it('never returns a flag the runtime rejects', async () => {
+    // The bug this guards: Node renamed --experimental-permission to
+    // --permission in 23.5+. Probing only one name silently disables
+    // filesystem isolation on every version that uses the other.
+    const flag = await detectPermissionFlag();
+    if (flag === null) return;
+
+    const result = await runInSandbox(
+      {
+        language: 'javascript',
+        code: 'export default () => 42;',
+        testCases: [
+          {
+            name: 'runs under the permission model',
+            hidden: false,
+            code: 'assert.equal(solution(), 42);',
+          },
+        ],
+      },
+      { ...options, permissionFlag: flag },
+    );
+
+    expect(result.status).toBe('PASSED');
+  }, 20_000);
+
+  it('still executes correctly with the permission model disabled', async () => {
+    const result = await runInSandbox(
+      {
+        language: 'javascript',
+        code: 'export default () => 42;',
+        testCases: [{ name: 'runs', hidden: false, code: 'assert.equal(solution(), 42);' }],
+      },
+      { ...options, permissionFlag: null },
+    );
+
+    expect(result.status).toBe('PASSED');
   }, 20_000);
 });

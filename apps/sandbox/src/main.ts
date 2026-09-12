@@ -1,7 +1,7 @@
 import { Worker } from 'bullmq';
 
 import { loadConfig } from '@forgeroutine/config';
-import { probePermissionModel, runInSandbox, type SandboxJob } from '@forgeroutine/sandbox';
+import { detectPermissionFlag, runInSandbox, type SandboxJob } from '@forgeroutine/sandbox';
 import type { ExecutionResult } from '@forgeroutine/shared-types';
 
 /**
@@ -26,8 +26,8 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const usePermissionModel = await probePermissionModel();
-  if (!usePermissionModel) {
+  const permissionFlag = await detectPermissionFlag();
+  if (permissionFlag === null) {
     console.warn(
       '[sandbox] Node permission model unavailable: filesystem isolation is OFF. ' +
         'Timeout, memory, output and environment isolation still apply. ' +
@@ -43,7 +43,7 @@ async function main(): Promise<void> {
         timeoutMs: env.EXECUTION_TIMEOUT_MS,
         maxMemoryMb: env.EXECUTION_MAX_MEMORY_MB,
         maxOutputBytes: env.EXECUTION_MAX_OUTPUT_BYTES,
-        usePermissionModel,
+        permissionFlag,
       }),
     {
       connection: { url: env.REDIS_URL },

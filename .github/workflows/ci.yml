@@ -80,6 +80,11 @@ jobs:
       - name: Seed check
         run: pnpm db:seed
 
+      - name: Vertical slice (end to end)
+        # The §48 milestone, against a real database and a real sandbox.
+        # No OPENAI_API_KEY here, so the evaluator exercises its degraded path.
+        run: pnpm --filter @forgeroutine/api test:e2e
+
   format:
     name: Formatting
     runs-on: ubuntu-latest

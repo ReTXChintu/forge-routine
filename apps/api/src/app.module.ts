@@ -9,7 +9,9 @@ import { ConceptsModule } from './modules/concepts/concepts.module.js';
 import { CurriculumModule } from './modules/curriculum/curriculum.module.js';
 import { ExercisesModule } from './modules/exercises/exercises.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
 import { ProgressModule } from './modules/progress/progress.module.js';
+import { RoadmapModule } from './modules/roadmap/roadmap.module.js';
 import { SessionsModule } from './modules/sessions/sessions.module.js';
 import { SkillsModule } from './modules/skills/skills.module.js';
 import { SubmissionsModule } from './modules/submissions/submissions.module.js';
@@ -33,6 +35,8 @@ import { TechnologiesModule } from './modules/technologies/technologies.module.j
     TechnologiesModule,
     ConceptsModule,
     SkillsModule,
+    RoadmapModule,
+    OnboardingModule,
     SessionsModule,
     ExercisesModule,
     SubmissionsModule,

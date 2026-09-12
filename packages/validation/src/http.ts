@@ -84,6 +84,48 @@ export const updateUserTechnologySchema = z
 export type AddTechnologyInput = z.infer<typeof addTechnologySchema>;
 export type UpdateUserTechnologyInput = z.infer<typeof updateUserTechnologySchema>;
 
+// -- Onboarding ---------------------------------------------------------------
+
+/**
+ * The first-run flow (docs/learning-path.md). Every field is optional except
+ * the technology list: a user who abandons onboarding still gets a usable
+ * product, just a generic path.
+ */
+export const completeOnboardingSchema = z.object({
+  technologies: z
+    .array(
+      z.object({
+        technologyId: cuidSchema.optional(),
+        /** For anything not in the catalogue. Technologies are data (§41). */
+        name: z.string().min(1).max(60).trim().optional(),
+        priority: prioritySchema.default('NORMAL'),
+        targetProficiency: targetProficiencySchema.default('WORKING'),
+        interviewImportance: z.number().int().min(0).max(5).default(3),
+        /**
+         * Coarse on purpose. Precise self-assessment is exactly the thing this
+         * product distrusts, so the UI offers four buckets, not a slider.
+         */
+        existingKnowledge: unitScoreSchema.nullable().default(null),
+      }),
+    )
+    .min(1, 'Pick at least one technology')
+    .max(20, 'Start with fewer than twenty'),
+  dailyMinutes: dailyMinutesSchema.default(45),
+  primaryGoal: primaryGoalSchema.default('CODING'),
+  interviewTarget: interviewTargetSchema.default('MID'),
+  /** Optional. A real date reorders everything downstream toward readiness. */
+  interviewDate: z.string().date().nullable().default(null),
+  timezone: z.string().min(1).max(64).default('UTC'),
+});
+
+export type CompleteOnboardingInput = z.infer<typeof completeOnboardingSchema>;
+
+export const updateRoadmapItemSchema = z.object({
+  status: z.enum(['PENDING', 'IN_PROGRESS', 'DONE', 'SKIPPED']),
+});
+
+export type UpdateRoadmapItemInput = z.infer<typeof updateRoadmapItemSchema>;
+
 // -- Concepts ----------------------------------------------------------------
 
 export const listConceptsSchema = z.object({

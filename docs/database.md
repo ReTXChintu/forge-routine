@@ -82,14 +82,14 @@ environment for prompt-regression debugging.
 
 The queries that must stay fast:
 
-| Query | Index |
-| --- | --- |
-| Today's due reviews | `ReviewSchedule(userId, dueAt)` partial on `archivedAt IS NULL` |
-| Weakest skills for a user | `Skill(userId, codingAbility)`, `Skill(userId, conceptMastery)` |
-| Attempts in the ICS window | `ExerciseAttempt(userId, createdAt DESC)` |
-| Concept lookup by slug | `Concept(technologyId, slug)` unique |
-| Prerequisite traversal | `ConceptPrerequisite(conceptId)` and `(prerequisiteId)` |
-| Daily token budget | `TokenUsageDaily(userId, day)` unique |
+| Query                      | Index                                                           |
+| -------------------------- | --------------------------------------------------------------- |
+| Today's due reviews        | `ReviewSchedule(userId, dueAt)` partial on `archivedAt IS NULL` |
+| Weakest skills for a user  | `Skill(userId, codingAbility)`, `Skill(userId, conceptMastery)` |
+| Attempts in the ICS window | `ExerciseAttempt(userId, createdAt DESC)`                       |
+| Concept lookup by slug     | `Concept(technologyId, slug)` unique                            |
+| Prerequisite traversal     | `ConceptPrerequisite(conceptId)` and `(prerequisiteId)`         |
+| Daily token budget         | `TokenUsageDaily(userId, day)` unique                           |
 
 ## Migrations
 
@@ -101,13 +101,13 @@ endpoint — Prisma migrations require a direct connection.
 
 ## Redis usage (§29)
 
-| Purpose | Key shape | TTL |
-| --- | --- | --- |
-| Knowledge-graph traversal cache | `kg:transitive:<conceptId>:<graphVersion>` | 24h |
-| Session scratch | `session:<sessionId>` | 12h |
-| Rate limiting | `rl:<scope>:<subject>` | window |
-| Execution queue | BullMQ `execution` | — |
-| Daily token counter | `ai:budget:<userId>:<day>` | 48h |
+| Purpose                         | Key shape                                  | TTL    |
+| ------------------------------- | ------------------------------------------ | ------ |
+| Knowledge-graph traversal cache | `kg:transitive:<conceptId>:<graphVersion>` | 24h    |
+| Session scratch                 | `session:<sessionId>`                      | 12h    |
+| Rate limiting                   | `rl:<scope>:<subject>`                     | window |
+| Execution queue                 | BullMQ `execution`                         | —      |
+| Daily token counter             | `ai:budget:<userId>:<day>`                 | 48h    |
 
 Losing Redis entirely degrades performance and disables queued execution. It loses no
 learning state. That property is a hard requirement, not an accident.

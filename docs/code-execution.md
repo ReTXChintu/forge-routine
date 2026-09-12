@@ -29,7 +29,7 @@ apps/api
                                        --max-old-space-size=<cap>
 ```
 
-Both drivers end at the same `SandboxRunner`. The difference is only *who* invokes it:
+Both drivers end at the same `SandboxRunner`. The difference is only _who_ invokes it:
 
 - **`inline`** — the API spawns the child process itself. No Redis required. Correct for
   single-node development and small deployments. Still fully out-of-process.
@@ -40,19 +40,19 @@ Both drivers end at the same `SandboxRunner`. The difference is only *who* invok
 
 ## Isolation controls
 
-| Control | Mechanism | Status |
-| --- | --- | --- |
-| Execution timeout | `SIGKILL` on the process group after `EXECUTION_TIMEOUT_MS` | Enforced (verified by test) |
-| Memory limit | `--max-old-space-size` | Enforced |
-| Output limit | Truncated at `EXECUTION_MAX_OUTPUT_BYTES` in the harness | Enforced (verified by test) |
-| Environment stripping | Child receives an explicit minimal env; no secrets inherited | Enforced (verified by test) |
-| Result-channel integrity | Results travel via `result.json`, never stdout | Enforced (verified by test) |
-| Filesystem isolation | Node permission model, scoped to the run directory | **Linux/macOS only** |
-| Process limits | No `child_process` (blocked by the permission model) | **Linux/macOS only** |
-| Process-group kill | `kill(-pid)` reaches grandchildren | **POSIX only** |
-| Network restrictions | Not implemented | **Not done** |
-| CPU limit | Wall-clock timeout only | **Partial** |
-| User/namespace isolation | Not implemented | **Not done** |
+| Control                  | Mechanism                                                    | Status                      |
+| ------------------------ | ------------------------------------------------------------ | --------------------------- |
+| Execution timeout        | `SIGKILL` on the process group after `EXECUTION_TIMEOUT_MS`  | Enforced (verified by test) |
+| Memory limit             | `--max-old-space-size`                                       | Enforced                    |
+| Output limit             | Truncated at `EXECUTION_MAX_OUTPUT_BYTES` in the harness     | Enforced (verified by test) |
+| Environment stripping    | Child receives an explicit minimal env; no secrets inherited | Enforced (verified by test) |
+| Result-channel integrity | Results travel via `result.json`, never stdout               | Enforced (verified by test) |
+| Filesystem isolation     | Node permission model, scoped to the run directory           | **Linux/macOS only**        |
+| Process limits           | No `child_process` (blocked by the permission model)         | **Linux/macOS only**        |
+| Process-group kill       | `kill(-pid)` reaches grandchildren                           | **POSIX only**              |
+| Network restrictions     | Not implemented                                              | **Not done**                |
+| CPU limit                | Wall-clock timeout only                                      | **Partial**                 |
+| User/namespace isolation | Not implemented                                              | **Not done**                |
 
 ### Windows: the permission model is unavailable
 

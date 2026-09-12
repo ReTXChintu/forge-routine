@@ -67,12 +67,7 @@ export type LearningFrequency = 'DAILY' | 'FREQUENT' | 'OCCASIONAL' | 'RARE';
 export type PrerequisiteStrength = 'HARD' | 'SOFT';
 
 export type ExerciseKind =
-  | 'CODING'
-  | 'RECALL'
-  | 'DEBUGGING'
-  | 'BLIND_CODING'
-  | 'EXPLANATION'
-  | 'PROJECT';
+  'CODING' | 'RECALL' | 'DEBUGGING' | 'BLIND_CODING' | 'EXPLANATION' | 'PROJECT';
 
 export type ExerciseDifficulty = 1 | 2 | 3 | 4 | 5;
 
@@ -100,24 +95,12 @@ export const INTERNAL_EXECUTION_FAILURES: readonly ExecutionStatus[] = [
 export type CurriculumStatus = 'GENERATING' | 'ACTIVE' | 'SUPERSEDED' | 'FAILED';
 
 export type RoutineItemKind =
-  | 'LEARN'
-  | 'RECALL'
-  | 'CODE'
-  | 'BLIND_CODE'
-  | 'DEBUG'
-  | 'EXPLAIN'
-  | 'REVIEW'
-  | 'INTERVIEW';
+  'LEARN' | 'RECALL' | 'CODE' | 'BLIND_CODE' | 'DEBUG' | 'EXPLAIN' | 'REVIEW' | 'INTERVIEW';
 
 export type RoutineItemStatus = 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'SKIPPED';
 
 export type InterviewMode =
-  | 'QUICK'
-  | 'TECHNICAL'
-  | 'CODING'
-  | 'DEBUGGING'
-  | 'SYSTEM_DESIGN'
-  | 'SENIOR';
+  'QUICK' | 'TECHNICAL' | 'CODING' | 'DEBUGGING' | 'SYSTEM_DESIGN' | 'SENIOR';
 
 export type InterviewTarget = 'JUNIOR' | 'MID' | 'SENIOR';
 
@@ -126,13 +109,7 @@ export type PrimaryGoal = 'CODING' | 'INTERVIEW' | 'JOB_PREPARATION' | 'ENGINEER
 export type DailyMinutes = 30 | 45 | 60 | 90 | 120;
 
 export type AIAgentName =
-  | 'tutor'
-  | 'evaluator'
-  | 'interviewer'
-  | 'debugger'
-  | 'curriculum'
-  | 'reviewer'
-  | 'planner';
+  'tutor' | 'evaluator' | 'interviewer' | 'debugger' | 'curriculum' | 'reviewer' | 'planner';
 
 export type AIModelTier = 'fast' | 'reasoning';
 

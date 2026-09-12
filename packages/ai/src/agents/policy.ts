@@ -77,8 +77,7 @@ export interface GateInput {
 }
 
 export type GateDecision =
-  | { allowed: true }
-  | { allowed: false; reason: string; requiresOverride: boolean };
+  { allowed: true } | { allowed: false; reason: string; requiresOverride: boolean };
 
 /**
  * The user cannot jump straight to SHOW_SOLUTION on first contact. A lower rung,
@@ -189,10 +188,7 @@ export function stripCodeBlocks(text: string): { text: string; redacted: boolean
 }
 
 /** Applies the guard only below SHOW_SOLUTION, where code is legitimately expected. */
-export function enforceNoCode(
-  kind: HintKind,
-  text: string,
-): { text: string; redacted: boolean } {
+export function enforceNoCode(kind: HintKind, text: string): { text: string; redacted: boolean } {
   if (kind === 'SHOW_SOLUTION') return { text, redacted: false };
   return stripCodeBlocks(text);
 }

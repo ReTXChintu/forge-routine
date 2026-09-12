@@ -1,10 +1,23 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import type { ExerciseView, StartAttemptResponse } from '@forgeroutine/shared-types';
 import { startAttemptSchema, type StartAttemptInput } from '@forgeroutine/validation';
 
-import { CurrentUser, type AuthenticatedUser } from '../../../common/http/current-user.decorator.js';
+import {
+  CurrentUser,
+  type AuthenticatedUser,
+} from '../../../common/http/current-user.decorator.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard.js';
 import { type ExercisesService } from '../application/exercises.service.js';
@@ -26,10 +39,7 @@ export class ExercisesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'One exercise, projected to the user’s assistance level' })
-  detail(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-  ): Promise<ExerciseView> {
+  detail(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string): Promise<ExerciseView> {
     return this.exercises.getView(user.userId, id);
   }
 

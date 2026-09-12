@@ -1,0 +1,20 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    prefer_single_quotes: true
+    always_declare_return_types: true
+    avoid_print: true
+    prefer_const_constructors: true
+    prefer_final_locals: true
+
+analyzer:
+  errors:
+    missing_required_param: error
+    missing_return: error
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - build/**
+    - android/**
+    - ios/**

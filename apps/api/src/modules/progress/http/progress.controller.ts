@@ -3,7 +3,10 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import type { DashboardOverview, IndependentCodingScore } from '@forgeroutine/shared-types';
 
-import { CurrentUser, type AuthenticatedUser } from '../../../common/http/current-user.decorator.js';
+import {
+  CurrentUser,
+  type AuthenticatedUser,
+} from '../../../common/http/current-user.decorator.js';
 import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard.js';
 import { type ProgressService } from '../application/progress.service.js';
 

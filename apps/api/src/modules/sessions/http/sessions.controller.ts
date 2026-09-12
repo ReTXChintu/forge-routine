@@ -1,11 +1,23 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { z } from 'zod';
 
 import type { LearningSession } from '@forgeroutine/shared-types';
 import { startSessionSchema } from '@forgeroutine/validation';
 
-import { CurrentUser, type AuthenticatedUser } from '../../../common/http/current-user.decorator.js';
+import {
+  CurrentUser,
+  type AuthenticatedUser,
+} from '../../../common/http/current-user.decorator.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard.js';
 import { type SessionsService } from '../application/sessions.service.js';

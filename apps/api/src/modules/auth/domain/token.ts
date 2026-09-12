@@ -33,10 +33,7 @@ export type RefreshOutcome =
  * family: the cost is one forced re-login, and the alternative is leaving a live
  * session in an attacker's hands.
  */
-export function classifyRefreshToken(
-  record: RefreshTokenRecord | null,
-  now: Date,
-): RefreshOutcome {
+export function classifyRefreshToken(record: RefreshTokenRecord | null, now: Date): RefreshOutcome {
   if (!record) return { kind: 'UNKNOWN' };
   if (record.usedAt !== null) return { kind: 'REUSE_DETECTED', familyId: record.familyId };
   if (record.revokedAt !== null) return { kind: 'REVOKED' };

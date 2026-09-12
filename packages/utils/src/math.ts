@@ -42,9 +42,7 @@ export function recencyWeight(ageDays: number, halfLifeDays = 30): number {
   return Math.pow(0.5, ageDays / halfLifeDays);
 }
 
-export function weightedMean(
-  entries: readonly { value: number; weight: number }[],
-): number {
+export function weightedMean(entries: readonly { value: number; weight: number }[]): number {
   const totalWeight = entries.reduce((sum, e) => sum + e.weight, 0);
   if (totalWeight === 0) return 0;
   return entries.reduce((sum, e) => sum + e.value * e.weight, 0) / totalWeight;

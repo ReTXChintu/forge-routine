@@ -96,8 +96,7 @@ export function computeIndependentCodingScore(
     attemptsConsidered: inWindow.length,
     windowDays,
     components,
-    deltaFromPreviousWindow:
-      previous === null ? null : round((score - previous) * 100, 1),
+    deltaFromPreviousWindow: previous === null ? null : round((score - previous) * 100, 1),
   };
 }
 
@@ -164,9 +163,7 @@ function computeComponents(
       ? // Nothing was failed in this window, so there is nothing to recover from.
         // Neutral rather than zero: absence of failure is not absence of ability.
         0.5
-      : unit(
-          new Set(reattempts.map((a) => a.conceptId)).size / previouslyFailedConcepts.size,
-        );
+      : unit(new Set(reattempts.map((a) => a.conceptId)).size / previouslyFailedConcepts.size);
 
   const levelWeight = unit(mean(attempts.map((a) => a.assistanceLevel)) / 5);
 

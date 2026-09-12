@@ -11,15 +11,15 @@ separately and trains the second directly.
 ## Assistance ladder
 
 Every exercise exists at one of five assistance levels. The level is a property of the
-*attempt*, not only of the exercise — the same problem can be re-served at a higher level.
+_attempt_, not only of the exercise — the same problem can be re-served at a higher level.
 
-| Level | Name | Given to the user | Measures |
-| --- | --- | --- | --- |
-| 1 | Guided | Requirements, hints, signature, worked examples | Comprehension |
-| 2 | Partial | Requirements, function signature | Implementation inside a frame |
-| 3 | Recall | Problem statement only | Structure + algorithm recall |
-| 4 | Blank | A one-line objective | Full independent production |
-| 5 | Interview | Realistic problem, AI off by default | Performance under interview conditions |
+| Level | Name      | Given to the user                               | Measures                               |
+| ----- | --------- | ----------------------------------------------- | -------------------------------------- |
+| 1     | Guided    | Requirements, hints, signature, worked examples | Comprehension                          |
+| 2     | Partial   | Requirements, function signature                | Implementation inside a frame          |
+| 3     | Recall    | Problem statement only                          | Structure + algorithm recall           |
+| 4     | Blank     | A one-line objective                            | Full independent production            |
+| 5     | Interview | Realistic problem, AI off by default            | Performance under interview conditions |
 
 Level 4 example — the entire prompt the user sees:
 
@@ -34,7 +34,7 @@ Promotion requires **evidence, repeated**:
 ```
 promote(user, concept):
   last3 ← last 3 attempts at current level for this concept
-  require all(passed) 
+  require all(passed)
       and mean(aiRequests) <= 1
       and no solution reveals
       and mean(timeToFirstCode) within 1.5× the level baseline
@@ -83,20 +83,20 @@ Guards:
 
 ## Signals collected per attempt
 
-| Signal | How it is obtained | Trustworthy? |
-| --- | --- | --- |
-| `timeToFirstCodeMs` | First editor keystroke − exercise open | Yes |
-| `aiRequestCount` | Server-side count of assistance calls | Yes, authoritative |
-| `hintLevelsUsed` | Server-side | Yes |
-| `solutionRevealed` | Server-side | Yes |
-| `totalDurationMs` | Client, server-clamped | Mostly |
-| `keystrokeCount` | Client editor events | Advisory only |
-| `largePasteEvents` | Monaco paste events > 120 chars | Advisory only |
-| `passed` / `testsPassed` | Sandbox execution | Yes, ground truth |
+| Signal                   | How it is obtained                     | Trustworthy?       |
+| ------------------------ | -------------------------------------- | ------------------ |
+| `timeToFirstCodeMs`      | First editor keystroke − exercise open | Yes                |
+| `aiRequestCount`         | Server-side count of assistance calls  | Yes, authoritative |
+| `hintLevelsUsed`         | Server-side                            | Yes                |
+| `solutionRevealed`       | Server-side                            | Yes                |
+| `totalDurationMs`        | Client, server-clamped                 | Mostly             |
+| `keystrokeCount`         | Client editor events                   | Advisory only      |
+| `largePasteEvents`       | Monaco paste events > 120 chars        | Advisory only      |
+| `passed` / `testsPassed` | Sandbox execution                      | Yes, ground truth  |
 
 Client-reported signals are **advisory**: they inform coaching messages but never the score,
 because they are trivially falsifiable. The score rests only on server-observed facts.
-`largePasteEvents` is explicitly *not* framed to the user as cheating detection — it triggers
+`largePasteEvents` is explicitly _not_ framed to the user as cheating detection — it triggers
 a question ("want to walk me through what you pasted?"), never an accusation.
 
 ## Anti-dependency intervention
@@ -107,13 +107,13 @@ does not comply immediately. It responds:
 > You're relying on assistance earlier than necessary. Let's try one smaller step first.
 
 then offers the smallest possible decomposition. The solution remains available — a user who
-insists gets it — but never as the *first* response. Shame is never used; the intervention is
+insists gets it — but never as the _first_ response. Shame is never used; the intervention is
 framed as a smaller step, not a refusal.
 
 ## Blind Coding mode (§12)
 
 A dedicated mode, not a level. Rules: no AI, no autocomplete, no solution, problem statement
-only, optional timer. Evaluation happens strictly *after* submission and covers correctness,
+only, optional timer. Evaluation happens strictly _after_ submission and covers correctness,
 code quality, time, architecture, edge cases, error handling, and independent completion.
 
 Blind Coding attempts are the highest-signal evidence available and are weighted accordingly

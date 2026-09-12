@@ -18,15 +18,15 @@ Assistance is never volunteered, never proactive, never a hover tooltip.
 
 Requests are explicit and server-counted:
 
-| Control | What the AI may do | What it may never do |
-| --- | --- | --- |
-| `CONCEPT_REMINDER` | Restate the underlying concept in 2–3 sentences | Reference the user's code |
-| `SMALL_HINT` | Ask one question that narrows the search space | Name the data structure or API |
-| `HINT` | Point at the specific area that is wrong | Write the corrected line |
-| `DEBUGGING_QUESTION` | Ask what the user expects vs. what they observe | Diagnose it for them |
-| `EXPLAIN_ERROR` | Explain what the runtime error *means* in general | Explain why *their* code caused it |
-| `SHOW_APPROACH` | Outline the algorithm in prose or steps | Produce code |
-| `SHOW_SOLUTION` | Full solution plus explanation | — (terminal step) |
+| Control              | What the AI may do                                | What it may never do               |
+| -------------------- | ------------------------------------------------- | ---------------------------------- |
+| `CONCEPT_REMINDER`   | Restate the underlying concept in 2–3 sentences   | Reference the user's code          |
+| `SMALL_HINT`         | Ask one question that narrows the search space    | Name the data structure or API     |
+| `HINT`               | Point at the specific area that is wrong          | Write the corrected line           |
+| `DEBUGGING_QUESTION` | Ask what the user expects vs. what they observe   | Diagnose it for them               |
+| `EXPLAIN_ERROR`      | Explain what the runtime error _means_ in general | Explain why _their_ code caused it |
+| `SHOW_APPROACH`      | Outline the algorithm in prose or steps           | Produce code                       |
+| `SHOW_SOLUTION`      | Full solution plus explanation                    | — (terminal step)                  |
 
 Each rung is a separate server-side counter. `SHOW_SOLUTION` ends the attempt's independence
 claim: the attempt still counts for learning, but not for the Independent Coding Score.

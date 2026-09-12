@@ -105,6 +105,5 @@ export const Problems = {
       'AI is not configured or is temporarily unreachable.',
     ),
 
-  internal: () =>
-    problem('internal', 'Internal server error', HttpStatus.INTERNAL_SERVER_ERROR),
+  internal: () => problem('internal', 'Internal server error', HttpStatus.INTERNAL_SERVER_ERROR),
 } as const;

@@ -75,20 +75,20 @@ Business logic never parses prose. Every agent that feeds a decision returns typ
 ```
 
 Free-form prose is allowed in exactly one place: text rendered directly to the user
-(explanations, hints, interviewer turns). Even there the *envelope* is structured, so we can
+(explanations, hints, interviewer turns). Even there the _envelope_ is structured, so we can
 attach metadata and never guess where the message ends.
 
 ## Degradation
 
 The product must remain usable when AI is unavailable. Each agent declares a fallback:
 
-| Agent | Fallback when AI fails |
-| --- | --- |
-| evaluator | Test results only; quality dimensions marked `unscored` |
-| tutor | Static per-concept hints stored with the exercise |
-| planner | Deterministic rule-based routine from the skill model |
-| curriculum | Generation is queued and retried; no partial writes |
-| interviewer | Interview cannot start; the user is told plainly |
+| Agent       | Fallback when AI fails                                  |
+| ----------- | ------------------------------------------------------- |
+| evaluator   | Test results only; quality dimensions marked `unscored` |
+| tutor       | Static per-concept hints stored with the exercise       |
+| planner     | Deterministic rule-based routine from the skill model   |
+| curriculum  | Generation is queued and retried; no partial writes     |
+| interviewer | Interview cannot start; the user is told plainly        |
 
 An unscored dimension is never silently written as a low score — that would corrupt the skill
 model, which is the product's long-term memory.

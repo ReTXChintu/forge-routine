@@ -4,7 +4,7 @@
 
 ## The problem this product exists to solve
 
-A capable engineer has spent a long time pairing with AI. They can still *reason* about
+A capable engineer has spent a long time pairing with AI. They can still _reason_ about
 problems — architecture, trade-offs, what the solution should look like. What has decayed is
 the motor skill: opening an empty file and producing working code without assistance.
 
@@ -33,19 +33,19 @@ The loop is closed — nothing in it is decorative.
 
 ## The metrics that matter
 
-| Metric | Why it exists |
-| --- | --- |
+| Metric                   | Why it exists                                    |
+| ------------------------ | ------------------------------------------------ |
 | Independent Coding Score | The headline number. Can you write code unaided? |
-| Concept mastery | Do you understand it? |
-| Recall strength | Can you retrieve it without a prompt? |
-| Coding ability | Can you implement it? |
-| Debugging ability | Can you find a fault you did not create? |
-| Explanation ability | Can you teach it? |
-| Interview readiness | Would you survive the room? |
-| Retention | Does it survive a month? |
+| Concept mastery          | Do you understand it?                            |
+| Recall strength          | Can you retrieve it without a prompt?            |
+| Coding ability           | Can you implement it?                            |
+| Debugging ability        | Can you find a fault you did not create?         |
+| Explanation ability      | Can you teach it?                                |
+| Interview readiness      | Would you survive the room?                      |
+| Retention                | Does it survive a month?                         |
 
 Crucially these are **independent dimensions**, not one percentage. A user routinely scores
-84% concept understanding and 51% code implementation on the same topic. That gap *is* the
+84% concept understanding and 51% code implementation on the same topic. That gap _is_ the
 product's reason to exist, so the data model must be able to express it.
 
 ## Primary personas

@@ -66,8 +66,8 @@ export class SubmissionsQueryService {
             strengths: row.evaluation.strengths,
             weaknesses: row.evaluation.weaknesses,
             conceptGaps: row.evaluation.conceptGaps,
-            recommendedDifficulty:
-              row.evaluation.recommendedDifficulty as CodeEvaluation['recommendedDifficulty'],
+            recommendedDifficulty: row.evaluation
+              .recommendedDifficulty as CodeEvaluation['recommendedDifficulty'],
             nextAction: row.evaluation.nextAction as CodeEvaluation['nextAction'],
             degraded: row.evaluation.degraded,
           }

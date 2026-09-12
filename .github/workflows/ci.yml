@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Boot-time validation requires these; they are not secrets in CI.
+  DATABASE_URL: postgresql://forgeroutine:forgeroutine@localhost:5432/forgeroutine_test?schema=public
+  DIRECT_DATABASE_URL: postgresql://forgeroutine:forgeroutine@localhost:5432/forgeroutine_test?schema=public
+  JWT_ACCESS_SECRET: ci-access-secret-0123456789abcdefghijklmnopqrstuv
+  JWT_REFRESH_SECRET: ci-refresh-secret-vutsrqponmlkjihgfedcba9876543210
+  REDIS_ENABLED: 'false'
+  EXECUTION_DRIVER: inline
+
+jobs:
+  verify:
+    name: Typecheck, lint, test, build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: forgeroutine
+          POSTGRES_PASSWORD: forgeroutine
+          POSTGRES_DB: forgeroutine_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Apply migrations
+        run: pnpm --filter @forgeroutine/database exec prisma migrate deploy
+
+      - name: Verify the migration matches the schema
+        # Catches a schema edit that was committed without its migration —
+        # which would pass every test here and then fail on deploy.
+        run: |
+          pnpm --filter @forgeroutine/database exec prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url "$DATABASE_URL" \
+            --exit-code && echo "Schema and migrations agree"
+
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm build
+
+      - name: Test
+        # The sandbox suite spawns real child processes; Linux runners have the
+        # Node permission model, so this also exercises the isolation path that
+        # Windows development cannot.
+        run: pnpm test
+
+      - name: Seed check
+        run: pnpm db:seed
+
+  format:
+    name: Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+
+  mobile:
+    name: Flutter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - working-directory: apps/mobile
+        run: flutter pub get
+      - working-directory: apps/mobile
+        run: flutter analyze
+      - working-directory: apps/mobile
+        run: flutter test

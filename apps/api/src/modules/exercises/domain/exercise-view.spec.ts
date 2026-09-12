@@ -109,9 +109,7 @@ describe('projectExercise', () => {
     it.each([3, 4, 5] as AssistanceLevel[])(
       'never exposes the function signature above level 2 (level %i)',
       (level) => {
-        expect(
-          projectExercise(exercise, { level, blindMode: false }).functionSignature,
-        ).toBeNull();
+        expect(projectExercise(exercise, { level, blindMode: false }).functionSignature).toBeNull();
       },
     );
   });
@@ -130,9 +128,7 @@ describe('projectExercise', () => {
 
   it('enables AI assistance below level 5 outside blind mode', () => {
     for (const level of [1, 2, 3, 4] as AssistanceLevel[]) {
-      expect(projectExercise(exercise, { level, blindMode: false }).aiAssistanceEnabled).toBe(
-        true,
-      );
+      expect(projectExercise(exercise, { level, blindMode: false }).aiAssistanceEnabled).toBe(true);
     }
   });
 });

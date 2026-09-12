@@ -107,8 +107,7 @@ export function useArchiveTechnology() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) =>
-      apiRequest<void>(`/technologies/mine/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => apiRequest<void>(`/technologies/mine/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.myTechnologies });
     },

@@ -111,12 +111,12 @@ GET  /progress/overview    → skills updated, next action recommended
 
 Per-user, per-scope, Redis-backed (in-memory fallback when Redis is disabled):
 
-| Scope | Limit |
-| --- | --- |
-| `auth` | 10 / 15 min |
-| `ai` | 60 / hour |
-| `execution` | 120 / hour |
-| default | 300 / 15 min |
+| Scope       | Limit        |
+| ----------- | ------------ |
+| `auth`      | 10 / 15 min  |
+| `ai`        | 60 / hour    |
+| `execution` | 120 / hour   |
+| default     | 300 / 15 min |
 
 ## Auth
 

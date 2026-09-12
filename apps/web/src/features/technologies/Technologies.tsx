@@ -17,7 +17,12 @@ import { useNavigate } from 'react-router-dom';
 
 import type { UserTechnology } from '@forgeroutine/shared-types';
 
-import { useAddTechnology, useArchiveTechnology, useCatalogue, useMyTechnologies } from '~/lib/queries';
+import {
+  useAddTechnology,
+  useArchiveTechnology,
+  useCatalogue,
+  useMyTechnologies,
+} from '~/lib/queries';
 
 /**
  * Technology management (§25).
@@ -163,8 +168,7 @@ function TechnologyRow({
           {item.technology?.name ?? 'Unknown'}
         </Text>
         <Text fontSize="xs" color="ink.500">
-          {item.priority.toLowerCase()} priority · target{' '}
-          {item.targetProficiency.toLowerCase()}
+          {item.priority.toLowerCase()} priority · target {item.targetProficiency.toLowerCase()}
           {item.status === 'PAUSED' && ' · paused'}
         </Text>
       </Box>

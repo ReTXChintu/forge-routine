@@ -3,7 +3,7 @@
 ## Shape
 
 ForgeRoutine is a **modular monolith** (§45.15–16), not microservices. One deployable API
-process, internally split by business domain. The one thing that is *not* in that process is
+process, internally split by business domain. The one thing that is _not_ in that process is
 user code execution — that is physically isolated (§45.8).
 
 ```
@@ -73,15 +73,15 @@ reason for the ceremony; we do not apply it to modules that will never change sh
 
 ## Packages
 
-| Package | Responsibility | May depend on |
-| --- | --- | --- |
-| `shared-types` | Domain types + enums shared by API, web, and tooling. Zero runtime deps. | — |
-| `validation` | Zod schemas. Single source of truth for every external boundary. | shared-types |
-| `config` | Parses and validates `process.env` once, exports typed config. | validation |
-| `utils` | Pure helpers (result type, ids, time, scoring math). | shared-types |
-| `database` | Prisma schema, client singleton, seeds. | config |
-| `ai` | Provider interface, OpenAI adapter, agents, structured-output contracts. | config, validation, shared-types |
-| `curriculum` | Curriculum generation logic, knowledge-graph algorithms, seed data. | shared-types, validation, ai |
+| Package        | Responsibility                                                           | May depend on                    |
+| -------------- | ------------------------------------------------------------------------ | -------------------------------- |
+| `shared-types` | Domain types + enums shared by API, web, and tooling. Zero runtime deps. | —                                |
+| `validation`   | Zod schemas. Single source of truth for every external boundary.         | shared-types                     |
+| `config`       | Parses and validates `process.env` once, exports typed config.           | validation                       |
+| `utils`        | Pure helpers (result type, ids, time, scoring math).                     | shared-types                     |
+| `database`     | Prisma schema, client singleton, seeds.                                  | config                           |
+| `ai`           | Provider interface, OpenAI adapter, agents, structured-output contracts. | config, validation, shared-types |
+| `curriculum`   | Curriculum generation logic, knowledge-graph algorithms, seed data.      | shared-types, validation, ai     |
 
 Dependency direction is strictly one-way; there are no cycles. `shared-types` is the root.
 

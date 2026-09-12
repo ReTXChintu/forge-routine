@@ -8,7 +8,6 @@ import {
 } from '@forgeroutine/curriculum';
 import type { Prisma } from '@forgeroutine/database';
 
-
 export const GENERATOR_VERSION = 'seed-1';
 
 /**
@@ -105,17 +104,12 @@ export class CurriculumImportService {
       data: { status: 'ACTIVE' },
     });
 
-    this.logger.log(
-      `Imported ${seed.slug} v${version}: ${seed.concepts.length} concepts`,
-    );
+    this.logger.log(`Imported ${seed.slug} v${version}: ${seed.concepts.length} concepts`);
 
     return technology.id;
   }
 
-  private async nextVersion(
-    tx: Prisma.TransactionClient,
-    technologyId: string,
-  ): Promise<number> {
+  private async nextVersion(tx: Prisma.TransactionClient, technologyId: string): Promise<number> {
     const latest = await tx.curriculumVersion.findFirst({
       where: { technologyId },
       orderBy: { version: 'desc' },
@@ -144,9 +138,7 @@ export class CurriculumImportService {
       if (!conceptId) continue;
 
       for (const prereq of concept.prerequisites) {
-        const qualified = prereq.slug.includes(':')
-          ? prereq.slug
-          : `${seed.slug}:${prereq.slug}`;
+        const qualified = prereq.slug.includes(':') ? prereq.slug : `${seed.slug}:${prereq.slug}`;
 
         const prerequisiteId =
           conceptIdBySlug.get(qualified) ?? (await this.resolveExternal(tx, qualified));

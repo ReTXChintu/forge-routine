@@ -66,9 +66,7 @@ describe('curated curricula', () => {
     for (const tech of curricula) {
       for (const concept of tech.concepts) {
         for (const prereq of concept.prerequisites) {
-          const qualified = prereq.slug.includes(':')
-            ? prereq.slug
-            : `${tech.slug}:${prereq.slug}`;
+          const qualified = prereq.slug.includes(':') ? prereq.slug : `${tech.slug}:${prereq.slug}`;
           expect(known.has(qualified), `unresolved prerequisite ${qualified}`).toBe(true);
         }
       }

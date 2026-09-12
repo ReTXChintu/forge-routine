@@ -111,11 +111,7 @@ export class AuthService {
     });
   }
 
-  private async issueTokens(
-    userId: string,
-    email: string,
-    familyId: string,
-  ): Promise<AuthTokens> {
+  private async issueTokens(userId: string, email: string, familyId: string): Promise<AuthTokens> {
     const accessTtlMs = parseDuration(this.config.env.JWT_ACCESS_TTL);
     const refreshTtlMs = parseDuration(this.config.env.JWT_REFRESH_TTL);
 

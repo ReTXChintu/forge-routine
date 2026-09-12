@@ -11,7 +11,10 @@ import {
   type RegisterInput,
 } from '@forgeroutine/validation';
 
-import { CurrentUser, type AuthenticatedUser } from '../../../common/http/current-user.decorator.js';
+import {
+  CurrentUser,
+  type AuthenticatedUser,
+} from '../../../common/http/current-user.decorator.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { type AuthService } from '../application/auth.service.js';
 import { JwtAuthGuard } from '../infrastructure/jwt-auth.guard.js';
@@ -27,9 +30,7 @@ export class AuthController {
 
   @Post('register')
   @ApiOperation({ summary: 'Create an account' })
-  register(
-    @Body(new ZodValidationPipe(registerSchema)) body: RegisterInput,
-  ): Promise<AuthTokens> {
+  register(@Body(new ZodValidationPipe(registerSchema)) body: RegisterInput): Promise<AuthTokens> {
     return this.auth.register(body);
   }
 

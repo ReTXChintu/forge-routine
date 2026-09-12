@@ -31,10 +31,7 @@ export class HealthController {
     database: boolean;
     redis: boolean | 'disabled';
   }> {
-    const [database, redis] = await Promise.all([
-      this.prisma.isHealthy(),
-      this.cache.isHealthy(),
-    ]);
+    const [database, redis] = await Promise.all([this.prisma.isHealthy(), this.cache.isHealthy()]);
 
     return {
       status: database && redis ? 'ok' : 'degraded',

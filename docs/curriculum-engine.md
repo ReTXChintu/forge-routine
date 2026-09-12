@@ -11,17 +11,17 @@ frontend changes.
 A user composes their own universe from the `Technology` catalogue and can change it at any
 time (§5):
 
-| Action | Effect |
-| --- | --- |
-| Add | Creates `UserTechnology`; triggers curriculum generation if the technology has no concept graph yet |
-| Remove | **Soft delete.** `status = ARCHIVED`, `archivedAt` set. All skills, attempts, and history are retained |
-| Pause | `status = PAUSED`. Excluded from routine generation; review schedule frozen |
-| Resume | `status = ACTIVE`. Review schedule resumes with elapsed time accounted for |
-| Priority | `LOW | NORMAL | HIGH | CRITICAL` — weights routine time allocation |
-| Target proficiency | `AWARENESS | WORKING | PROFICIENT | EXPERT` — sets the mastery goal |
-| Existing knowledge | Seeds initial skill estimates so an expert is not shown "Variables" |
-| Interview importance | `0-5`. Multiplies interview-readiness weighting |
-| Frequency | `DAILY | FREQUENT | OCCASIONAL | RARE` — caps how often it appears |
+| Action               | Effect                                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------ |
+| Add                  | Creates `UserTechnology`; triggers curriculum generation if the technology has no concept graph yet    |
+| Remove               | **Soft delete.** `status = ARCHIVED`, `archivedAt` set. All skills, attempts, and history are retained |
+| Pause                | `status = PAUSED`. Excluded from routine generation; review schedule frozen                            |
+| Resume               | `status = ACTIVE`. Review schedule resumes with elapsed time accounted for                             |
+| Priority             | `LOW                                                                                                   | NORMAL   | HIGH       | CRITICAL` — weights routine time allocation |
+| Target proficiency   | `AWARENESS                                                                                             | WORKING  | PROFICIENT | EXPERT` — sets the mastery goal             |
+| Existing knowledge   | Seeds initial skill estimates so an expert is not shown "Variables"                                    |
+| Interview importance | `0-5`. Multiplies interview-readiness weighting                                                        |
+| Frequency            | `DAILY                                                                                                 | FREQUENT | OCCASIONAL | RARE` — caps how often it appears           |
 
 Removing a technology must never destroy learning history. Re-adding it restores the user's
 prior skill state, decayed by elapsed time rather than reset.
@@ -77,7 +77,7 @@ skill history is keyed to concept IDs, so unstable IDs would destroy their progr
 
 ## Seeded technologies (§41)
 
-Seeded as *data* in `packages/curriculum/src/seed/`: JavaScript, TypeScript, Node.js, React,
+Seeded as _data_ in `packages/curriculum/src/seed/`: JavaScript, TypeScript, Node.js, React,
 Next.js, NestJS, MongoDB, PostgreSQL, Prisma, Docker, Linux, Git, GitHub, GitHub Actions,
 Jenkins, Redis, Nginx, Traefik, System Design.
 

@@ -122,8 +122,7 @@ assert.ok(Array.isArray(order) && order !== again, 'each call must build its own
           kind: 'CODING',
           difficulty: 4,
           language: 'javascript',
-          objective:
-            'Build an Express middleware that limits requests based on IP address.',
+          objective: 'Build an Express middleware that limits requests based on IP address.',
           requirements: [
             'Export a default function `rateLimit({ windowMs, max })`.',
             'It returns an Express-style middleware `(req, res, next)`.',

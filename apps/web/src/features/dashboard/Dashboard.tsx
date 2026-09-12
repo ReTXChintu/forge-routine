@@ -48,18 +48,14 @@ export function Dashboard() {
           value={`${data.todayMinutesDone} / ${data.todayMinutesTarget}`}
           unit="min"
           progress={
-            data.todayMinutesTarget > 0
-              ? data.todayMinutesDone / data.todayMinutesTarget
-              : 0
+            data.todayMinutesTarget > 0 ? data.todayMinutesDone / data.todayMinutesTarget : 0
           }
         />
         <IndependenceCard score={data.independence} />
         <Metric
           label="Interview readiness"
           value={
-            data.interviewReadiness === null
-              ? '—'
-              : `${Math.round(data.interviewReadiness * 100)}%`
+            data.interviewReadiness === null ? '—' : `${Math.round(data.interviewReadiness * 100)}%`
           }
           progress={data.interviewReadiness ?? 0}
           muted={data.interviewReadiness === null}

@@ -20,9 +20,7 @@ const globalForPrisma = globalThis as unknown as { __forgeroutinePrisma?: Prisma
 export function createPrismaClient(options: PrismaClientOptions = {}): PrismaClient {
   return new PrismaClient({
     log: options.logQueries ? ['query', 'warn', 'error'] : ['warn', 'error'],
-    ...(options.databaseUrl
-      ? { datasources: { db: { url: options.databaseUrl } } }
-      : {}),
+    ...(options.databaseUrl ? { datasources: { db: { url: options.databaseUrl } } } : {}),
   });
 }
 

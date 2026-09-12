@@ -63,9 +63,13 @@ async function bootstrap(): Promise<void> {
 
   await app.listen(env.API_PORT, env.API_HOST);
 
-  logger.log(`ForgeRoutine API on http://${env.API_HOST}:${env.API_PORT}/${env.API_GLOBAL_PREFIX}/v1`);
+  logger.log(
+    `ForgeRoutine API on http://${env.API_HOST}:${env.API_PORT}/${env.API_GLOBAL_PREFIX}/v1`,
+  );
   logger.log(`Execution driver: ${env.EXECUTION_DRIVER}`);
-  logger.log(`AI: ${config.aiEnabled ? `enabled (${env.AI_PROVIDER})` : 'disabled — agents will use fallbacks'}`);
+  logger.log(
+    `AI: ${config.aiEnabled ? `enabled (${env.AI_PROVIDER})` : 'disabled — agents will use fallbacks'}`,
+  );
   if (!env.REDIS_ENABLED) logger.warn('Redis disabled — caching and queues are inactive');
 }
 

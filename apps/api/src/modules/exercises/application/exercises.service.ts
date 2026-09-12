@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
 import { computeReadiness } from '@forgeroutine/curriculum';
-import type { AssistanceLevel, ExerciseView, StartAttemptResponse } from '@forgeroutine/shared-types';
+import type {
+  AssistanceLevel,
+  ExerciseView,
+  StartAttemptResponse,
+} from '@forgeroutine/shared-types';
 import type { StartAttemptInput } from '@forgeroutine/validation';
 
 import { Problems } from '../../../common/http/problem-details.js';
@@ -66,8 +70,7 @@ export class ExercisesService {
     await this.assertUnlocked(userId, exercise.conceptId);
 
     const level =
-      input.assistanceLevel ??
-      (await this.skills.getAssistanceLevel(userId, exercise.conceptId));
+      input.assistanceLevel ?? (await this.skills.getAssistanceLevel(userId, exercise.conceptId));
 
     // Reuse an open attempt rather than creating a second one: a page refresh
     // must not reset the clock or fork the assistance counters.

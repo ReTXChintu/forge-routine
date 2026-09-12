@@ -212,16 +212,17 @@ export class OpenAIProvider implements AIProvider {
   }
 }
 
-type JsonParseResult =
-  | { ok: true; value: unknown }
-  | { ok: false; error: string };
+type JsonParseResult = { ok: true; value: unknown } | { ok: false; error: string };
 
 /**
  * Models occasionally wrap JSON in a code fence despite JSON mode. Stripping one
  * fence is worth it; anything more elaborate is a genuine failure we want to see.
  */
 function safeParseJson(raw: string): JsonParseResult {
-  const trimmed = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  const trimmed = raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
 
   try {
     return { ok: true, value: JSON.parse(trimmed) };

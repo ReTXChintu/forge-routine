@@ -55,14 +55,14 @@ notifications.
 
 ## Deferred deliberately
 
-| Item | Why | Revisit when |
-| --- | --- | --- |
-| Container/microVM sandbox | Single-tenant today; the port already exists | A second untrusted user |
-| Python / Rust / Go execution | Needs real toolchain isolation | Sandbox hardening lands |
-| Real-time collaboration | No user need identified | — |
-| Prometheus / Grafana | Structured logs suffice at this scale | Multi-node deployment |
-| OAuth providers | Email+password is enough for one user; the seam exists | Real multi-user |
-| GraphQL | REST is sufficient and simpler | Client shapes diverge |
+| Item                         | Why                                                    | Revisit when            |
+| ---------------------------- | ------------------------------------------------------ | ----------------------- |
+| Container/microVM sandbox    | Single-tenant today; the port already exists           | A second untrusted user |
+| Python / Rust / Go execution | Needs real toolchain isolation                         | Sandbox hardening lands |
+| Real-time collaboration      | No user need identified                                | —                       |
+| Prometheus / Grafana         | Structured logs suffice at this scale                  | Multi-node deployment   |
+| OAuth providers              | Email+password is enough for one user; the seam exists | Real multi-user         |
+| GraphQL                      | REST is sufficient and simpler                         | Client shapes diverge   |
 
 ## Known gaps carried forward
 

@@ -25,10 +25,10 @@ PostgreSQL and Redis are external managed services reached by connection string.
 
 ## PM2 processes
 
-| Process | Mode | Purpose |
-| --- | --- | --- |
-| `forgeroutine-api` | cluster | HTTP API. Instance count = CPU cores. |
-| `forgeroutine-sandbox` | fork | Code execution workers. Fork mode deliberately — these spawn child processes and must not share a cluster master. |
+| Process                | Mode    | Purpose                                                                                                           |
+| ---------------------- | ------- | ----------------------------------------------------------------------------------------------------------------- |
+| `forgeroutine-api`     | cluster | HTTP API. Instance count = CPU cores.                                                                             |
+| `forgeroutine-sandbox` | fork    | Code execution workers. Fork mode deliberately — these spawn child processes and must not share a cluster master. |
 
 Defined in `infrastructure/pm2/ecosystem.config.cjs`.
 
@@ -88,9 +88,9 @@ one step.
 
 ## Health and readiness
 
-| Endpoint | Meaning |
-| --- | --- |
-| `GET /api/v1/health/live` | Process is up. Never touches dependencies. |
+| Endpoint                   | Meaning                                                             |
+| -------------------------- | ------------------------------------------------------------------- |
+| `GET /api/v1/health/live`  | Process is up. Never touches dependencies.                          |
 | `GET /api/v1/health/ready` | Postgres reachable, Redis reachable if enabled, migrations current. |
 
 nginx routes traffic on readiness; PM2 restarts on liveness failure.

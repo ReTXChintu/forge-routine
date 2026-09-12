@@ -6,7 +6,11 @@ import { z } from 'zod';
  * seed data all use the same definitions so the rules cannot drift apart.
  */
 
-export const cuidSchema = z.string().min(20).max(40).regex(/^[a-z0-9]+$/i, 'Invalid id');
+export const cuidSchema = z
+  .string()
+  .min(20)
+  .max(40)
+  .regex(/^[a-z0-9]+$/i, 'Invalid id');
 
 export const slugSchema = z
   .string()

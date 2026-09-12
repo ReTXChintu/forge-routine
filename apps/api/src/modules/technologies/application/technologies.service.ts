@@ -30,7 +30,12 @@ export class TechnologiesService {
   async listCatalogue(search?: string): Promise<Technology[]> {
     const rows = await this.prisma.technology.findMany({
       where: search
-        ? { OR: [{ name: { contains: search, mode: 'insensitive' } }, { slug: { contains: slugify(search) } }] }
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { slug: { contains: slugify(search) } },
+            ],
+          }
         : undefined,
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });

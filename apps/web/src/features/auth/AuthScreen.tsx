@@ -53,7 +53,14 @@ export function AuthScreen() {
   const fieldError = (field: string): string | undefined => error?.fieldErrors[field]?.[0];
 
   return (
-    <Box minH="100vh" bg="surface.0" display="flex" alignItems="center" justifyContent="center" px={4}>
+    <Box
+      minH="100vh"
+      bg="surface.0"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      px={4}
+    >
       <Box w="100%" maxW="380px">
         <Image src={fullLogo} alt="ForgeRoutine" maxW="260px" mx="auto" mb={2} />
         <Text textAlign="center" fontSize="sm" color="ink.400" mb={8}>

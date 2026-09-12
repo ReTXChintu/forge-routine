@@ -111,7 +111,11 @@ assert.equal(next.count, undefined, 'count must be private, not a property');`,
         'Wrap a function while preserving its arguments, `this`, and return value',
         'Decide what a wrapper should return before the wrapped function has run',
       ],
-      codingPatterns: ['Decorator/wrapper', 'Rest and spread forwarding', 'Cache keyed by arguments'],
+      codingPatterns: [
+        'Decorator/wrapper',
+        'Rest and spread forwarding',
+        'Cache keyed by arguments',
+      ],
       commonMistakes: [
         'Dropping `this` when forwarding the call',
         'Forgetting that the wrapper must return something before the inner call happens',
@@ -134,7 +138,9 @@ assert.equal(next.count, undefined, 'count must be private, not a property');`,
           ].join('\n'),
           functionSignature: 'export default function memoize(fn) {}',
           starterCode: 'export default function memoize(fn) {\n  // ...\n}\n',
-          examples: ['const slow = (n) => n * 2;\nconst fast = memoize(slow);\nfast(2); // 4, computed\nfast(2); // 4, cached'],
+          examples: [
+            'const slow = (n) => n * 2;\nconst fast = memoize(slow);\nfast(2); // 4, computed\nfast(2); // 4, cached',
+          ],
           staticHints: [
             'What structure maps an argument list to a result?',
             'Two different calls must produce two different keys — what happens with (1,2) and (12)?',
@@ -311,9 +317,7 @@ assert.equal(calls, 0, 'cancel must prevent the pending call');`,
           ].join('\n'),
           functionSignature: 'export default function promiseAll(items) {}',
           starterCode: 'export default function promiseAll(items) {\n  // ...\n}\n',
-          examples: [
-            'await promiseAll([Promise.resolve(1), 2, Promise.resolve(3)]); // [1, 2, 3]',
-          ],
+          examples: ['await promiseAll([Promise.resolve(1), 2, Promise.resolve(3)]); // [1, 2, 3]'],
           staticHints: [
             'How do you know when the last one has finished, given they finish out of order?',
             'Where should each result be written so the output order matches the input order?',
@@ -479,8 +483,7 @@ assert.ok(copy.self === copy, 'the cycle must be preserved and point at the copy
           kind: 'CODING',
           difficulty: 3,
           language: 'javascript',
-          objective:
-            'Build an event emitter supporting on, off, once, and emit.',
+          objective: 'Build an event emitter supporting on, off, once, and emit.',
           requirements: [
             'Export a default class `EventEmitter`.',
             '`on(event, listener)` registers a listener.',
@@ -491,7 +494,9 @@ assert.ok(copy.self === copy, 'the cycle must be preserved and point at the copy
           ].join('\n'),
           functionSignature: 'export default class EventEmitter {}',
           starterCode: 'export default class EventEmitter {\n  // ...\n}\n',
-          examples: ["const bus = new EventEmitter();\nbus.on('tick', (n) => console.log(n));\nbus.emit('tick', 1);"],
+          examples: [
+            "const bus = new EventEmitter();\nbus.on('tick', (n) => console.log(n));\nbus.emit('tick', 1);",
+          ],
           staticHints: [
             'What data structure maps an event name to many listeners?',
             'What happens to the loop index if a listener removes itself mid-emit?',

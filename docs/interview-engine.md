@@ -4,13 +4,13 @@ Phase 6. Specified now because the skill model and knowledge graph must be able 
 
 ## Modes (§15)
 
-| Mode | Duration | Shape |
-| --- | --- | --- |
-| Quick Interview | 5–10 min | 3–5 rapid concept questions |
-| Technical Interview | 30–45 min | Conversational depth probing |
-| Coding Interview | 45–60 min | Problem + live code + follow-ups |
-| Debugging Interview | 30 min | Broken system, candidate diagnoses aloud |
-| System Design Interview | 45–60 min | Open-ended design with trade-off pressure |
+| Mode                      | Duration  | Shape                                           |
+| ------------------------- | --------- | ----------------------------------------------- |
+| Quick Interview           | 5–10 min  | 3–5 rapid concept questions                     |
+| Technical Interview       | 30–45 min | Conversational depth probing                    |
+| Coding Interview          | 45–60 min | Problem + live code + follow-ups                |
+| Debugging Interview       | 30 min    | Broken system, candidate diagnoses aloud        |
+| System Design Interview   | 45–60 min | Open-ended design with trade-off pressure       |
 | Senior Engineer Interview | 60–90 min | Mixed, with architecture and judgement emphasis |
 
 ## Question selection
@@ -47,13 +47,13 @@ The interviewer must react. After each answer the engine:
 1. Grades the answer on `correctness`, `depth`, `specificity`, `confidence`.
 2. Chooses a move:
 
-| Answer quality | Move |
-| --- | --- |
-| Shallow but correct | **Deepen** — push one level down |
-| Wrong | **Recover** — simpler sub-question in the same area |
-| Strong | **Escalate** — a harder, adjacent, or practical scenario |
-| Vague | **Pin down** — demand a concrete example |
-| Complete | **Pivot** — move to the next concept |
+| Answer quality      | Move                                                     |
+| ------------------- | -------------------------------------------------------- |
+| Shallow but correct | **Deepen** — push one level down                         |
+| Wrong               | **Recover** — simpler sub-question in the same area      |
+| Strong              | **Escalate** — a harder, adjacent, or practical scenario |
+| Vague               | **Pin down** — demand a concrete example                 |
+| Complete            | **Pivot** — move to the next concept                     |
 
 Worked example:
 

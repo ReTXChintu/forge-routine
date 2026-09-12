@@ -1,5 +1,14 @@
 import {
-  Alert, AlertIcon, Badge, Box, Button, HStack, Heading, Spinner, Text, VStack,
+  Alert,
+  AlertIcon,
+  Badge,
+  Box,
+  Button,
+  HStack,
+  Heading,
+  Spinner,
+  Text,
+  VStack,
 } from '@chakra-ui/react';
 import { useNavigate, useParams } from 'react-router-dom';
 

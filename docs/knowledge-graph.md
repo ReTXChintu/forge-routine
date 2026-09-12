@@ -46,7 +46,7 @@ Enforced at two levels:
 ## The weakness-tracing algorithm
 
 This is the graph's primary job. When a user struggles with concept `C`, we do not simply
-schedule more of `C`. We ask *why*.
+schedule more of `C`. We ask _why_.
 
 ```
 traceRootCause(user, C):
@@ -69,7 +69,7 @@ Result:      PREREQUISITE_GAP → strengthen Buffers before retrying Streams
 ```
 
 The routine engine consumes this and inserts a Buffers block ahead of any Streams block.
-Traversal is breadth-first by depth so the *nearest* unmet prerequisite wins; we do not send
+Traversal is breadth-first by depth so the _nearest_ unmet prerequisite wins; we do not send
 a user back to "Variables" because of one bad Streams attempt. Depth is capped
 (`MAX_TRACE_DEPTH = 3`) for the same reason.
 
@@ -90,6 +90,6 @@ invalidates the whole namespace without key-by-key deletion.
 ## Growth
 
 When a user adds a technology, the curriculum generator (see `curriculum-engine.md`) produces
-concepts *and* proposes prerequisite edges — including edges into technologies the user
+concepts _and_ proposes prerequisite edges — including edges into technologies the user
 already has. Adding `Kubernetes` should wire it to existing `Docker`, `Linux`, and
 `Networking` nodes rather than creating an island.

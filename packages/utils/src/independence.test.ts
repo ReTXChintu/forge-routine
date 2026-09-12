@@ -89,7 +89,12 @@ describe('computeIndependentCodingScore', () => {
       }),
     ];
     const declining = [
-      ...attempts(6, { completedAt: NOW, aiRequestCount: 6, solutionRevealed: true, passed: false }),
+      ...attempts(6, {
+        completedAt: NOW,
+        aiRequestCount: 6,
+        solutionRevealed: true,
+        passed: false,
+      }),
       ...attempts(6, { completedAt: new Date(NOW.getTime() - 28 * 86_400_000), aiRequestCount: 0 }),
     ];
 

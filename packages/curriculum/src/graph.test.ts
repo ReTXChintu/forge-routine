@@ -17,14 +17,9 @@ import {
  *           ──HARD──▶ async   ──HARD──▶ promises
  *           ──SOFT──▶ pipes
  */
-const nodes: GraphNode[] = [
-  'streams',
-  'buffers',
-  'binary',
-  'async',
-  'promises',
-  'pipes',
-].map((id) => ({ id, name: id, technologyId: 'nodejs' }));
+const nodes: GraphNode[] = ['streams', 'buffers', 'binary', 'async', 'promises', 'pipes'].map(
+  (id) => ({ id, name: id, technologyId: 'nodejs' }),
+);
 
 const edges: GraphEdge[] = [
   { conceptId: 'streams', prerequisiteId: 'buffers', strength: 'HARD' },

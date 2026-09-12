@@ -121,10 +121,7 @@ export function scheduleNextReview(
  * Retention estimate from an exponential forgetting curve, used to decay skill
  * values between reviews so the dashboard reflects what the user knows *now*.
  */
-export function estimateRetention(
-  daysSinceReview: number,
-  stabilityDays: number,
-): number {
+export function estimateRetention(daysSinceReview: number, stabilityDays: number): number {
   if (daysSinceReview <= 0) return 1;
   if (stabilityDays <= 0) return 0;
   return unit(Math.exp(-daysSinceReview / stabilityDays));

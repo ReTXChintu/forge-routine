@@ -365,13 +365,7 @@ export function ExerciseWorkspace() {
 
       {/* Results and assistance */}
       <GridItem borderLeftWidth="1px" borderColor="surface.300" minW={0} display="flex">
-        <Tabs
-          variant="unstyled"
-          display="flex"
-          flexDirection="column"
-          w="100%"
-          isFitted
-        >
+        <Tabs variant="unstyled" display="flex" flexDirection="column" w="100%" isFitted>
           <TabList borderBottomWidth="1px" borderColor="surface.300" bg="surface.50">
             <Tab
               fontSize="xs"

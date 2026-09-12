@@ -5,15 +5,8 @@
     "ecmaVersion": 2022,
     "sourceType": "module"
   },
-  "plugins": [
-    "@typescript-eslint",
-    "import"
-  ],
-  "extends": [
-    "eslint:recommended",
-    "plugin:@typescript-eslint/recommended",
-    "prettier"
-  ],
+  "plugins": ["@typescript-eslint", "import"],
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended", "prettier"],
   "env": {
     "node": true,
     "es2022": true
@@ -48,16 +41,10 @@
     "no-console": [
       "warn",
       {
-        "allow": [
-          "warn",
-          "error"
-        ]
+        "allow": ["warn", "error"]
       }
     ],
-    "eqeqeq": [
-      "error",
-      "always"
-    ],
+    "eqeqeq": ["error", "always"],
     "no-restricted-syntax": [
       "error",
       {
@@ -68,15 +55,7 @@
     "import/order": [
       "error",
       {
-        "groups": [
-          "builtin",
-          "external",
-          "internal",
-          "parent",
-          "sibling",
-          "index",
-          "object"
-        ],
+        "groups": ["builtin", "external", "internal", "parent", "sibling", "index", "object"],
         "pathGroups": [
           {
             "pattern": "@forgeroutine/**",
@@ -84,9 +63,7 @@
             "position": "before"
           }
         ],
-        "pathGroupsExcludedImportTypes": [
-          "builtin"
-        ],
+        "pathGroupsExcludedImportTypes": ["builtin"],
         "newlines-between": "always",
         "alphabetize": {
           "order": "asc",

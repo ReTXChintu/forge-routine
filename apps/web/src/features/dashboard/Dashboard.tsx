@@ -16,6 +16,8 @@ import type { IndependentCodingScore, WeakSkill } from '@forgeroutine/shared-typ
 
 import { useOverview } from '~/lib/queries';
 
+import { GenerationBanner } from '../roadmap/GenerationBanner';
+
 /**
  * The dashboard (§23): information-dense, no decorative charts.
  *
@@ -41,6 +43,8 @@ export function Dashboard() {
       <Heading size="lg" mb={6} fontWeight={650}>
         {data.greeting}
       </Heading>
+
+      <GenerationBanner />
 
       <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={4} mb={6}>
         <Metric

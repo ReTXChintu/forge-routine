@@ -33,11 +33,13 @@ async function main(): Promise<void> {
         name: technology.name,
         description: technology.description ?? '',
         category: technology.category ?? 'general',
+        exerciseLanguage: technology.exerciseLanguage ?? null,
       },
       update: {
         name: technology.name,
         description: technology.description ?? '',
         category: technology.category ?? 'general',
+        exerciseLanguage: technology.exerciseLanguage ?? null,
       },
     });
   }

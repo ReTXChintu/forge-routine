@@ -32,6 +32,7 @@ export const queryKeys = {
   exercise: (id: string) => ['exercises', 'detail', id] as const,
   onboardingStatus: ['onboarding', 'status'] as const,
   roadmap: ['roadmap'] as const,
+  generation: ['generation', 'status'] as const,
   overview: ['progress', 'overview'] as const,
   independence: ['progress', 'independence'] as const,
   weakest: ['skills', 'weakest'] as const,
@@ -183,6 +184,65 @@ export function useUpdateRoadmapItem() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.roadmap });
       void queryClient.invalidateQueries({ queryKey: queryKeys.overview });
+    },
+  });
+}
+
+export interface GenerationJobView {
+  id: string;
+  kind: string;
+  target: string;
+  technologyName: string | null;
+  status: string;
+  progress: number;
+  step: string;
+  error: string | null;
+}
+
+export interface GenerationStatusView {
+  active: boolean;
+  partial: boolean;
+  jobs: GenerationJobView[];
+}
+
+/**
+ * Polls while curriculum is generating, and stops as soon as it is not.
+ *
+ * The roadmap changes underneath the user when a technology finishes, so this
+ * also drives the invalidation — otherwise they would sit looking at a
+ * "preparing" placeholder that is already ready.
+ */
+export function useGenerationStatus(enabled = true): UseQueryResult<GenerationStatusView> {
+  const queryClient = useQueryClient();
+
+  return useQuery({
+    queryKey: queryKeys.generation,
+    queryFn: async () => {
+      const status = await apiRequest<GenerationStatusView>('/generation/status');
+
+      // A job that just finished means new concepts and exercises exist.
+      if (!status.active && status.jobs.some((j) => j.status === 'READY')) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.roadmap });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.overview });
+      }
+
+      return status;
+    },
+    enabled,
+    // Generation takes minutes, so a tight poll is pure noise. Stops entirely
+    // once nothing is running.
+    refetchInterval: (query) => (query.state.data?.active ? 5_000 : false),
+    staleTime: 0,
+  });
+}
+
+export function useRetryGeneration() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => apiRequest<GenerationJobView[]>('/generation/retry', { method: 'POST' }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.generation });
     },
   });
 }

@@ -4,6 +4,8 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
+import { transformSync } from 'esbuild';
+
 import type { ExecutionResult, ExecutionStatus, TestCaseResult } from '@forgeroutine/shared-types';
 
 import { HARNESS_SOURCE, buildTestsModule } from './harness.template.js';
@@ -76,10 +78,24 @@ export async function runInSandbox(
   try {
     await mkdir(runDir, { recursive: true });
 
-    // TypeScript is type-checked upstream and submitted as-is; the harness imports
-    // it as ESM. Full TS compilation lands with the container backend.
+    // Strip types before writing. Node cannot parse TypeScript, so a valid TS
+    // submission would otherwise die with "Unexpected token ':'" — which is
+    // both wrong and unactionable, since the user's code was correct.
+    //
+    // Everything goes through the transform, TypeScript or not: TS is a
+    // superset, so JavaScript passes through unchanged, and routing both
+    // through one path means a syntax error is reported the same way for both.
+    let source: string;
+    try {
+      source = stripTypes(job.code);
+    } catch (error) {
+      return failure('COMPILE_ERROR', job, Date.now() - startedAt, {
+        stderr: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     await Promise.all([
-      writeFile(join(runDir, 'solution.mjs'), job.code, 'utf8'),
+      writeFile(join(runDir, 'solution.mjs'), source, 'utf8'),
       writeFile(join(runDir, 'tests.mjs'), buildTestsModule(job.testCases), 'utf8'),
       writeFile(join(runDir, 'harness.mjs'), HARNESS_SOURCE, 'utf8'),
     ]);
@@ -271,6 +287,26 @@ function failure(
     durationMs,
     truncated: false,
   };
+}
+
+/**
+ * TypeScript to JavaScript, types removed, nothing else changed.
+ *
+ * esbuild is a transform only: it does no type *checking*, which is the right
+ * trade here. A type error should surface as a failing test or a clear runtime
+ * error, not as a parser failure the user cannot act on.
+ */
+function stripTypes(code: string): string {
+  const result = transformSync(code, {
+    loader: 'ts',
+    format: 'esm',
+    target: 'es2022',
+    // Decorators and similar TS-only syntax are not supported; a submission
+    // using them fails here with a real message rather than a cryptic one.
+    sourcemap: false,
+  });
+
+  return result.code;
 }
 
 function truncate(value: string, max: number): string {

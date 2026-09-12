@@ -8,6 +8,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { ConceptsModule } from './modules/concepts/concepts.module.js';
 import { CurriculumModule } from './modules/curriculum/curriculum.module.js';
 import { ExercisesModule } from './modules/exercises/exercises.module.js';
+import { GenerationModule } from './modules/generation/generation.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
 import { ProgressModule } from './modules/progress/progress.module.js';
@@ -36,6 +37,7 @@ import { TechnologiesModule } from './modules/technologies/technologies.module.j
     ConceptsModule,
     SkillsModule,
     RoadmapModule,
+    GenerationModule,
     OnboardingModule,
     SessionsModule,
     ExercisesModule,

@@ -3,6 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { CompleteOnboardingInput } from '@forgeroutine/validation';
 
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { GenerationService } from '../../generation/application/generation.service.js';
 import { RoadmapService, type RoadmapView } from '../../roadmap/application/roadmap.service.js';
 import { TechnologiesService } from '../../technologies/application/technologies.service.js';
 
@@ -37,6 +38,7 @@ export class OnboardingService {
     private readonly prisma: PrismaService,
     private readonly technologies: TechnologiesService,
     private readonly roadmap: RoadmapService,
+    private readonly generation: GenerationService,
   ) {}
 
   async status(userId: string): Promise<OnboardingStatus> {
@@ -106,6 +108,10 @@ export class OnboardingService {
 
     const roadmap = await this.roadmap.regenerate(userId);
     const awaitingTechnologies = await this.technologiesAwaitingContent(userId);
+
+    // Fire and forget. Generation takes minutes; the user gets their roadmap
+    // now and the remaining technologies fill in behind them.
+    await this.generation.enqueueMissing(userId);
 
     this.logger.log(
       `Onboarded ${userId}: ${input.technologies.length} technologies, ` +

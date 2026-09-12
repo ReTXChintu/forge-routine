@@ -68,6 +68,12 @@ export const seedTechnologySchema = z.object({
   name: z.string().min(1).max(60),
   description: z.string().default(''),
   category: z.string().default('general'),
+  /**
+   * Language the sandbox can execute this technology's exercises in, or null
+   * when it cannot be practised by running code. Null technologies get
+   * concept questions instead of coding exercises.
+   */
+  exerciseLanguage: z.enum(['javascript', 'typescript']).nullable().default('javascript'),
   concepts: z.array(seedConceptSchema).default([]),
 });
 

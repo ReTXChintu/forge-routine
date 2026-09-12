@@ -15,6 +15,8 @@ import { Navigate, useNavigate } from 'react-router-dom';
 
 import { useRegenerateRoadmap, useRoadmap, useUpdateRoadmapItem } from '~/lib/queries';
 
+import { GenerationBanner } from './GenerationBanner';
+
 /**
  * The whole journey, visible at once (docs/learning-path.md).
  *
@@ -106,6 +108,8 @@ export function RoadmapPage() {
           {percent}%
         </Text>
       </HStack>
+
+      <GenerationBanner />
 
       <VStack align="stretch" spacing={3}>
         {roadmap.phases.map((phase, index) => {

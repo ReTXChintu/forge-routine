@@ -107,6 +107,14 @@ model Technology {
   category          String   @default("general")
   /// True when a hand-written concept graph ships in the seed data.
   curatedCurriculum Boolean  @default(false)
+  /// Language its exercises can be executed in, or null when the technology
+  /// cannot be practised in the sandbox at all.
+  ///
+  /// Docker, Linux and SQL are real subjects with real concepts, but no
+  /// JavaScript test can grade "containers vs virtual machines". Those
+  /// technologies get concept questions instead of runnable exercises — which
+  /// is honest, rather than generating code exercises that cannot work.
+  exerciseLanguage  String?  @default("javascript")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -191,6 +199,7 @@ model Concept {
   prerequisites   ConceptPrerequisite[] @relation("ConceptToPrerequisites")
   dependents      ConceptPrerequisite[] @relation("PrerequisiteToConcepts")
   exercises       Exercise[]
+  questions       ConceptQuestion[]
   skills          Skill[]
   reviewSchedules ReviewSchedule[]
   sessions        LearningSession[]
@@ -583,6 +592,30 @@ model ReviewSchedule {
   @@unique([userId, conceptId])
   @@index([userId, dueAt])
   @@map("review_schedules")
+}
+
+/// A short conceptual question about one concept.
+///
+/// Two jobs: they are the only practice available for technologies the sandbox
+/// cannot execute, and they are the source for the recall prompts that feed
+/// `recallStrength` and `retention` (docs/learning-path.md).
+model ConceptQuestion {
+  id          String   @id @default(cuid())
+  conceptId   String
+  concept     Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  prompt      String
+  /// Multiple choice. Two to five options; exactly one is correct.
+  options     String[] @default([])
+  correctIndex Int     @default(0)
+  /// Shown after answering, right or wrong. This is where the learning is.
+  explanation String   @default("")
+  difficulty  Int      @default(3)
+  archivedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([conceptId])
+  @@map("concept_questions")
 }
 
 // ===========================================================================

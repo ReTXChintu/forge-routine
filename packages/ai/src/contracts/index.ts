@@ -97,6 +97,54 @@ export const prerequisiteProposalSchema = z.object({
     .max(200),
 });
 
+/**
+ * A generated exercise, including the test cases that grade it and the
+ * reference solution that proves it is solvable.
+ *
+ * `referenceSolution` is required, not optional. It is not there to show the
+ * user — it is there so the pipeline can execute it against the generated
+ * tests in the real sandbox and discard any exercise that cannot be solved as
+ * written. An unsolvable exercise sends a user hunting for a mistake that is
+ * in our content, which is the fastest way to lose their trust entirely.
+ */
+export const generatedExerciseSchema = z.object({
+  slug: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  title: z.string().min(1).max(160),
+  kind: z.enum(['CODING', 'RECALL', 'DEBUGGING']),
+  difficulty: z.number().int().min(1).max(5),
+  /** The entire prompt at assistance level 4, so it must stand alone. */
+  objective: z.string().min(20).max(500),
+  requirements: z.string().min(1).max(2_000),
+  functionSignature: z.string().max(300).nullable(),
+  starterCode: z.string().max(2_000).nullable(),
+  examples: z.array(z.string().max(600)).max(4),
+  /** Questions, not answers — these are the AI-unavailable fallback hints. */
+  staticHints: z.array(z.string().min(1).max(300)).min(1).max(4),
+  referenceSolution: z.string().min(1).max(8_000),
+  estimatedMinutes: z.number().int().min(3).max(120),
+  testCases: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(120),
+        hidden: z.boolean(),
+        code: z.string().min(1).max(4_000),
+      }),
+    )
+    .min(2)
+    .max(8),
+});
+
+export const generatedExerciseSetSchema = z.object({
+  exercises: z.array(generatedExerciseSchema).min(1).max(3),
+});
+
+export type GeneratedExerciseOutput = z.infer<typeof generatedExerciseSchema>;
+export type GeneratedExerciseSetOutput = z.infer<typeof generatedExerciseSetSchema>;
+
 export type ConceptOutlineOutput = z.infer<typeof conceptOutlineSchema>;
 export type ConceptDetailOutput = z.infer<typeof conceptDetailSchema>;
 export type PrerequisiteProposalOutput = z.infer<typeof prerequisiteProposalSchema>;

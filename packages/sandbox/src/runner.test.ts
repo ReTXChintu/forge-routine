@@ -413,3 +413,82 @@ describe('detectPermissionFlag', () => {
     expect(result.status).toBe('PASSED');
   }, 20_000);
 });
+
+describe('TypeScript', () => {
+  it('strips types and runs a TypeScript solution', async () => {
+    // Node cannot parse this. Before type stripping it died with
+    // "Unexpected token ':'" — a compile error for correct code.
+    const result = await runInSandbox(
+      {
+        language: 'typescript',
+        code: `interface Point { x: number; y: number }
+
+export default function distance(a: Point, b: Point): number {
+  const dx: number = a.x - b.x;
+  const dy: number = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}`,
+        testCases: [
+          {
+            name: 'computes distance',
+            hidden: false,
+            code: `assert.equal(solution({ x: 0, y: 0 }, { x: 3, y: 4 }), 5);`,
+          },
+        ],
+      },
+      options,
+    );
+
+    expect(result.status).toBe('PASSED');
+  }, 20_000);
+
+  it('handles generics and type-only syntax', async () => {
+    const result = await runInSandbox(
+      {
+        language: 'typescript',
+        code: `type Mapper<T, U> = (value: T) => U;
+
+export default function mapAll<T, U>(items: T[], fn: Mapper<T, U>): U[] {
+  return items.map(fn);
+}`,
+        testCases: [
+          {
+            name: 'maps with a typed callback',
+            hidden: false,
+            code: `assert.deepEqual(solution([1, 2, 3], (n) => n * 2), [2, 4, 6]);`,
+          },
+        ],
+      },
+      options,
+    );
+
+    expect(result.status).toBe('PASSED');
+  }, 20_000);
+
+  it('still runs plain JavaScript unchanged through the same path', async () => {
+    const result = await runInSandbox(
+      {
+        language: 'javascript',
+        code: `export default function add(a, b) { return a + b; }`,
+        testCases: [{ name: 'adds', hidden: false, code: `assert.equal(solution(2, 3), 5);` }],
+      },
+      options,
+    );
+
+    expect(result.status).toBe('PASSED');
+  }, 20_000);
+
+  it('reports a genuine syntax error as COMPILE_ERROR, with a usable message', async () => {
+    const result = await runInSandbox(
+      {
+        language: 'typescript',
+        code: `export default function broken(a: number { return a; }`,
+        testCases: [{ name: 'never runs', hidden: false, code: `assert.ok(true);` }],
+      },
+      options,
+    );
+
+    expect(result.status).toBe('COMPILE_ERROR');
+    expect(result.stderr.length).toBeGreaterThan(0);
+  }, 20_000);
+});

@@ -4,8 +4,12 @@ import { AuthScreen } from '~/features/auth/AuthScreen';
 import { ConceptView } from '~/features/concepts/ConceptView';
 import { Dashboard } from '~/features/dashboard/Dashboard';
 import { ExerciseWorkspace } from '~/features/exercise/ExerciseWorkspace';
+import { InterviewGuide } from '~/features/interview/InterviewGuide';
+import { InterviewSession } from '~/features/interview/InterviewSession';
 import { Onboarding } from '~/features/onboarding/Onboarding';
+import { ProjectWorkspace } from '~/features/project/ProjectWorkspace';
 import { RoadmapPage } from '~/features/roadmap/RoadmapView';
+import { TodayView } from '~/features/routine/TodayView';
 import { Technologies } from '~/features/technologies/Technologies';
 import { TechnologyView } from '~/features/technologies/TechnologyView';
 import { tokenStore } from '~/lib/api';
@@ -44,11 +48,15 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Dashboard /> },
+      { path: 'today', element: <TodayView /> },
       { path: 'roadmap', element: <RoadmapPage /> },
       { path: 'technologies', element: <Technologies /> },
       { path: 'technology/:technologyId', element: <TechnologyView /> },
       { path: 'concept/:conceptId', element: <ConceptView /> },
       { path: 'exercise/:exerciseId', element: <ExerciseWorkspace /> },
+      { path: 'project/:exerciseId', element: <ProjectWorkspace /> },
+      { path: 'interview', element: <InterviewGuide /> },
+      { path: 'interview/:interviewId', element: <InterviewSession /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

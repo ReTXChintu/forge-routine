@@ -10,6 +10,7 @@ import { CurriculumModule } from './modules/curriculum/curriculum.module.js';
 import { ExercisesModule } from './modules/exercises/exercises.module.js';
 import { GenerationModule } from './modules/generation/generation.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { InterviewsModule } from './modules/interviews/interviews.module.js';
 import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
 import { ProgressModule } from './modules/progress/progress.module.js';
 import { ProjectsModule } from './modules/projects/projects.module.js';
@@ -47,6 +48,7 @@ import { TechnologiesModule } from './modules/technologies/technologies.module.j
     ProjectsModule,
     RecallModule,
     RoutinesModule,
+    InterviewsModule,
     SubmissionsModule,
     ProgressModule,
     HealthModule,

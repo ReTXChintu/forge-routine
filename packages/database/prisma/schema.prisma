@@ -799,6 +799,8 @@ model InterviewQuestion {
   /// DEEPEN | RECOVER | ESCALATE | PIN_DOWN | PIVOT — why the engine asked this.
   move        String   @default("PIVOT")
   depth       Int      @default(0)
+  /// What a strong answer would touch. Written when asked, read when grading.
+  expectedPoints String[] @default([])
   createdAt   DateTime @default(now())
 
   answer InterviewAnswer?
@@ -840,6 +842,8 @@ model InterviewEvaluation {
   weakAreas            String[] @default([])
   recommendedTopics    String[] @default([])
   interviewReadiness   Float?
+  /// The debrief in prose. The scores say how much; this says what to do.
+  summary              String?
   createdAt            DateTime @default(now())
 
   @@map("interview_evaluations")

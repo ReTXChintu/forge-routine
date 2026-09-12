@@ -69,9 +69,14 @@ export function RoadmapPage() {
     p.items.some((i) => i.id === roadmap.currentItemId),
   );
 
-  const open = (item: { conceptId: string | null; exerciseId: string | null }) => {
-    if (item.exerciseId) navigate(`/exercise/${item.exerciseId}`);
-    else if (item.conceptId) navigate(`/concept/${item.conceptId}`);
+  const open = (item: { kind: string; conceptId: string | null; exerciseId: string | null }) => {
+    // A project is multi-step work with its own workspace; sending it to the
+    // single-file drill editor would hide every step but the first.
+    if (item.exerciseId) {
+      navigate(`${item.kind === 'PROJECT' ? '/project' : '/exercise'}/${item.exerciseId}`);
+    } else if (item.conceptId) {
+      navigate(`/concept/${item.conceptId}`);
+    }
   };
 
   return (

@@ -12,7 +12,10 @@ import { GenerationModule } from './modules/generation/generation.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
 import { ProgressModule } from './modules/progress/progress.module.js';
+import { ProjectsModule } from './modules/projects/projects.module.js';
+import { RecallModule } from './modules/recall/recall.module.js';
 import { RoadmapModule } from './modules/roadmap/roadmap.module.js';
+import { RoutinesModule } from './modules/routines/routines.module.js';
 import { SessionsModule } from './modules/sessions/sessions.module.js';
 import { SkillsModule } from './modules/skills/skills.module.js';
 import { SubmissionsModule } from './modules/submissions/submissions.module.js';
@@ -41,6 +44,9 @@ import { TechnologiesModule } from './modules/technologies/technologies.module.j
     OnboardingModule,
     SessionsModule,
     ExercisesModule,
+    ProjectsModule,
+    RecallModule,
+    RoutinesModule,
     SubmissionsModule,
     ProgressModule,
     HealthModule,

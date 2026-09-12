@@ -349,6 +349,7 @@ model Exercise {
   updatedAt         DateTime @updatedAt
 
   testCases ExerciseTestCase[]
+  steps     ProjectStep[]
   attempts  ExerciseAttempt[]
   routineItems RoutineItem[]
   roadmapItems RoadmapItem[]
@@ -358,10 +359,39 @@ model Exercise {
   @@map("exercises")
 }
 
+/// One stage of a PROJECT exercise (§14).
+///
+/// Projects are progressive: API, then auth, then validation, then error
+/// handling. Each step is submitted and reviewed on its own, because the point
+/// is composition over time rather than one large drop.
+model ProjectStep {
+  id           String   @id @default(cuid())
+  exerciseId   String
+  exercise     Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  orderIndex   Int
+  title        String
+  requirements String   @default("")
+  /// Carried into the next step, so the project accumulates rather than restarting.
+  starterCode  String?
+  referenceSolution String?
+  estimatedMinutes Int  @default(20)
+  createdAt    DateTime @default(now())
+
+  testCases ExerciseTestCase[]
+
+  @@unique([exerciseId, orderIndex])
+  @@index([exerciseId, orderIndex])
+  @@map("project_steps")
+}
+
 model ExerciseTestCase {
   id         String   @id @default(cuid())
   exerciseId String
   exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  /// Set when this case belongs to one step of a project rather than the
+  /// exercise as a whole.
+  stepId     String?
+  step       ProjectStep? @relation(fields: [stepId], references: [id], onDelete: Cascade)
   name       String
   /// Executed but not revealed before submission.
   hidden     Boolean  @default(false)
@@ -400,6 +430,9 @@ model ExerciseAttempt {
   solutionRevealed  Boolean  @default(false)
   submissionCount   Int      @default(0)
 
+  /// PROJECT attempts: which step the user is on. Steps unlock in order.
+  currentStep       Int      @default(0)
+
   /// Advisory only, client-reported, never scored.
   keystrokeCount    Int?
   largePasteEvents  Int?
@@ -428,6 +461,8 @@ model CodeSubmission {
   /// fix. Graded separately, because finding a fault and repairing it are
   /// different abilities (§13).
   diagnosis  String?
+  /// PROJECT submissions: which step this was for.
+  stepIndex  Int?
   /// Set when the client supplied an Idempotency-Key, so a double-click cannot
   /// create two submissions.
   idempotencyKey String?
@@ -484,6 +519,9 @@ model CodeEvaluation {
   nextAction    String   @default("practice")
   /// True when AI was unavailable and only execution facts were used.
   degraded      Boolean  @default(false)
+  /// Tech-lead review issues on a project step (§14, §31): severity, category,
+  /// title, explanation, line. Shape validated by Zod before write.
+  reviewIssues  Json     @default("[]")
   createdAt     DateTime @default(now())
 
   @@map("code_evaluations")

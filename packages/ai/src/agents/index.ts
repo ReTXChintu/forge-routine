@@ -5,3 +5,4 @@ export * from './debugger.agent.js';
 export * from './curriculum.agent.js';
 export * from './exercise.agent.js';
 export * from './question.agent.js';
+export * from './project.agent.js';

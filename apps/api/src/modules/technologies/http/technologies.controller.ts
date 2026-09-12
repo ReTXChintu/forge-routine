@@ -2,6 +2,7 @@ import {
   Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+
 import type { Technology, UserTechnology } from '@forgeroutine/shared-types';
 import {
   addTechnologySchema, updateUserTechnologySchema,
@@ -11,7 +12,7 @@ import {
 import { CurrentUser, type AuthenticatedUser } from '../../../common/http/current-user.decorator.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard.js';
-import { TechnologiesService } from '../application/technologies.service.js';
+import { type TechnologiesService } from '../application/technologies.service.js';
 
 @ApiTags('technologies')
 @Controller('technologies')

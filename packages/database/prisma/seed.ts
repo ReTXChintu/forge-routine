@@ -5,6 +5,8 @@
  * upserted by slug so a user's skill history — which is keyed on concept ids —
  * survives every reseed.
  */
+import { PrismaClient, type Prisma } from '@prisma/client';
+
 import {
   TECHNOLOGY_CATALOGUE,
   assertAcyclic,
@@ -14,7 +16,6 @@ import {
   type GraphNode,
   type SeedTechnology,
 } from '@forgeroutine/curriculum';
-import { PrismaClient, type Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 

@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
+
 import { computeReadiness } from '@forgeroutine/curriculum';
 import type { AssistanceLevel, ExerciseView, StartAttemptResponse } from '@forgeroutine/shared-types';
 import type { StartAttemptInput } from '@forgeroutine/validation';
 
 import { Problems } from '../../../common/http/problem-details.js';
-import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
-import { ConceptsService } from '../../concepts/application/concepts.service.js';
-import { SkillsService } from '../../skills/application/skills.service.js';
+import { type PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { type ConceptsService } from '../../concepts/application/concepts.service.js';
+import { type SkillsService } from '../../skills/application/skills.service.js';
 import { projectExercise } from '../domain/exercise-view.js';
 
 @Injectable()

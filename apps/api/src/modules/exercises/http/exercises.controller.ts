@@ -1,12 +1,13 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+
 import type { ExerciseView, StartAttemptResponse } from '@forgeroutine/shared-types';
 import { startAttemptSchema, type StartAttemptInput } from '@forgeroutine/validation';
 
 import { CurrentUser, type AuthenticatedUser } from '../../../common/http/current-user.decorator.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard.js';
-import { ExercisesService } from '../application/exercises.service.js';
+import { type ExercisesService } from '../application/exercises.service.js';
 
 @ApiTags('exercises')
 @Controller('exercises')

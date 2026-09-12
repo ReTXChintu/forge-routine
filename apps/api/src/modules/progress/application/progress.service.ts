@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+
 import type {
   DashboardOverview,
   IndependentCodingScore,
@@ -11,8 +12,8 @@ import {
   mean,
 } from '@forgeroutine/utils';
 
-import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
-import { SkillsService } from '../../skills/application/skills.service.js';
+import { type PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { type SkillsService } from '../../skills/application/skills.service.js';
 
 @Injectable()
 export class ProgressService {

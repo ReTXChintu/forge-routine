@@ -4,8 +4,9 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ConfigurationError, loadConfig } from '@forgeroutine/config';
 import helmet from 'helmet';
+
+import { ConfigurationError, loadConfig } from '@forgeroutine/config';
 
 import { AppModule } from './app.module.js';
 import { ProblemDetailsFilter } from './common/filters/problem-details.filter.js';

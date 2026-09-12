@@ -1,4 +1,5 @@
 import { Module, type Provider } from '@nestjs/common';
+
 import type { AppConfig } from '@forgeroutine/config';
 
 import { APP_CONFIG } from '../../infrastructure/config/config.module.js';

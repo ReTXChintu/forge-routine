@@ -1,7 +1,8 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
+import { Queue, QueueEvents } from 'bullmq';
+
 import type { AppConfig } from '@forgeroutine/config';
 import type { ExecutionResult } from '@forgeroutine/shared-types';
-import { Queue, QueueEvents } from 'bullmq';
 
 import { APP_CONFIG } from '../../../infrastructure/config/config.module.js';
 import type { CodeExecutionPort, ExecutionJob } from '../ports/code-execution.port.js';

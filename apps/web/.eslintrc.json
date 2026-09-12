@@ -1,0 +1,28 @@
+{
+  "extends": "../../.eslintrc.json",
+  "parserOptions": {
+    "ecmaFeatures": { "jsx": true }
+  },
+  "env": { "browser": true, "node": false },
+  "settings": {
+    "import/resolver": {
+      "node": { "extensions": [".ts", ".tsx"] }
+    }
+  },
+  "rules": {
+    "no-undef": "off",
+    "import/order": [
+      "error",
+      {
+        "groups": ["builtin", "external", "internal", "parent", "sibling", "index", "object"],
+        "pathGroups": [
+          { "pattern": "~/**", "group": "internal", "position": "after" },
+          { "pattern": "**/*.png", "group": "object", "position": "after" }
+        ],
+        "pathGroupsExcludedImportTypes": ["builtin"],
+        "newlines-between": "always",
+        "alphabetize": { "order": "asc", "caseInsensitive": true }
+      }
+    ]
+  }
+}

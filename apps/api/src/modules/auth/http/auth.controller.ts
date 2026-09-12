@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+
 import type { AuthTokens } from '@forgeroutine/shared-types';
 import {
   loginSchema,
@@ -12,7 +13,7 @@ import {
 
 import { CurrentUser, type AuthenticatedUser } from '../../../common/http/current-user.decorator.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
-import { AuthService } from '../application/auth.service.js';
+import { type AuthService } from '../application/auth.service.js';
 import { JwtAuthGuard } from '../infrastructure/jwt-auth.guard.js';
 
 /**

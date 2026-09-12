@@ -6,8 +6,9 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import type { ProblemDetails } from '@forgeroutine/shared-types';
 import type { Request, Response } from 'express';
+
+import type { ProblemDetails } from '@forgeroutine/shared-types';
 
 /**
  * Converts every escaping error into RFC 9457 `application/problem+json`.

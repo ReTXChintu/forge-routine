@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
-import type { AppConfig } from '@forgeroutine/config';
 import Redis from 'ioredis';
+
+import type { AppConfig } from '@forgeroutine/config';
 
 import { APP_CONFIG } from '../config/config.module.js';
 

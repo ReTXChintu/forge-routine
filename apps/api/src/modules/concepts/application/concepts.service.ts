@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+
 import {
   KnowledgeGraph,
   computeReadiness,
@@ -11,9 +12,9 @@ import {
 import type { Concept, SkillVector } from '@forgeroutine/shared-types';
 
 import { Problems } from '../../../common/http/problem-details.js';
-import { CacheService } from '../../../infrastructure/redis/cache.service.js';
-import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
-import { SkillsService } from '../../skills/application/skills.service.js';
+import { type PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { type CacheService } from '../../../infrastructure/redis/cache.service.js';
+import { type SkillsService } from '../../skills/application/skills.service.js';
 
 export interface ConceptDetail extends Concept {
   technologyName: string;

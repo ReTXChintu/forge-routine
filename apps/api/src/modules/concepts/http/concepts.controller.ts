@@ -1,11 +1,12 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+
 import type { RootCauseTrace } from '@forgeroutine/curriculum';
 import type { Concept } from '@forgeroutine/shared-types';
 
 import { CurrentUser, type AuthenticatedUser } from '../../../common/http/current-user.decorator.js';
 import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard.js';
-import { ConceptsService, type ConceptDetail } from '../application/concepts.service.js';
+import { type ConceptsService, type ConceptDetail } from '../application/concepts.service.js';
 
 @ApiTags('concepts')
 @Controller('concepts')

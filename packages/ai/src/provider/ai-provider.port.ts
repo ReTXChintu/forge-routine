@@ -1,5 +1,6 @@
-import type { AIModelTier } from '@forgeroutine/shared-types';
 import type { z } from 'zod';
+
+import type { AIModelTier } from '@forgeroutine/shared-types';
 
 /**
  * The interface the application depends on (§27).

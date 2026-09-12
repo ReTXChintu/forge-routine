@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+
 import { createAIProvider } from '@forgeroutine/ai';
 import type { AppConfig } from '@forgeroutine/config';
 

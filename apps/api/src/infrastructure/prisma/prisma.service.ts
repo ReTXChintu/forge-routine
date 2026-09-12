@@ -1,4 +1,5 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+
 import { PrismaClient } from '@forgeroutine/database';
 
 /**

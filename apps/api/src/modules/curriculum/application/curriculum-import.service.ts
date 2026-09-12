@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { Prisma } from '@forgeroutine/database';
+
 import {
   type SeedTechnology,
   assertAcyclic,
   type GraphEdge,
   type GraphNode,
 } from '@forgeroutine/curriculum';
+import type { Prisma } from '@forgeroutine/database';
 
 
 export const GENERATOR_VERSION = 'seed-1';

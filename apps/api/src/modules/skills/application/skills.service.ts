@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+
 import type { Prisma, Skill as SkillRow } from '@forgeroutine/database';
 import type {
   AssistanceLevel,
@@ -10,7 +11,7 @@ import type {
 import { SKILL_DIMENSIONS } from '@forgeroutine/shared-types';
 import { round, unit } from '@forgeroutine/utils';
 
-import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { type PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
 
 /**
  * The nine-dimension skill model (§7).

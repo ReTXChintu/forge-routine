@@ -1,5 +1,6 @@
-import type { ExecutionResult } from '@forgeroutine/shared-types';
 import { describe, expect, it } from 'vitest';
+
+import type { ExecutionResult } from '@forgeroutine/shared-types';
 
 import { FakeAIProvider } from '../provider/testing/fake.provider.js';
 

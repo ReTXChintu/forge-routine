@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+
 import { type AppConfig, loadConfig } from '@forgeroutine/config';
 
 export const APP_CONFIG = Symbol('APP_CONFIG');

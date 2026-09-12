@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+
 import {
   INTERVENTION_MESSAGE,
   checkEscalationGate,
@@ -8,15 +9,15 @@ import {
   tutorAgent,
   type TutorResult,
 } from '@forgeroutine/ai';
+import { HINT_LADDER } from '@forgeroutine/ai';
 import type { AppConfig } from '@forgeroutine/config';
 import type { HintKind, HintResponse } from '@forgeroutine/shared-types';
-import { HINT_LADDER } from '@forgeroutine/ai';
 import { dayKey } from '@forgeroutine/utils';
 import type { HintRequestInput } from '@forgeroutine/validation';
 
 import { Problems } from '../../../common/http/problem-details.js';
 import { APP_CONFIG } from '../../../infrastructure/config/config.module.js';
-import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { type PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
 import { AI_PROVIDER, type OptionalAIProvider } from '../ai.tokens.js';
 
 /**

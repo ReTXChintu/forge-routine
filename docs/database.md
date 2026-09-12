@@ -99,6 +99,36 @@ and reviewed like code. `db push` is permitted only against a scratch database.
 If `DATABASE_URL` points at a connection pooler, set `DIRECT_DATABASE_URL` to the direct
 endpoint — Prisma migrations require a direct connection.
 
+### Never point `--shadow-database-url` at a real database
+
+`prisma migrate diff --from-migrations` **resets** whatever it is given as the shadow
+database: it drops every table, replays the migration history into it, and diffs the
+result. Handing it a real connection string destroys that database's data and its
+`_prisma_migrations` history. This has happened once in this project.
+
+To generate a migration against a live database, use the non-destructive form, which
+compares the live schema to the datamodel and needs no shadow database at all:
+
+```bash
+pnpm --filter @forgeroutine/database migrate:diff > out.sql
+```
+
+That is what the `migrate:diff` script runs. Use a genuinely separate throwaway database
+if you ever need `--from-migrations`.
+
+### Recovering a database whose migration history was lost
+
+Schema intact, `_prisma_migrations` gone — mark the applied migrations rather than
+resetting:
+
+```bash
+prisma migrate resolve --applied <migration_name>   # once per already-applied migration
+prisma migrate deploy                                # applies only what is genuinely new
+```
+
+`prisma migrate reset` also works but drops everything, which is rarely what you want on
+a database you care about.
+
 ## Redis usage (§29)
 
 | Purpose                         | Key shape                                  | TTL    |

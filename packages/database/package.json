@@ -29,7 +29,8 @@
     "lint": "eslint src --ext .ts",
     "test": "vitest run --passWithNoTests",
     "clean": "rimraf dist .turbo src/generated",
-    "validate": "dotenv -e ../../.env -- prisma validate"
+    "validate": "dotenv -e ../../.env -- prisma validate",
+    "migrate:diff": "dotenv -e ../../.env -- prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --script"
   },
   "dependencies": {
     "@forgeroutine/config": "workspace:*",

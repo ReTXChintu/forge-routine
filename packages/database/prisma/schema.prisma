@@ -48,6 +48,8 @@ model User {
   tokenUsage       TokenUsageDaily[]
   progressSnapshots ProgressSnapshot[]
   interviews       Interview[]
+  roadmaps         Roadmap[]
+  generationJobs   GenerationJob[]
 
   @@index([archivedAt])
   @@map("users")
@@ -62,6 +64,10 @@ model UserPreferences {
   interviewTarget    InterviewTarget @default(MID)
   primaryGoal        PrimaryGoal     @default(CODING)
   timezone           String   @default("UTC")
+  /// Null until the first-run flow completes. Drives the onboarding redirect.
+  onboardedAt        DateTime?
+  /// Optional. A real date reorders everything downstream toward readiness.
+  interviewDate      DateTime?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -190,6 +196,7 @@ model Concept {
   sessions        LearningSession[]
   routineItems    RoutineItem[]
   interviewQuestions InterviewQuestion[]
+  roadmapItems    RoadmapItem[]
 
   @@unique([technologyId, slug])
   @@index([technologyId, orderIndex])
@@ -335,6 +342,7 @@ model Exercise {
   testCases ExerciseTestCase[]
   attempts  ExerciseAttempt[]
   routineItems RoutineItem[]
+  roadmapItems RoadmapItem[]
 
   @@unique([conceptId, slug])
   @@index([conceptId, kind])
@@ -578,6 +586,115 @@ model ReviewSchedule {
 }
 
 // ===========================================================================
+// Roadmap (docs/learning-path.md)
+//
+// A roadmap is a *traversal* of the knowledge graph, never a copy of it.
+// RoadmapItem references conceptId and exerciseId; duplicating their content
+// here would orphan every skill record the moment a roadmap regenerates,
+// because skill history is keyed on concept ids.
+// ===========================================================================
+
+model Roadmap {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version     Int      @default(1)
+  status      RoadmapStatus @default(ACTIVE)
+  /// "rules" or "ai" — the planner degrades to rules when AI is unavailable.
+  generatedBy String   @default("rules")
+  /// Ordered technology slugs, so the intended journey survives a replan.
+  technologyOrder String[] @default([])
+  totalMinutes Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  phases RoadmapPhase[]
+
+  @@unique([userId, version])
+  @@index([userId, status])
+  @@map("roadmaps")
+}
+
+model RoadmapPhase {
+  id           String   @id @default(cuid())
+  roadmapId    String
+  roadmap      Roadmap  @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  orderIndex   Int
+  title        String
+  /// What the user should be able to do once this phase is finished.
+  goal         String   @default("")
+  technologyId String?
+  estimatedMinutes Int  @default(0)
+  createdAt    DateTime @default(now())
+
+  items RoadmapItem[]
+
+  @@unique([roadmapId, orderIndex])
+  @@index([roadmapId, orderIndex])
+  @@map("roadmap_phases")
+}
+
+model RoadmapItem {
+  id         String   @id @default(cuid())
+  phaseId    String
+  phase      RoadmapPhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  orderIndex Int
+  kind       RoadmapItemKind
+  status     RoadmapItemStatus @default(PENDING)
+
+  conceptId  String?
+  concept    Concept? @relation(fields: [conceptId], references: [id])
+  exerciseId String?
+  exercise   Exercise? @relation(fields: [exerciseId], references: [id])
+
+  title      String
+  /// Why the planner placed this here. Shown to the user: an opaque path is
+  /// not a trusted path.
+  rationale  String   @default("")
+  estimatedMinutes Int @default(15)
+  completedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([phaseId, orderIndex])
+  @@index([phaseId, orderIndex])
+  @@index([conceptId])
+  @@map("roadmap_items")
+}
+
+// ===========================================================================
+// Background generation
+//
+// State lives here rather than in Redis so "come back shortly" survives a
+// restart (§29). Redis carries work to the worker; this remembers what was
+// asked for and how far it got.
+// ===========================================================================
+
+model GenerationJob {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind       GenerationKind
+  /// Technology slug, roadmap id, or whatever the kind addresses.
+  target     String
+  status     GenerationStatus @default(QUEUED)
+  /// 0-100. Coarse on purpose; a precise fake percentage is worse than none.
+  progress   Int      @default(0)
+  /// Human-readable current step, shown while the user waits.
+  step       String   @default("")
+  attempts   Int      @default(0)
+  error      String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@map("generation_jobs")
+}
+
+// ===========================================================================
 // Interview (Phase 6 — modelled now so the skill model can feed it)
 // ===========================================================================
 
@@ -794,6 +911,50 @@ enum RoutineItemStatus {
   IN_PROGRESS
   DONE
   SKIPPED
+}
+
+enum RoadmapStatus {
+  /// Skeleton written, content still generating behind the user.
+  BUILDING
+  ACTIVE
+  SUPERSEDED
+}
+
+enum RoadmapItemKind {
+  LEARN
+  RECALL
+  CODE
+  BLIND_CODE
+  DEBUG
+  EXPLAIN
+  PROJECT
+  CHECKPOINT
+  INTERVIEW
+}
+
+enum RoadmapItemStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  SKIPPED
+  /// Content for this item has not finished generating yet.
+  AWAITING_CONTENT
+}
+
+enum GenerationKind {
+  ROADMAP_SKELETON
+  TECHNOLOGY_CURRICULUM
+  EXERCISES
+  INTERVIEW_QUESTIONS
+}
+
+enum GenerationStatus {
+  QUEUED
+  RUNNING
+  /// Usable but incomplete. Four of six technologies is not "not ready".
+  PARTIAL
+  READY
+  FAILED
 }
 
 enum InterviewMode {

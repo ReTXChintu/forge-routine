@@ -12,8 +12,8 @@ import {
   mean,
 } from '@forgeroutine/utils';
 
-import { type PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
-import { type SkillsService } from '../../skills/application/skills.service.js';
+import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { SkillsService } from '../../skills/application/skills.service.js';
 
 @Injectable()
 export class ProgressService {

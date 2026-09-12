@@ -18,9 +18,9 @@ import {
 import type { SubmitCodeInput } from '@forgeroutine/validation';
 
 import { Problems } from '../../../common/http/problem-details.js';
-import { type PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
 import { AI_PROVIDER, type OptionalAIProvider } from '../../ai/ai.tokens.js';
-import { type SkillsService } from '../../skills/application/skills.service.js';
+import { SkillsService } from '../../skills/application/skills.service.js';
 import { CODE_EXECUTION_PORT, type CodeExecutionPort } from '../ports/code-execution.port.js';
 
 /**

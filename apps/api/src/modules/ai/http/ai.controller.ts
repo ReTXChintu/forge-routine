@@ -10,7 +10,7 @@ import {
 } from '../../../common/http/current-user.decorator.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard.js';
-import { type AssistanceService } from '../application/assistance.service.js';
+import { AssistanceService } from '../application/assistance.service.js';
 
 @ApiTags('ai')
 @Controller('ai')

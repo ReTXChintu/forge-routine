@@ -6,9 +6,9 @@ import { slugify } from '@forgeroutine/utils';
 import type { AddTechnologyInput, UpdateUserTechnologyInput } from '@forgeroutine/validation';
 
 import { Problems } from '../../../common/http/problem-details.js';
-import { type PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
-import { type CurriculumImportService } from '../../curriculum/application/curriculum-import.service.js';
-import { type SkillsService } from '../../skills/application/skills.service.js';
+import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { CurriculumImportService } from '../../curriculum/application/curriculum-import.service.js';
+import { SkillsService } from '../../skills/application/skills.service.js';
 
 /**
  * The user's learning universe (§5).

@@ -11,7 +11,7 @@ import type {
 import { SKILL_DIMENSIONS } from '@forgeroutine/shared-types';
 import { round, unit } from '@forgeroutine/utils';
 
-import { type PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
 
 /**
  * The nine-dimension skill model (§7).

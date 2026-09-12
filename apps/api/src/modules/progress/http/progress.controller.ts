@@ -8,7 +8,7 @@ import {
   type AuthenticatedUser,
 } from '../../../common/http/current-user.decorator.js';
 import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard.js';
-import { type ProgressService } from '../application/progress.service.js';
+import { ProgressService } from '../application/progress.service.js';
 
 @ApiTags('progress')
 @Controller('progress')

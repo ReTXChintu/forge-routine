@@ -17,7 +17,7 @@ import type { HintRequestInput } from '@forgeroutine/validation';
 
 import { Problems } from '../../../common/http/problem-details.js';
 import { APP_CONFIG } from '../../../infrastructure/config/config.module.js';
-import { type PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
 import { AI_PROVIDER, type OptionalAIProvider } from '../ai.tokens.js';
 
 /**

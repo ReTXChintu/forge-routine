@@ -76,10 +76,9 @@ describe('vertical slice', () => {
 
   it('3. adds JavaScript, importing its curriculum', async () => {
     const catalogue = await http.get('/api/v1/technologies').set(auth()).expect(200);
-    const javascript = catalogue.body.find(
-      (t: { slug: string }) => t.slug === 'javascript',
-    );
-    expect(javascript, 'seed data must include JavaScript').toBeDefined();
+    const javascript = catalogue.body.find((t: { slug: string }) => t.slug === 'javascript');
+    // Seed data must include JavaScript; everything below depends on it.
+    expect(javascript).toBeDefined();
 
     const response = await http
       .post('/api/v1/technologies/mine')
@@ -170,9 +169,7 @@ describe('vertical slice', () => {
 
     expect(response.body.execution.passed).toBe(false);
     expect(response.body.execution.testsTotal).toBeGreaterThan(0);
-    expect(response.body.execution.testsPassed).toBeLessThan(
-      response.body.execution.testsTotal,
-    );
+    expect(response.body.execution.testsPassed).toBeLessThan(response.body.execution.testsTotal);
     expect(response.body.attemptOutcome).toBe('FAILED');
     expect(response.body.nextActionHint).toEqual(expect.any(String));
   }, 60_000);

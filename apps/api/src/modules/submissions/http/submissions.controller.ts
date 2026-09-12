@@ -21,10 +21,10 @@ import {
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard.js';
 import {
-  type SubmissionsQueryService,
+  SubmissionsQueryService,
   type SubmissionDetail,
 } from '../application/submissions-query.service.js';
-import { type SubmitSolutionUseCase } from '../application/submit-solution.use-case.js';
+import { SubmitSolutionUseCase } from '../application/submit-solution.use-case.js';
 
 @ApiTags('submissions')
 @Controller('submissions')

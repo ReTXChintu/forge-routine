@@ -27,7 +27,7 @@ import {
 } from '../../../common/http/current-user.decorator.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard.js';
-import { type TechnologiesService } from '../application/technologies.service.js';
+import { TechnologiesService } from '../application/technologies.service.js';
 
 @ApiTags('technologies')
 @Controller('technologies')

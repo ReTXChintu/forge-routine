@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { type JwtService } from '@nestjs/jwt';
+import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
 
 import type { AppConfig } from '@forgeroutine/config';
@@ -10,7 +10,7 @@ import type { LoginInput, RegisterInput } from '@forgeroutine/validation';
 
 import { Problems } from '../../../common/http/problem-details.js';
 import { APP_CONFIG } from '../../../infrastructure/config/config.module.js';
-import { type PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
 import { classifyRefreshToken, parseDuration } from '../domain/token.js';
 
 @Injectable()

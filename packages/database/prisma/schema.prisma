@@ -319,6 +319,14 @@ model Exercise {
   staticHints       String[] @default([])
   /// Reference solution. Never sent to the client below SHOW_SOLUTION.
   referenceSolution String?
+
+  /// DEBUGGING exercises only (§13): realistic broken code the user must
+  /// diagnose. Unlike starterCode this IS shown at every assistance level —
+  /// the bug is the problem statement.
+  brokenCode        String?
+  /// What is actually wrong. Used to grade the diagnosis; never sent to the
+  /// client before the user has submitted one.
+  bugExplanation    String?
   estimatedMinutes  Int      @default(15)
   archivedAt        DateTime?
   createdAt         DateTime @default(now())
@@ -399,6 +407,10 @@ model CodeSubmission {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   code       String
   language   String   @default("javascript")
+  /// DEBUGGING exercises: the user's written diagnosis, submitted alongside the
+  /// fix. Graded separately, because finding a fault and repairing it are
+  /// different abilities (§13).
+  diagnosis  String?
   /// Set when the client supplied an Idempotency-Key, so a double-click cannot
   /// create two submissions.
   idempotencyKey String?
@@ -446,6 +458,8 @@ model CodeEvaluation {
   errorHandling Float?
   edgeCases     Float?
   idiomatic     Float?
+  /// How accurately the user identified the fault, independent of the fix.
+  diagnosisAccuracy Float?
   strengths     String[] @default([])
   weaknesses    String[] @default([])
   conceptGaps   String[] @default([])

@@ -1,8 +1,8 @@
 import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { type PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
-import { type CacheService } from '../../../infrastructure/redis/cache.service.js';
+import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { CacheService } from '../../../infrastructure/redis/cache.service.js';
 
 /**
  * Liveness and readiness are genuinely different questions (docs/deployment.md):

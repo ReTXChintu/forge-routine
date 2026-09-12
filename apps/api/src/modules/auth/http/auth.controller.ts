@@ -16,7 +16,7 @@ import {
   type AuthenticatedUser,
 } from '../../../common/http/current-user.decorator.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
-import { type AuthService } from '../application/auth.service.js';
+import { AuthService } from '../application/auth.service.js';
 import { JwtAuthGuard } from '../infrastructure/jwt-auth.guard.js';
 
 /**

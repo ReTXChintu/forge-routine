@@ -8,7 +8,7 @@ import {
   type AuthenticatedUser,
 } from '../../../common/http/current-user.decorator.js';
 import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard.js';
-import { type SkillsService } from '../application/skills.service.js';
+import { SkillsService } from '../application/skills.service.js';
 
 @ApiTags('skills')
 @Controller('skills')

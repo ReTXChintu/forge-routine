@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import type { CodeEvaluation, ExecutionResult } from '@forgeroutine/shared-types';
 
 import { Problems } from '../../../common/http/problem-details.js';
-import { type PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
 
 export interface SubmissionDetail {
   id: string;

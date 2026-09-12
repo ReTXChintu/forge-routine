@@ -9,7 +9,7 @@ import {
   type AuthenticatedUser,
 } from '../../../common/http/current-user.decorator.js';
 import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard.js';
-import { type ConceptsService, type ConceptDetail } from '../application/concepts.service.js';
+import { ConceptsService, type ConceptDetail } from '../application/concepts.service.js';
 
 @ApiTags('concepts')
 @Controller('concepts')

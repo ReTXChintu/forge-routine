@@ -9,9 +9,9 @@ import type {
 import type { StartAttemptInput } from '@forgeroutine/validation';
 
 import { Problems } from '../../../common/http/problem-details.js';
-import { type PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
-import { type ConceptsService } from '../../concepts/application/concepts.service.js';
-import { type SkillsService } from '../../skills/application/skills.service.js';
+import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { ConceptsService } from '../../concepts/application/concepts.service.js';
+import { SkillsService } from '../../skills/application/skills.service.js';
 import { projectExercise } from '../domain/exercise-view.js';
 
 @Injectable()

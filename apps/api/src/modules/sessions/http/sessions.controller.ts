@@ -20,7 +20,7 @@ import {
 } from '../../../common/http/current-user.decorator.js';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard.js';
-import { type SessionsService } from '../application/sessions.service.js';
+import { SessionsService } from '../application/sessions.service.js';
 
 type StartSessionInput = z.infer<typeof startSessionSchema>;
 

@@ -40,7 +40,7 @@ proven to fail and whose fixes are proven to pass.
 Still thin here, and deliberately so: exercises exist only for JavaScript and Node.js,
 because those are the languages the MVP sandbox can execute. See "Deferred" below.
 
-## Phase 4 — Onboarding and the Generated Roadmap — **next**
+## Phase 4 — Onboarding and the Generated Roadmap — **done**
 
 The largest remaining gap between what the product promises and what it does. Today,
 adding a technology with no curated curriculum logs "awaiting generation" and produces an
@@ -57,10 +57,20 @@ Design in `learning-path.md`.
 - The roadmap itself: phases, ordered items, visible rationale
 - Roadmap UI, and a "come back shortly" state reached only by outrunning generation
 
-Done when: a user signs up, picks Rust and Kubernetes, sees an ordered path within
-seconds, and starts the first lesson without waiting for the last one to generate.
+Verified against the live database and real OpenAI: onboarding returns a roadmap
+instantly while curriculum generates behind the user, and the roadmap replans itself when
+content lands. Docker, React, TypeScript and Linux generated.
 
-## Phase 5 — Projects and Checkpoints
+Two limits found by running it, both recorded in `code-execution.md`:
+
+- Only JavaScript, TypeScript and Node.js can have _runnable_ exercises. React and
+  Next.js need a JSX transform and a React runtime the sandbox does not have; everything
+  else cannot be graded by executing JavaScript at all. Those technologies get concept
+  questions, which is honest practice rather than exercises that cannot run.
+- Generated content is proven _solvable_, not proven _well-chosen_. The verifier executes
+  every exercise before it ships; nobody reviews whether it was worth setting.
+
+## Phase 5 — Projects and Checkpoints — **next**
 
 Every phase of a roadmap ends in a project — in practice every 5–6 lessons.
 
@@ -77,7 +87,10 @@ is why `problemSolving` and `architecture` are currently starved of evidence.
 
 Short conceptual questions between activities, never during coding.
 
-- Question bank generated per concept, versioned with the curriculum
+Partly built already: Phase 4 generates the questions, and 160 of them are in the
+database. What is missing is delivery — nothing surfaces them yet.
+
+- ~~Question bank generated per concept~~ — done in Phase 4
 - Delivery at boundaries only: session start, after a submission, between routine items
 - Selection from the existing `ReviewSchedule`, so prompts are _due_ rather than random
 - Feeds `recallStrength` and `retention`, two of the nine dimensions that nothing

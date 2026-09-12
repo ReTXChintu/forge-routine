@@ -373,7 +373,9 @@ describe('vertical slice', () => {
   it('19. validates input before it reaches a use-case', async () => {
     const response = await http
       .post('/api/v1/auth/register')
-      .send({ email: 'not-an-email', password: 'short', displayName: '' })
+      // Comfortably under the minimum, so the test keeps its meaning if the
+      // floor moves again.
+      .send({ email: 'not-an-email', password: 'ab', displayName: '' })
       .expect(400);
 
     expect(response.body.type).toContain('validation-failed');

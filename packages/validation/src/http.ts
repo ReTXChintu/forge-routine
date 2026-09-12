@@ -21,8 +21,9 @@ import {
 
 export const registerSchema = z.object({
   email: z.string().email().max(254).toLowerCase().trim(),
-  // 12 rather than 8: this account holds a long-term record of the user's ability.
-  password: z.string().min(12, 'Use at least 12 characters').max(128),
+  // Single-tenant app, owner-operated: the floor is convenience over strength.
+  // Raise this before the product ever has a second user.
+  password: z.string().min(6, 'Use at least 6 characters').max(128),
   displayName: z.string().min(1).max(80).trim(),
 });
 

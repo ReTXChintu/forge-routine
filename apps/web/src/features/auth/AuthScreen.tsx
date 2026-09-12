@@ -124,7 +124,7 @@ export function AuthScreen() {
               <FormErrorMessage fontSize="xs">{fieldError('password')}</FormErrorMessage>
               {mode === 'register' && !fieldError('password') && (
                 <Text fontSize="xs" color="ink.500" mt={1}>
-                  At least 12 characters.
+                  At least 6 characters.
                 </Text>
               )}
             </FormControl>

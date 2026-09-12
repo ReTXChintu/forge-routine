@@ -124,3 +124,12 @@ Development is supported on Windows. Two things to know:
   Windows; execution still runs out-of-process with timeout and memory caps.
 - `.gitattributes` and `core.autocrlf=false` keep LF endings; the sandbox harness is
   line-ending sensitive.
+- `pnpm build` can fail with `EPERM: operation not permitted, rename
+...query_engine-windows.dll.node`. This is not a code problem: `prisma generate` rewrites
+  that DLL, and Windows refuses while any node process still has the Prisma client loaded —
+  typically a dev server or a test run that has not fully exited. Kill the stragglers and
+  rebuild:
+
+  ```powershell
+  Get-Process node,esbuild -ErrorAction SilentlyContinue | Stop-Process -Force
+  ```

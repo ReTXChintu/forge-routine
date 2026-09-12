@@ -3,14 +3,21 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   type ConceptOutlineOutput,
   type GeneratedExerciseOutput,
+  type GeneratedProjectOutput,
   type ConceptQuestionSetOutput,
   conceptDetailAgent,
   exerciseAgent,
   outlineAgent,
   prerequisiteAgent,
+  projectAgent,
   questionAgent,
 } from '@forgeroutine/ai';
-import { assertAcyclic, type GraphEdge, type GraphNode } from '@forgeroutine/curriculum';
+import {
+  DEFAULT_CONCEPTS_PER_PHASE,
+  assertAcyclic,
+  type GraphEdge,
+  type GraphNode,
+} from '@forgeroutine/curriculum';
 import type { Prisma } from '@forgeroutine/database';
 
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
@@ -29,8 +36,21 @@ export interface GenerationOutcome {
   exercisesCreated: number;
   exercisesRejected: number;
   questionsCreated: number;
+  projectsCreated: number;
+  projectsRejected: number;
   edgesCreated: number;
 }
+
+/**
+ * How many concepts a project pulls together.
+ *
+ * Drills are isolated by design, so nothing else in the curriculum ever asks
+ * the user to combine two ideas. This is the roadmap's phase size, imported
+ * rather than repeated: the roadmap closes each phase by looking for a
+ * PROJECT exercise among that phase's concepts, so the two groupings must be
+ * identical or the project lands in a phase that never looks for it.
+ */
+const CONCEPTS_PER_PROJECT = DEFAULT_CONCEPTS_PER_PHASE;
 
 /**
  * Generates a full curriculum for one technology (docs/curriculum-engine.md).
@@ -145,12 +165,34 @@ export class CurriculumGeneratorService {
       questions = await this.generateQuestions(technology.name, detailed, context, onProgress);
     }
 
-    // -- Stage 5: persist ---------------------------------------------------
+    // -- Stage 5: projects --------------------------------------------------
+    //
+    // Only where exercises survived. A technology practised through concept
+    // questions has no runnable drills, and a project is the one thing that
+    // absolutely must execute — it is graded entirely by its tests.
+    let projects: AnchoredProject[] = [];
+    let projectsRejected = 0;
+
+    if (exercises.size > 0) {
+      await onProgress('Designing projects', 88);
+      const built = await this.generateProjects(technology.name, detailed, context, onProgress);
+      projects = built.projects;
+      projectsRejected = built.rejected;
+    }
+
+    // -- Stage 6: persist ---------------------------------------------------
     await onProgress('Saving', 95);
 
-    const outcome = await this.persist(technology, detailed, edges, exercises, questions);
+    const outcome = await this.persist(
+      technology,
+      detailed,
+      edges,
+      exercises,
+      questions,
+      projects,
+    );
 
-    return { ...outcome, exercisesRejected: rejected };
+    return { ...outcome, exercisesRejected: rejected, projectsRejected };
   }
 
   // -- Stages ---------------------------------------------------------------
@@ -292,6 +334,73 @@ export class CurriculumGeneratorService {
     return { exercises, rejected };
   }
 
+  /**
+   * One project per roadmap phase, hung off the last concept in that phase so
+   * it unlocks only once everything it combines has been worked through.
+   *
+   * Verified exactly the way it will be graded: every step's solution against
+   * its own tests and all earlier steps'. A project is rejected whole — a
+   * partially valid one cannot be trimmed to its working prefix, because the
+   * remaining steps were written to lead somewhere it no longer goes.
+   */
+  private async generateProjects(
+    technologyName: string,
+    concepts: readonly DetailedConcept[],
+    context: { userId: string },
+    onProgress: GenerationProgress,
+  ): Promise<{ projects: AnchoredProject[]; rejected: number }> {
+    // Chunked exactly as the roadmap chunks phases — including a short final
+    // group. Folding a short tail into the previous group would be a nicer
+    // project and the wrong one: it would anchor to a concept the roadmap
+    // has placed in the *next* phase, where nothing looks for it.
+    const groups: DetailedConcept[][] = [];
+    for (let index = 0; index < concepts.length; index += CONCEPTS_PER_PROJECT) {
+      groups.push(concepts.slice(index, index + CONCEPTS_PER_PROJECT));
+    }
+
+    const projects: AnchoredProject[] = [];
+    let rejected = 0;
+
+    for (const [index, group] of groups.entries()) {
+      try {
+        const project = await projectAgent.run(
+          this.ai!,
+          {
+            technologyName,
+            concepts: group.map((concept) => ({
+              name: concept.name,
+              description: concept.description,
+            })),
+            // Pitched at the hardest concept in the group: a project easier
+            // than the drills that led to it teaches nothing.
+            difficulty: Math.max(...group.map((concept) => concept.difficulty)),
+            language: 'javascript',
+          },
+          context,
+        );
+
+        const verdict = await this.verifier.verifyProject(project);
+        if (!verdict.accepted) {
+          rejected += 1;
+        } else {
+          // Hung off the last concept in the group, so it unlocks only once
+          // everything it combines has been practised.
+          projects.push({ conceptSlug: group[group.length - 1]!.slug, project });
+        }
+      } catch (error) {
+        this.logger.warn({ err: error }, `project ${index + 1}: generation failed`);
+        rejected += 1;
+      }
+
+      await onProgress(
+        `Designing projects (${index + 1}/${groups.length})`,
+        88 + Math.round((index / groups.length) * 6),
+      );
+    }
+
+    return { projects, rejected };
+  }
+
   private async generateQuestions(
     technologyName: string,
     concepts: readonly DetailedConcept[],
@@ -337,7 +446,8 @@ export class CurriculumGeneratorService {
     edges: readonly { conceptSlug: string; prerequisiteSlug: string; strength: 'HARD' | 'SOFT' }[],
     exercises: ReadonlyMap<string, GeneratedExerciseOutput[]>,
     questions: ReadonlyMap<string, ConceptQuestionSetOutput['questions']>,
-  ): Promise<Omit<GenerationOutcome, 'exercisesRejected'>> {
+    projects: readonly AnchoredProject[],
+  ): Promise<Omit<GenerationOutcome, 'exercisesRejected' | 'projectsRejected'>> {
     return this.prisma.$transaction(
       async (tx) => {
         const latest = await tx.curriculumVersion.findFirst({
@@ -408,6 +518,7 @@ export class CurriculumGeneratorService {
         const edgeCount = await this.persistEdges(tx, technology.slug, edges, conceptIds);
         const exerciseCount = await this.persistExercises(tx, exercises, conceptIds);
         const questionCount = await this.persistQuestions(tx, questions, conceptIds);
+        const projectCount = await this.persistProjects(tx, projects, conceptIds);
 
         await tx.curriculumVersion.updateMany({
           where: { technologyId: technology.id, status: 'ACTIVE' },
@@ -426,6 +537,7 @@ export class CurriculumGeneratorService {
           conceptsCreated: concepts.length,
           exercisesCreated: exerciseCount,
           questionsCreated: questionCount,
+          projectsCreated: projectCount,
           edgesCreated: edgeCount,
         };
       },
@@ -562,6 +674,93 @@ export class CurriculumGeneratorService {
     return count;
   }
 
+  /**
+   * A project is an Exercise of kind PROJECT with ProjectStep children.
+   *
+   * Reusing Exercise rather than adding a parallel model means attempts,
+   * submissions, skill evidence and the roadmap all work on projects without
+   * a second code path — and a second code path is where the assistance
+   * ladder would eventually be forgotten.
+   *
+   * Test cases hang off the step, not the exercise, so the runner can select
+   * "this step and every earlier one" with a single filter.
+   */
+  private async persistProjects(
+    tx: Prisma.TransactionClient,
+    projects: readonly AnchoredProject[],
+    conceptIds: ReadonlyMap<string, string>,
+  ): Promise<number> {
+    let count = 0;
+
+    for (const { conceptSlug, project } of projects) {
+      const conceptId = conceptIds.get(conceptSlug);
+      if (!conceptId) continue;
+
+      const row = await tx.exercise.upsert({
+        where: { conceptId_slug: { conceptId, slug: project.slug } },
+        create: {
+          conceptId,
+          slug: project.slug,
+          title: project.title,
+          kind: 'PROJECT',
+          difficulty: project.difficulty,
+          language: 'javascript',
+          objective: project.objective,
+          requirements: project.requirements,
+          // The reference solution for a project is its final step's.
+          referenceSolution: project.steps[project.steps.length - 1]!.referenceSolution,
+          estimatedMinutes: project.steps.reduce((sum, step) => sum + step.estimatedMinutes, 0),
+          staticHints: [],
+          examples: [],
+        },
+        update: {
+          title: project.title,
+          objective: project.objective,
+          requirements: project.requirements,
+          difficulty: project.difficulty,
+          referenceSolution: project.steps[project.steps.length - 1]!.referenceSolution,
+          estimatedMinutes: project.steps.reduce((sum, step) => sum + step.estimatedMinutes, 0),
+          archivedAt: null,
+        },
+      });
+
+      // Replaced wholesale. Steps have no identity a user could hold a
+      // reference to, and a regenerated project with mismatched old steps
+      // would be unsolvable.
+      await tx.exerciseTestCase.deleteMany({ where: { exerciseId: row.id } });
+      await tx.projectStep.deleteMany({ where: { exerciseId: row.id } });
+
+      for (const [index, step] of project.steps.entries()) {
+        const stepRow = await tx.projectStep.create({
+          data: {
+            exerciseId: row.id,
+            orderIndex: index,
+            title: step.title,
+            requirements: step.requirements,
+            starterCode: step.starterCode,
+            referenceSolution: step.referenceSolution,
+            estimatedMinutes: step.estimatedMinutes,
+          },
+        });
+
+        await tx.exerciseTestCase.createMany({
+          data: step.testCases.map((testCase, testIndex) => ({
+            exerciseId: row.id,
+            stepId: stepRow.id,
+            name: testCase.name,
+            hidden: testCase.hidden,
+            orderIndex: testIndex,
+            code: testCase.code,
+          })),
+        });
+      }
+
+      count += 1;
+    }
+
+    return count;
+  }
+
   private async persistQuestions(
     tx: Prisma.TransactionClient,
     questions: ReadonlyMap<string, ConceptQuestionSetOutput['questions']>,
@@ -636,6 +835,12 @@ export class CurriculumGeneratorService {
     });
     return concept?.id;
   }
+}
+
+/** A verified project, with the concept it hangs off. */
+interface AnchoredProject {
+  conceptSlug: string;
+  project: GeneratedProjectOutput;
 }
 
 interface DetailedConcept {

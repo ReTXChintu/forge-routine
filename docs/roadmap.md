@@ -2,10 +2,14 @@
 
 Phases are ordered by dependency, not by appeal.
 
-Phases 1–3 are complete: a user can write code, run it, and have the system remember what
-they actually know. What is missing is the _path_ — an answer to "I picked six
-technologies, what do I do first?" Phase 4 onwards builds that, and the design is in
-`learning-path.md`.
+Phases 1–8 are complete. A user can pick technologies, get a generated and ordered
+roadmap, work through it a day at a time, write code and have it graded, build projects
+that make them compose what they learned, be interrupted at boundaries by recall prompts
+that keep it from fading, and sit a live adaptive interview that tells them where they
+would be caught out. The design behind the path is in `learning-path.md`.
+
+What remains is breadth, not foundation: Phase 9 adds the engineering exercises the
+sandbox cannot currently express, and Phase 10 puts the whole thing on a phone.
 
 ## Phase 1 — Foundation — **done**
 
@@ -70,58 +74,107 @@ Two limits found by running it, both recorded in `code-execution.md`:
 - Generated content is proven _solvable_, not proven _well-chosen_. The verifier executes
   every exercise before it ships; nobody reviews whether it was worth setting.
 
-## Phase 5 — Projects and Checkpoints — **next**
+## Phase 5 — Projects and Checkpoints — **done**
 
 Every phase of a roadmap ends in a project — in practice every 5–6 lessons.
 
-- The `PROJECT` exercise kind (reserved in the enum, unimplemented)
-- Progressive requirements (§14): API, auth, validation, error handling, each submittable
+- `PROJECT` exercises with ordered `ProjectStep` children, each submitted and graded
+  separately; test cases hang off the step, not the exercise
+- Progressive requirements (§14): each step's starter code is the previous step's
+  reference solution, so the work accumulates instead of restarting
 - Tech-lead review by the reviewer agent: finds issues, explains them, does not rewrite
-- Checkpoint semantics — a failed project returns the user to the phase with a specific
-  list rather than waving them through
+- Checkpoint semantics — passing the tests is necessary, not sufficient. A finished
+  project carrying critical or major review issues returns the user to it with a
+  specific list rather than waving them through
+- Generated one per roadmap phase, anchored to that phase's last concept
 
 Projects are the only thing that exercises composition. Isolated drills never do, which
-is why `problemSolving` and `architecture` are currently starved of evidence.
+is why `problemSolving` and `architecture` were starved of evidence before this.
 
-## Phase 6 — Recall Prompts and the Question Bank
+**A project is verified the way it will be graded.** Every step's reference solution runs
+against its own tests _and every earlier step's_, and the project is rejected whole if
+any step fails. On the first live run this immediately rejected one of two generated
+projects: step 2's solution broke a step 1 test. That project was unwinnable, and without
+the cross-step check it would have shipped — the user would have spent the evening
+hunting for a fault in their own code that was actually in ours.
+
+The grouping constant is imported from the roadmap builder rather than repeated. The
+roadmap closes each phase by looking for a `PROJECT` exercise among that phase's
+concepts, so if the two groupings ever disagreed the project would land in a phase that
+never looks for it and silently degrade to a checkpoint.
+
+## Phase 6 — Recall Prompts and the Question Bank — **done**
 
 Short conceptual questions between activities, never during coding.
 
-Partly built already: Phase 4 generates the questions, and 160 of them are in the
-database. What is missing is delivery — nothing surfaces them yet.
-
 - ~~Question bank generated per concept~~ — done in Phase 4
-- Delivery at boundaries only: session start, after a submission, between routine items
-- Selection from the existing `ReviewSchedule`, so prompts are _due_ rather than random
-- Feeds `recallStrength` and `retention`, two of the nine dimensions that nothing
-  currently measures
-- Wrong answers schedule, they do not punish
+- ~~Delivery at boundaries only~~: surfaced between routine items, never during coding
+- ~~Selection from the existing `ReviewSchedule`~~, so prompts are _due_ rather than
+  random
+- ~~Feeds `recallStrength` and `retention`~~, two of the nine dimensions nothing else
+  measures
+- ~~Wrong answers schedule, they do not punish~~
 
-## Phase 7 — Daily Routine
+Where a prompt may appear is a product rule, not a styling choice. An interruption
+mid-problem destroys the exact mental state the product exists to build, and teaches the
+user to dismiss prompts unread — at which point the spaced-repetition data becomes noise
+and every schedule built on it is wrong. Nothing is coloured in the UI until an answer is
+committed, so the right option cannot be read off the styling.
 
-Now a slice of the roadmap rather than an independent planner.
+## Phase 7 — Daily Routine — **done**
 
-- Today's items drawn from the roadmap backlog
-- Adjusted for what is due for review and where the user is currently weak
-- Fitted to available time (§21)
-- Weak-skill prioritisation via the knowledge graph's root-cause trace
+A slice of the roadmap rather than an independent planner.
+
+- Today's items drawn from the roadmap backlog, in order
+- Reviews first: a concept that decays takes the work that built it with it, so review
+  outranks new ground even when new ground is more fun
+- Fitted to available time (§21). An item that overruns the budget is included only when
+  nothing else has been planned — better offered than silently withheld, but it must not
+  crowd out a shorter day's work
+- Every item carries the reason it is there. An opaque routine is not a trusted one
+- Never padded to fill the time. A routine the user cannot finish is one they stop
+  opening
 
 Deliberately after the roadmap: a routine generated independently of a path would quietly
 diverge from it, and two planners disagreeing is worse than one.
 
-## Phase 8 — Interview Guide and Engine
-
-The guide first, because it is cheap and useful immediately; the engine after.
-
-**Guide** — a readiness dossier per technology and target level: what gets asked, where
-the user stands per theme, and an ordered gap list linked to concepts and exercises.
-
-**Engine** (§15–17) — live adaptive interviews, the follow-up engine, ten-dimension
-scoring, interview reports.
+## Phase 8 — Interview Guide and Engine — **done**
 
 The guide tells you what to rehearse. The engine is the rehearsal.
 
-## Phase 9 — Advanced Engineering
+**Guide** — a readiness dossier per technology: where you would be caught out, ordered by
+what is worth fixing first. Derived on read, never stored; a dossier that goes stale the
+moment you practise anything is worse than none, because it still gets acted on. Topics
+are ordered shaky, then weak, then untouched, then solid — rereading what you already
+know is the most comfortable way to waste the time you have left. Overall readiness stays
+`null` below five practised concepts: one well-drilled concept is not 90% ready.
+
+**Engine** (§15–17) — live adaptive interviews. Each answer is graded as it is given and
+the grade picks the next move: `DEEPEN` when correct but shallow, `RECOVER` when wrong,
+`ESCALATE` when strong, `PIN_DOWN` when vague, `PIVOT` when the area is covered. Depth is
+capped per mode and enforced in code rather than trusted to the model — an interviewer
+who will not leave one topic stops gathering information and starts grinding the
+candidate down.
+
+Nothing is graded in front of the user. Feedback between turns would make it a tutorial,
+and they would start answering for approval rather than saying what they think.
+
+### The scoring bug the first live run found
+
+The report agent returned `overallScore: 1.00` beside six weak areas describing a
+candidate who answered nothing correctly. The prose was right and the number was noise —
+and the number is what writes to the skill model.
+
+Asking one model pass to re-score a transcript it has already graded turn by turn is
+asking it to disagree with itself. `technicalCorrectness`, `depth` and `confidence` are
+now the means of the per-answer grades; the report agent supplies only what a
+transcript-level read can genuinely see, plus the prose. The same run then reported 0.13
+overall against 0.17 correctness.
+
+`confidence` is reported and deliberately excluded from the overall score. Sounding
+certain is not the same as being correct, and rewarding it would train the wrong habit.
+
+## Phase 9 — Advanced Engineering — **next**
 
 System design, the production incident simulator, DevOps challenges, Linux terminal
 simulation, architecture challenges.

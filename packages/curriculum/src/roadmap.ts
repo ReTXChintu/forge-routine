@@ -124,7 +124,15 @@ const PRIORITY_WEIGHT: Record<Priority, number> = {
   LOW: 0,
 };
 
-const DEFAULT_CONCEPTS_PER_PHASE = 5;
+/**
+ * Concepts per phase, and therefore concepts per project.
+ *
+ * Exported because the curriculum generator groups concepts by this number
+ * when it designs projects, and anchors each project to the last concept in
+ * its group. If the two ever disagree, a project lands in a phase whose
+ * closing slot never looks for it and silently becomes a checkpoint instead.
+ */
+export const DEFAULT_CONCEPTS_PER_PHASE = 5;
 
 /** A concept's reading/explanation step, scaled by how hard it is. */
 const LEARN_MINUTES_PER_DIFFICULTY = 4;

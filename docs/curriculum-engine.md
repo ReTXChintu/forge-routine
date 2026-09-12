@@ -32,17 +32,46 @@ Triggered when a technology has no curriculum version for the current generator 
 
 ```
 1. RESOLVE    Is there an existing curated curriculum? Use it. Stop.
-2. PLAN       curriculumAgent produces a concept outline (names + one-line descriptions)
+2. PLAN       outlineAgent produces a concept outline (names + one-line descriptions)
 3. EXPAND     For each concept, generate the full concept record
 4. LINK       Propose prerequisite edges, including into the user's existing technologies
-5. VALIDATE   Zod schema + DAG cycle check + duplicate detection
-6. PERSIST    Write atomically as CurriculumVersion N; nothing partial is ever visible
-7. ENRICH     Queue exercise + interview-question generation (async, non-blocking)
+5. PRACTISE   Exercises where the sandbox can run them, concept questions where it cannot
+6. PROJECT    One project per roadmap phase, composing that phase's concepts
+7. VALIDATE   Zod schema + DAG cycle check + sandbox verification of everything runnable
+8. PERSIST    Write atomically as CurriculumVersion N; nothing partial is ever visible
 ```
 
 Steps 2–4 are separate model calls. One call asked to produce an entire technology curriculum
 returns shallow, uniform output; splitting plan from expansion produces materially better
 depth per concept and lets step 3 run in parallel.
+
+### Projects (step 6)
+
+Concepts are grouped exactly as the roadmap groups phases — `DEFAULT_CONCEPTS_PER_PHASE`
+is imported from the roadmap builder rather than repeated, because the roadmap closes
+each phase by looking for a `PROJECT` exercise among that phase's concepts. If the two
+groupings disagreed, the project would land in a phase that never looks for it and
+silently degrade into a checkpoint.
+
+A project is stored as an `Exercise` of kind `PROJECT` with ordered `ProjectStep`
+children. Reusing `Exercise` means attempts, submissions, skill evidence and the roadmap
+all work on projects with no second code path — and a second code path is where the
+assistance ladder would eventually be forgotten. Test cases hang off the step rather than
+the exercise, so the runner can select "this step and every earlier one" with one filter.
+
+**Verification runs the project the way it will be graded.** Each step's reference
+solution executes against its own tests *and every earlier step's*. A project is rejected
+whole if any step fails: a partially valid project cannot be trimmed to its working
+prefix, because the steps that remain were written to lead somewhere it no longer goes.
+
+This is not theoretical. The first live run generated two projects and rejected one —
+step 2's solution broke a step 1 test, making the project unwinnable. Without the
+cross-step check it would have shipped, and the user would have spent the evening hunting
+for a fault in their own code that was actually in ours.
+
+Projects are generated only where exercises survived verification. A technology practised
+through concept questions has no runnable drills, and a project is the one thing that
+absolutely must execute, because it is graded entirely by its tests.
 
 ## Concept record
 

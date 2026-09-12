@@ -208,7 +208,8 @@ export class GenerationService {
             `Ready: ${outcome.conceptsCreated} concepts, ` +
             (outcome.exercisesCreated > 0
               ? `${outcome.exercisesCreated} exercises`
-              : `${outcome.questionsCreated} questions`),
+              : `${outcome.questionsCreated} questions`) +
+            (outcome.projectsCreated > 0 ? `, ${outcome.projectsCreated} projects` : ''),
           finishedAt: new Date(),
         },
       });
@@ -217,7 +218,9 @@ export class GenerationService {
         `Generated ${technologyId}: ${outcome.conceptsCreated} concepts, ` +
           `${outcome.exercisesCreated} exercises, ${outcome.edgesCreated} edges, ` +
           `${outcome.questionsCreated} questions, ` +
-          `${outcome.exercisesRejected} exercises rejected by the sandbox`,
+          `${outcome.projectsCreated} projects, ` +
+          `${outcome.exercisesRejected} exercises and ${outcome.projectsRejected} projects ` +
+          'rejected by the sandbox',
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

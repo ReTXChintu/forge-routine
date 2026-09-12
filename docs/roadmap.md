@@ -3,30 +3,38 @@
 Phases are ordered by dependency, not by appeal. Phase 3 is the product; Phases 1–2 exist to
 make it possible.
 
-## Phase 1 — Foundation
+## Phase 1 — Foundation — **done**
 
 Monorepo, web shell, API skeleton, Flutter shell, PostgreSQL + Prisma, Redis client,
 authentication, design system, environment configuration, PM2 development and deployment
 setup.
 
-Done when: `pnpm dev` runs web + API, a user can register and log in, and CI is green.
+Verified: migration applied to a live PostgreSQL instance, seed loaded, API boots and
+answers over HTTP, web bundle builds and serves, Flutter analyzes and tests clean.
 
-## Phase 2 — Learning Engine
+## Phase 2 — Learning Engine — **done**
 
 Technology catalogue and user universe, concepts, prerequisite graph, curriculum storage and
 versioning, the nine-dimension skill model, progress tracking.
 
-Done when: a user can add a technology, browse its concepts, and see skills recorded.
+Verified end to end: a user adds a technology, its curriculum imports, concepts list in
+dependency order, and skill changes land in both the projection and the event ledger.
 
-## Phase 3 — Coding Muscle (highest priority)
+## Phase 3 — Coding Muscle (highest priority) — **done**
 
 Coding exercises, Monaco editor, attempts and submissions, out-of-process code execution,
 the assistance ladder, progressive assistance levels 1–5, Blind Coding, debugging exercises,
 the Independent Coding Score.
 
-Done when the §48 vertical slice runs end to end and the MVP question can be answered:
+The §48 vertical slice runs green against a live database: 19 steps from registration to a
+persisted skill change, including the debugging diagnose-then-fix flow.
 
-> Can ForgeRoutine make me better at writing code without AI?
+Shipped: 17 exercises across 9 concepts, every one proven solvable by executing its
+reference solution in the real sandbox. Three debugging exercises whose broken code is
+proven to fail and whose fixes are proven to pass.
+
+Still thin here, and deliberately so: exercises exist only for JavaScript and Node.js,
+because those are the languages the MVP sandbox can execute. See "Deferred" below.
 
 ## Phase 4 — AI Tutor
 
@@ -68,8 +76,10 @@ notifications.
 
 Tracked honestly rather than hidden:
 
-1. **Sandbox network isolation is a harness stub**, not a kernel control. See
-   `code-execution.md`.
+1. **Sandbox isolation is partial.** There is no network isolation at all, and on Windows
+   no filesystem isolation either — Node 20's permission model aborts on drive-letter
+   paths, so the runner detects this at boot and drops the flags with a warning. See
+   `code-execution.md` for the full, honest table.
 2. **Copy/paste detection is advisory** and client-reported; it never affects scores.
 3. **Curriculum quality varies** between curated and AI-generated technologies.
 4. **Retention modelling is SM-2-derived**, not empirically calibrated to this user.

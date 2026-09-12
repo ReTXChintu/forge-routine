@@ -1,7 +1,11 @@
 # Roadmap
 
-Phases are ordered by dependency, not by appeal. Phase 3 is the product; Phases 1–2 exist to
-make it possible.
+Phases are ordered by dependency, not by appeal.
+
+Phases 1–3 are complete: a user can write code, run it, and have the system remember what
+they actually know. What is missing is the _path_ — an answer to "I picked six
+technologies, what do I do first?" Phase 4 onwards builds that, and the design is in
+`learning-path.md`.
 
 ## Phase 1 — Foundation — **done**
 
@@ -36,27 +40,80 @@ proven to fail and whose fixes are proven to pass.
 Still thin here, and deliberately so: exercises exist only for JavaScript and Node.js,
 because those are the languages the MVP sandbox can execute. See "Deferred" below.
 
-## Phase 4 — AI Tutor
+## Phase 4 — Onboarding and the Generated Roadmap — **next**
 
-Socratic tutor, concept explanations, the hint engine, code review, mistake analysis,
-personalised recommendations.
+The largest remaining gap between what the product promises and what it does. Today,
+adding a technology with no curated curriculum logs "awaiting generation" and produces an
+empty shell: §25 promises any technology, and only JavaScript and Node.js exist.
 
-## Phase 5 — Routine Engine
+Design in `learning-path.md`.
 
-Daily routine generation, adaptive scheduling, spaced repetition, weak-skill prioritisation,
-available-time optimisation.
+- First-run onboarding: technologies, existing knowledge, daily time, goal, interview date
+- The curriculum generator agents — contracts already exist, implementation does not
+- Two-stage generation: a skeleton in seconds, content in the background by priority
+- `GenerationJob` state in PostgreSQL, so a restart mid-generation loses nothing
+- `PARTIAL` readiness, because four of six technologies is usable and saying otherwise
+  would be a lie
+- The roadmap itself: phases, ordered items, visible rationale
+- Roadmap UI, and a "come back shortly" state reached only by outrunning generation
 
-## Phase 6 — Interview Engine
+Done when: a user signs up, picks Rust and Kubernetes, sees an ordered path within
+seconds, and starts the first lesson without waiting for the last one to generate.
 
-Technical and coding interviews, adaptive follow-ups, ten-dimension scoring, interview
-reports, interview readiness.
+## Phase 5 — Projects and Checkpoints
 
-## Phase 7 — Advanced Engineering
+Every phase of a roadmap ends in a project — in practice every 5–6 lessons.
+
+- The `PROJECT` exercise kind (reserved in the enum, unimplemented)
+- Progressive requirements (§14): API, auth, validation, error handling, each submittable
+- Tech-lead review by the reviewer agent: finds issues, explains them, does not rewrite
+- Checkpoint semantics — a failed project returns the user to the phase with a specific
+  list rather than waving them through
+
+Projects are the only thing that exercises composition. Isolated drills never do, which
+is why `problemSolving` and `architecture` are currently starved of evidence.
+
+## Phase 6 — Recall Prompts and the Question Bank
+
+Short conceptual questions between activities, never during coding.
+
+- Question bank generated per concept, versioned with the curriculum
+- Delivery at boundaries only: session start, after a submission, between routine items
+- Selection from the existing `ReviewSchedule`, so prompts are _due_ rather than random
+- Feeds `recallStrength` and `retention`, two of the nine dimensions that nothing
+  currently measures
+- Wrong answers schedule, they do not punish
+
+## Phase 7 — Daily Routine
+
+Now a slice of the roadmap rather than an independent planner.
+
+- Today's items drawn from the roadmap backlog
+- Adjusted for what is due for review and where the user is currently weak
+- Fitted to available time (§21)
+- Weak-skill prioritisation via the knowledge graph's root-cause trace
+
+Deliberately after the roadmap: a routine generated independently of a path would quietly
+diverge from it, and two planners disagreeing is worse than one.
+
+## Phase 8 — Interview Guide and Engine
+
+The guide first, because it is cheap and useful immediately; the engine after.
+
+**Guide** — a readiness dossier per technology and target level: what gets asked, where
+the user stands per theme, and an ordered gap list linked to concepts and exercises.
+
+**Engine** (§15–17) — live adaptive interviews, the follow-up engine, ten-dimension
+scoring, interview reports.
+
+The guide tells you what to rehearse. The engine is the rehearsal.
+
+## Phase 9 — Advanced Engineering
 
 System design, the production incident simulator, DevOps challenges, Linux terminal
 simulation, architecture challenges.
 
-## Phase 8 — Mobile
+## Phase 10 — Mobile
 
 Flutter expansion: daily routine, reviews, interviews, voice interview, progress,
 notifications.

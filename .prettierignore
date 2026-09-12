@@ -1,0 +1,9 @@
+node_modules
+dist
+build
+coverage
+.turbo
+pnpm-lock.yaml
+apps/mobile/**
+packages/database/src/generated
+assets

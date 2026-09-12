@@ -1,0 +1,56 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# turbo
+.turbo/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+pm2-*.log
+
+# testing
+coverage/
+.nyc_output/
+
+# editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+
+# prisma
+# (Prisma generates into node_modules/.prisma/client)
+packages/database/prisma/*.db
+
+# sandbox scratch
+.sandbox-runs/
+
+# flutter
+apps/mobile/.dart_tool/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/build/
+apps/mobile/ios/Pods/
+apps/mobile/ios/.symlinks/
+apps/mobile/android/.gradle/
+apps/mobile/android/local.properties
+apps/mobile/**/GeneratedPluginRegistrant.*

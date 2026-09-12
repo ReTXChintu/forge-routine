@@ -1,0 +1,13 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Dependencies permitted to run install scripts (pnpm 12 supply-chain policy).
+allowBuilds:
+  esbuild: true
+  prisma: true
+  '@prisma/client': true
+  '@prisma/engines': true
+  '@nestjs/core': true
+  bcrypt: true
+  unrs-resolver: true

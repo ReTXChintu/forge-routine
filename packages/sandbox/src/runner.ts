@@ -1,0 +1,315 @@
+import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+
+import type { ExecutionResult, ExecutionStatus, TestCaseResult } from '@forgeroutine/shared-types';
+
+import { HARNESS_SOURCE, buildTestsModule } from './harness.template.js';
+
+/**
+ * The sandbox runner (docs/code-execution.md).
+ *
+ * User code is hostile input. It runs in a short-lived child process, always,
+ * including in development — there is no in-process path, because that shortcut
+ * would inevitably reach production (§45.8).
+ *
+ * Read docs/code-execution.md for the honest statement of what this does and does
+ * not defend against. In short: it stops accidental damage and casual escapes, and
+ * it is not a security boundary against a determined attacker. The port above it
+ * exists so a container/microVM backend can replace this without the learning
+ * domain noticing.
+ */
+
+export interface SandboxTestCase {
+  name: string;
+  hidden: boolean;
+  code: string;
+}
+
+export interface SandboxJob {
+  code: string;
+  language: 'javascript' | 'typescript';
+  testCases: readonly SandboxTestCase[];
+}
+
+export interface SandboxOptions {
+  workDir: string;
+  timeoutMs: number;
+  maxMemoryMb: number;
+  maxOutputBytes: number;
+  /** Set false only if the Node permission model is unavailable; see `probePermissionModel`. */
+  usePermissionModel?: boolean;
+  nodeExecutable?: string;
+}
+
+interface HarnessPayload {
+  outcome: 'COMPLETED' | 'COMPILE_ERROR' | 'HARNESS_ERROR';
+  message?: string;
+  cases: {
+    name: string;
+    hidden: boolean;
+    passed: boolean;
+    durationMs: number;
+    error?: string;
+    expected?: string;
+    received?: string;
+  }[];
+  stdout: string;
+  consoleCalls: number;
+  outputTruncated: boolean;
+}
+
+export async function runInSandbox(
+  job: SandboxJob,
+  options: SandboxOptions,
+): Promise<ExecutionResult> {
+  const runId = randomUUID();
+  const runDir = resolve(options.workDir, runId);
+  const startedAt = Date.now();
+
+  try {
+    await mkdir(runDir, { recursive: true });
+
+    // TypeScript is type-checked upstream and submitted as-is; the harness imports
+    // it as ESM. Full TS compilation lands with the container backend.
+    await Promise.all([
+      writeFile(join(runDir, 'solution.mjs'), job.code, 'utf8'),
+      writeFile(join(runDir, 'tests.mjs'), buildTestsModule(job.testCases), 'utf8'),
+      writeFile(join(runDir, 'harness.mjs'), HARNESS_SOURCE, 'utf8'),
+    ]);
+
+    const child = await spawnHarness(runDir, options);
+
+    if (child.timedOut) {
+      return failure('TIMEOUT', job, Date.now() - startedAt, {
+        stderr: `Execution exceeded ${options.timeoutMs}ms and was terminated.`,
+      });
+    }
+
+    const payload = await readResult(runDir);
+
+    if (!payload) {
+      // No result file means the process died before the harness could write one:
+      // an OOM kill, a hard crash, or a process-level abort.
+      const memoryKilled = /heap out of memory|Allocation failed/i.test(child.stderr);
+      return failure(
+        memoryKilled ? 'MEMORY_EXCEEDED' : 'RUNTIME_ERROR',
+        job,
+        Date.now() - startedAt,
+        { stderr: truncate(child.stderr, options.maxOutputBytes) },
+      );
+    }
+
+    return toExecutionResult(payload, job, Date.now() - startedAt, options);
+  } catch (error) {
+    return failure('INTERNAL_ERROR', job, Date.now() - startedAt, {
+      stderr: error instanceof Error ? error.message : String(error),
+    });
+  } finally {
+    // Best effort: a leftover run directory is untidy, not dangerous.
+    await rm(runDir, { recursive: true, force: true }).catch(() => undefined);
+  }
+}
+
+interface SpawnOutcome {
+  timedOut: boolean;
+  stderr: string;
+  exitCode: number | null;
+}
+
+function spawnHarness(runDir: string, options: SandboxOptions): Promise<SpawnOutcome> {
+  const args: string[] = [`--max-old-space-size=${options.maxMemoryMb}`];
+
+  if (options.usePermissionModel !== false) {
+    args.push(
+      '--experimental-permission',
+      `--allow-fs-read=${runDir}`,
+      `--allow-fs-read=${join(runDir, '*')}`,
+      `--allow-fs-write=${join(runDir, 'result.json')}`,
+    );
+  }
+
+  args.push(join(runDir, 'harness.mjs'));
+
+  return new Promise<SpawnOutcome>((resolvePromise) => {
+    const child = spawn(options.nodeExecutable ?? process.execPath, args, {
+      cwd: runDir,
+      // An explicit minimal environment: no DATABASE_URL, no OPENAI_API_KEY,
+      // nothing the user's code could exfiltrate.
+      env: {
+        NODE_ENV: 'sandbox',
+        FORGE_MAX_OUTPUT: String(options.maxOutputBytes),
+        PATH: '',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      // A detached process group lets us kill descendants too, not just the child.
+      detached: process.platform !== 'win32',
+      windowsHide: true,
+    });
+
+    let stderr = '';
+    let settled = false;
+    let timedOut = false;
+
+    const cap = options.maxOutputBytes;
+    child.stderr.on('data', (chunk: Buffer) => {
+      if (stderr.length < cap) stderr += chunk.toString('utf8');
+    });
+    // stdout is drained but ignored: the protocol channel is result.json.
+    child.stdout.on('data', () => undefined);
+
+    const timer = setTimeout(() => {
+      timedOut = true;
+      killTree(child.pid);
+    }, options.timeoutMs);
+
+    const settle = (exitCode: number | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolvePromise({ timedOut, stderr, exitCode });
+    };
+
+    child.on('error', (error) => {
+      stderr += `\n${error.message}`;
+      settle(null);
+    });
+    child.on('close', settle);
+  });
+}
+
+function killTree(pid: number | undefined): void {
+  if (pid === undefined) return;
+  try {
+    if (process.platform === 'win32') {
+      // No process groups on Windows; kill the single process. Documented in
+      // docs/development.md as a known platform difference.
+      process.kill(pid, 'SIGKILL');
+    } else {
+      process.kill(-pid, 'SIGKILL');
+    }
+  } catch {
+    // Already gone.
+  }
+}
+
+async function readResult(runDir: string): Promise<HarnessPayload | null> {
+  try {
+    const raw = await readFile(join(runDir, 'result.json'), 'utf8');
+    return JSON.parse(raw) as HarnessPayload;
+  } catch {
+    return null;
+  }
+}
+
+function toExecutionResult(
+  payload: HarnessPayload,
+  job: SandboxJob,
+  durationMs: number,
+  options: SandboxOptions,
+): ExecutionResult {
+  if (payload.outcome === 'COMPILE_ERROR') {
+    return failure('COMPILE_ERROR', job, durationMs, {
+      stderr: payload.message ?? 'Your code could not be loaded.',
+      stdout: payload.stdout,
+    });
+  }
+
+  if (payload.outcome === 'HARNESS_ERROR') {
+    // Our fault, not the user's. Never counted against their skill record.
+    return failure('HARNESS_ERROR', job, durationMs, {
+      stderr: payload.message ?? 'The test harness failed.',
+      stdout: payload.stdout,
+    });
+  }
+
+  const cases: TestCaseResult[] = payload.cases.map((c) => ({
+    name: c.name,
+    passed: c.passed,
+    durationMs: c.durationMs,
+    ...(c.expected !== undefined ? { expected: c.expected } : {}),
+    ...(c.received !== undefined ? { received: c.received } : {}),
+    ...(c.error !== undefined ? { error: c.error } : {}),
+  }));
+
+  const testsPassed = cases.filter((c) => c.passed).length;
+  const passed = cases.length > 0 && testsPassed === cases.length;
+
+  return {
+    status: payload.outputTruncated ? 'OUTPUT_EXCEEDED' : passed ? 'PASSED' : 'FAILED',
+    passed,
+    testsPassed,
+    testsTotal: cases.length,
+    cases,
+    stdout: truncate(payload.stdout, options.maxOutputBytes),
+    stderr: '',
+    durationMs,
+    truncated: payload.outputTruncated,
+  };
+}
+
+function failure(
+  status: ExecutionStatus,
+  job: SandboxJob,
+  durationMs: number,
+  extra: { stderr?: string; stdout?: string } = {},
+): ExecutionResult {
+  return {
+    status,
+    passed: false,
+    testsPassed: 0,
+    testsTotal: job.testCases.length,
+    cases: [],
+    stdout: extra.stdout ?? '',
+    stderr: extra.stderr ?? '',
+    durationMs,
+    truncated: false,
+  };
+}
+
+function truncate(value: string, max: number): string {
+  return value.length > max ? `${value.slice(0, max)}\n…output truncated` : value;
+}
+
+/**
+ * One-time probe for Node permission-model support.
+ *
+ * The flag is experimental and platform-sensitive. On Windows, Node 20 aborts with
+ * a native assertion (`!path_prefix.empty()`) when given a drive-letter path, so a
+ * naive probe using `--allow-fs-read=*` reports support that does not actually
+ * work for real paths.
+ *
+ * This probe therefore uses exactly the flag shapes `spawnHarness` uses, against a
+ * real temporary directory. Detecting it once at startup means the operator gets
+ * one clear warning instead of a HARNESS_ERROR on every submission.
+ */
+export async function probePermissionModel(nodeExecutable = process.execPath): Promise<boolean> {
+  const probeDir = resolve(tmpdir(), `forge-permission-probe-${randomUUID()}`);
+
+  try {
+    await mkdir(probeDir, { recursive: true });
+    await writeFile(join(probeDir, 'probe.mjs'), 'process.exit(0);\n', 'utf8');
+
+    return await new Promise<boolean>((resolvePromise) => {
+      const child = spawn(
+        nodeExecutable,
+        [
+          '--experimental-permission',
+          `--allow-fs-read=${probeDir}`,
+          `--allow-fs-read=${join(probeDir, '*')}`,
+          `--allow-fs-write=${join(probeDir, 'result.json')}`,
+          join(probeDir, 'probe.mjs'),
+        ],
+        { stdio: 'ignore', windowsHide: true },
+      );
+      child.on('error', () => resolvePromise(false));
+      child.on('close', (code) => resolvePromise(code === 0));
+    });
+  } catch {
+    return false;
+  } finally {
+    await rm(probeDir, { recursive: true, force: true }).catch(() => undefined);
+  }
+}

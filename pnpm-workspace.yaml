@@ -11,3 +11,6 @@ allowBuilds:
   '@nestjs/core': true
   bcrypt: true
   unrs-resolver: true
+  msgpackr-extract: true
+  # Analytics postinstall only; nothing needs it to build.
+  '@scarf/scarf': false

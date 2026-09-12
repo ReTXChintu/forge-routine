@@ -126,6 +126,7 @@ export function executionOnlyEvaluation(execution: ExecutionResult): CodeEvaluat
       errorHandling: null,
       edgeCases: null,
       idiomatic: null,
+      diagnosisAccuracy: null,
     },
     strengths: execution.passed ? ['All tests passed.'] : [],
     weaknesses: execution.passed

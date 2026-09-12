@@ -241,6 +241,8 @@ export class CurriculumImportService {
             examples: exercise.examples,
             staticHints: exercise.staticHints,
             referenceSolution: exercise.referenceSolution,
+            brokenCode: exercise.brokenCode,
+            bugExplanation: exercise.bugExplanation,
             estimatedMinutes: exercise.estimatedMinutes,
           },
           update: {
@@ -255,6 +257,8 @@ export class CurriculumImportService {
             examples: exercise.examples,
             staticHints: exercise.staticHints,
             referenceSolution: exercise.referenceSolution,
+            brokenCode: exercise.brokenCode,
+            bugExplanation: exercise.bugExplanation,
             estimatedMinutes: exercise.estimatedMinutes,
             archivedAt: null,
           },

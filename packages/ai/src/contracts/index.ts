@@ -27,6 +27,8 @@ export const codeEvaluationSchema = z.object({
     errorHandling: score01.nullable(),
     edgeCases: score01.nullable(),
     idiomatic: score01.nullable(),
+    /** DEBUGGING only; null for every other exercise kind. */
+    diagnosisAccuracy: score01.nullable(),
   }),
   strengths: shortList,
   weaknesses: shortList,

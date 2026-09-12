@@ -135,6 +135,7 @@ const evaluation = {
     errorHandling: 0.4,
     edgeCases: 0.3,
     idiomatic: 0.7,
+    diagnosisAccuracy: null,
   },
   strengths: ['Clear naming'],
   weaknesses: ['No eviction of expired entries'],

@@ -22,6 +22,7 @@ import { useParams } from 'react-router-dom';
 import { AssistanceLevelName } from '@forgeroutine/shared-types';
 import type {
   CodeEvaluation,
+  DiagnosisResult,
   ExecutionResult,
   ExerciseView,
   HintKind,
@@ -37,6 +38,7 @@ import {
 } from '~/lib/queries';
 
 import { AssistancePanel, type HintEntry } from './AssistancePanel';
+import { DiagnosisPanel } from './DiagnosisPanel';
 import { ResultsPanel } from './ResultsPanel';
 
 /**
@@ -60,6 +62,8 @@ export function ExerciseWorkspace() {
   const [pendingHint, setPendingHint] = useState<HintKind | null>(null);
   const [gateMessage, setGateMessage] = useState<string | null>(null);
   const [blindMode, setBlindMode] = useState(false);
+  const [diagnosis, setDiagnosis] = useState('');
+  const [diagnosisResult, setDiagnosisResult] = useState<DiagnosisResult | null>(null);
 
   // Advisory signals only. They never reach the Independent Coding Score —
   // the server counts what matters.
@@ -81,7 +85,10 @@ export function ExerciseWorkspace() {
       setAttemptId(result.attemptId);
       setServedExercise(result.exercise);
       setBlindMode(blind);
-      setCode(result.exercise.starterCode ?? '');
+      // A debugging exercise starts from the faulty code: that is the problem.
+      setCode(result.exercise.brokenCode ?? result.exercise.starterCode ?? '');
+      setDiagnosis('');
+      setDiagnosisResult(null);
       setExecution(null);
       setEvaluation(null);
       setHints([]);
@@ -118,11 +125,13 @@ export function ExerciseWorkspace() {
       attemptId,
       code,
       language: view.language,
+      ...(view.requiresDiagnosis ? { diagnosis } : {}),
       clientSignals: { ...signals.current },
     });
 
     setExecution(result.execution);
     setEvaluation(result.evaluation);
+    setDiagnosisResult(result.diagnosis);
     setNextHint(result.nextActionHint);
   };
 
@@ -326,10 +335,15 @@ export function ExerciseWorkspace() {
             </Text>
             <Button
               onClick={() => void handleSubmit()}
-              isDisabled={!attemptId || code.trim().length === 0}
+              isDisabled={
+                !attemptId ||
+                code.trim().length === 0 ||
+                // Diagnose before you repair (§13).
+                (view.requiresDiagnosis && diagnosis.trim().split(/\s+/).length < 5)
+              }
               isLoading={submitCode.isPending}
             >
-              Run tests
+              {view.requiresDiagnosis ? 'Submit diagnosis and fix' : 'Run tests'}
             </Button>
           </HStack>
         </HStack>
@@ -383,6 +397,20 @@ export function ExerciseWorkspace() {
             >
               ASSISTANCE
             </Tab>
+            {view.requiresDiagnosis && (
+              <Tab
+                fontSize="xs"
+                py={2}
+                color="ink.400"
+                _selected={{
+                  color: 'forge.500',
+                  borderBottomWidth: '2px',
+                  borderColor: 'forge.500',
+                }}
+              >
+                DIAGNOSIS
+              </Tab>
+            )}
           </TabList>
           <TabPanels flex="1" minH={0} overflow="hidden">
             <TabPanel p={0} h="100%">
@@ -403,6 +431,19 @@ export function ExerciseWorkspace() {
                 onRequest={(kind, override) => void handleHint(kind, override)}
               />
             </TabPanel>
+            {view.requiresDiagnosis && (
+              <TabPanel p={0} h="100%">
+                <DiagnosisPanel
+                  value={diagnosis}
+                  onChange={setDiagnosis}
+                  result={diagnosisResult}
+                  submitted={diagnosisResult !== null}
+                  onSubmit={() => void handleSubmit()}
+                  submitting={submitCode.isPending}
+                  canSubmit={attemptId !== null && code.trim().length > 0}
+                />
+              </TabPanel>
+            )}
           </TabPanels>
         </Tabs>
       </GridItem>

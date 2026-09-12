@@ -23,6 +23,7 @@ export interface StoredExercise {
   examples: string[];
   estimatedMinutes: number;
   testCases: { name: string; hidden: boolean }[];
+  brokenCode: string | null;
 }
 
 export interface ProjectionOptions {
@@ -45,7 +46,12 @@ export function projectExercise(
 ): ExerciseView {
   const { level, blindMode } = options;
 
-  const showRequirements = level <= 3 || level === 5;
+  // DEBUGGING inverts the usual rule. The faulty code is the problem statement,
+  // so it is shown at every level, and the requirements stay visible because
+  // without them "what should this do?" is unanswerable (§13).
+  const isDebugging = exercise.kind === 'DEBUGGING';
+
+  const showRequirements = isDebugging || level <= 3 || level === 5;
   const showSignature = level <= 2;
   const showStarter = level === 1;
   const showExamples = level === 1;
@@ -64,6 +70,10 @@ export function projectExercise(
     assistanceLevel: level,
     objective: exercise.objective,
     requirements: showRequirements ? exercise.requirements : null,
+    brokenCode: isDebugging ? exercise.brokenCode : null,
+    // Diagnosis before repair: a user who shuffles code until the tests pass
+    // has not learned to find a fault.
+    requiresDiagnosis: isDebugging,
     functionSignature: showSignature ? exercise.functionSignature : null,
     starterCode: showStarter ? exercise.starterCode : null,
     examples: showExamples ? exercise.examples : [],

@@ -273,11 +273,104 @@ describe('vertical slice', () => {
       .expect(404);
   });
 
-  it('16. rejects an unauthenticated request', async () => {
+  it('16. debugging: shows the broken code and grades diagnosis apart from the fix', async () => {
+    const concepts = await http
+      .get(`/api/v1/concepts?technologyId=${technologyId}`)
+      .set(auth())
+      .expect(200);
+
+    const objects = concepts.body.find(
+      (c: { slug: string }) => c.slug === 'objects-and-references',
+    );
+    expect(objects).toBeDefined();
+
+    const exercises = await http
+      .get(`/api/v1/exercises?conceptId=${objects.id}`)
+      .set(auth())
+      .expect(200);
+
+    const debugging = exercises.body.find((e: { kind: string }) => e.kind === 'DEBUGGING');
+    expect(debugging).toBeDefined();
+
+    // The bug is the problem statement, so it is served at every level (§13).
+    expect(debugging.brokenCode).toEqual(expect.any(String));
+    expect(debugging.requiresDiagnosis).toBe(true);
+
+    const attempt = await http
+      .post(`/api/v1/exercises/${debugging.id}/attempts`)
+      .set(auth())
+      .send({ blindMode: false })
+      .expect(201);
+
+    const fixed = await http
+      .post('/api/v1/submissions')
+      .set(auth())
+      .send({
+        attemptId: attempt.body.attemptId,
+        language: 'javascript',
+        diagnosis:
+          'splice shifts later elements down while the index still advances, so the ' +
+          'element after a removed one is skipped.',
+        code: [
+          'export default function removeEvens(numbers) {',
+          '  return numbers.filter((n) => n % 2 !== 0);',
+          '}',
+        ].join('\n'),
+      })
+      .expect(200);
+
+    expect(fixed.body.execution.passed).toBe(true);
+
+    // The diagnosis is graded on its own, so a lucky fix cannot claim the
+    // debugging skill. Without an AI key it is recorded but unscored.
+    expect(fixed.body.diagnosis).not.toBeNull();
+    expect(fixed.body.diagnosis.feedback).toEqual(expect.any(String));
+  }, 60_000);
+
+  it('17. debugging: a missing diagnosis scores zero rather than being ignored', async () => {
+    const concepts = await http
+      .get(`/api/v1/concepts?technologyId=${technologyId}`)
+      .set(auth())
+      .expect(200);
+    const closures = concepts.body.find(
+      (c: { slug: string }) => c.slug === 'functions-and-closures',
+    );
+
+    const exercises = await http
+      .get(`/api/v1/exercises?conceptId=${closures.id}`)
+      .set(auth())
+      .expect(200);
+    const debugging = exercises.body.find((e: { kind: string }) => e.kind === 'DEBUGGING');
+
+    const attempt = await http
+      .post(`/api/v1/exercises/${debugging.id}/attempts`)
+      .set(auth())
+      .send({ blindMode: false })
+      .expect(201);
+
+    const response = await http
+      .post('/api/v1/submissions')
+      .set(auth())
+      .send({
+        attemptId: attempt.body.attemptId,
+        language: 'javascript',
+        code: [
+          'export default function makeHandlers(items) {',
+          '  return items.map((item) => () => item);',
+          '}',
+        ].join('\n'),
+      })
+      .expect(200);
+
+    expect(response.body.execution.passed).toBe(true);
+    expect(response.body.diagnosis.accuracy).toBe(0);
+  }, 60_000);
+
+  it('18. rejects an unauthenticated request', async () => {
     await http.get('/api/v1/progress/overview').expect(401);
   });
 
-  it('17. validates input before it reaches a use-case', async () => {
+  it('19. validates input before it reaches a use-case', async () => {
     const response = await http
       .post('/api/v1/auth/register')
       .send({ email: 'not-an-email', password: 'short', displayName: '' })

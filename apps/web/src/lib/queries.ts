@@ -190,6 +190,8 @@ export function useSubmitCode() {
       attemptId: string;
       code: string;
       language: 'javascript' | 'typescript';
+      /** DEBUGGING exercises only: graded separately from the fix (§13). */
+      diagnosis?: string;
       clientSignals?: { keystrokeCount?: number; largePasteEvents?: number };
     }) =>
       apiRequest<SubmissionResponse>('/submissions', {

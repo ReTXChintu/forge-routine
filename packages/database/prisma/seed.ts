@@ -172,6 +172,8 @@ async function importTechnology(
           examples: exercise.examples,
           staticHints: exercise.staticHints,
           referenceSolution: exercise.referenceSolution,
+          brokenCode: exercise.brokenCode,
+          bugExplanation: exercise.bugExplanation,
           estimatedMinutes: exercise.estimatedMinutes,
         },
         update: {
@@ -183,6 +185,8 @@ async function importTechnology(
           examples: exercise.examples,
           staticHints: exercise.staticHints,
           referenceSolution: exercise.referenceSolution,
+          brokenCode: exercise.brokenCode,
+          bugExplanation: exercise.bugExplanation,
           estimatedMinutes: exercise.estimatedMinutes,
           archivedAt: null,
         },

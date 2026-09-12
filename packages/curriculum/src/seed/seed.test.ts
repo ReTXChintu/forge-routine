@@ -132,6 +132,42 @@ describe('curated curricula', () => {
     }
   });
 
+  it('gives every debugging exercise broken code and an explanation', () => {
+    // A DEBUGGING exercise without brokenCode has nothing to debug, and one
+    // without bugExplanation cannot have its diagnosis graded (§13).
+    for (const tech of curricula) {
+      for (const concept of tech.concepts) {
+        for (const exercise of concept.exercises.filter((e) => e.kind === 'DEBUGGING')) {
+          expect(exercise.brokenCode, `${exercise.slug} has no brokenCode`).toBeTruthy();
+          expect(exercise.bugExplanation, `${exercise.slug} has no bugExplanation`).toBeTruthy();
+        }
+      }
+    }
+  });
+
+  it('never puts the answer in a debugging exercise hint', () => {
+    // Static hints are the AI-unavailable fallback and are shown on request.
+    // A hint that names the fix turns the exercise into a reading comprehension
+    // test, which is precisely what §13 says not to do.
+    for (const tech of curricula) {
+      for (const concept of tech.concepts) {
+        for (const exercise of concept.exercises.filter((e) => e.kind === 'DEBUGGING')) {
+          for (const hint of exercise.staticHints) {
+            expect(hint, `${exercise.slug}: hint contains code`).not.toMatch(/```/);
+          }
+        }
+      }
+    }
+  });
+
+  it('ships at least one debugging exercise', () => {
+    const debugging = curricula.flatMap((t) =>
+      t.concepts.flatMap((c) => c.exercises.filter((e) => e.kind === 'DEBUGGING')),
+    );
+
+    expect(debugging.length).toBeGreaterThan(0);
+  });
+
   it('has unique exercise slugs within a concept', () => {
     for (const tech of curricula) {
       for (const concept of tech.concepts) {

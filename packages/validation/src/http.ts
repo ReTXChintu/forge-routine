@@ -127,6 +127,11 @@ export const submitCodeSchema = z.object({
   // 64 KB. Submissions are text; anything larger is a mistake or an attack.
   code: z.string().min(1).max(65_536),
   language: languageSchema,
+  /**
+   * DEBUGGING exercises (§13): what the user believes is wrong, written before
+   * they see whether their fix passes. Graded separately from the fix.
+   */
+  diagnosis: z.string().max(4_000).optional(),
   clientSignals: clientSignalsSchema.optional(),
 });
 

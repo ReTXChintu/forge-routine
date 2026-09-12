@@ -1,9 +1,15 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
-import { evaluatorAgent, executionOnlyEvaluation } from '@forgeroutine/ai';
+import {
+  debuggerAgent,
+  evaluatorAgent,
+  executionOnlyEvaluation,
+  ungradedDiagnosis,
+} from '@forgeroutine/ai';
 import type { Prisma } from '@forgeroutine/database';
 import {
   type CodeEvaluation,
+  type DiagnosisResult,
   type ExecutionResult,
   type SubmissionResponse,
   INTERNAL_EXECUTION_FAILURES,
@@ -70,6 +76,11 @@ export class SubmitSolutionUseCase {
     });
 
     const evaluation = await this.evaluate(executionResult, attempt, input);
+    const diagnosis = await this.gradeDiagnosis(attempt, input);
+
+    if (diagnosis?.accuracy !== undefined && diagnosis.accuracy !== null) {
+      evaluation.quality.diagnosisAccuracy = diagnosis.accuracy;
+    }
 
     const submission = await this.persist({
       userId,
@@ -92,6 +103,7 @@ export class SubmitSolutionUseCase {
       submissionId: submission.id,
       execution: this.redactHiddenCases(executionResult, attempt.assistanceLevel),
       evaluation,
+      diagnosis,
       attemptOutcome: executionResult.passed ? 'PASSED' : 'FAILED',
       skillDeltas,
       independenceScore: null,
@@ -136,6 +148,7 @@ export class SubmitSolutionUseCase {
       submissionId: existing.id,
       execution: toExecutionResult(existing.execution),
       evaluation: null,
+      diagnosis: null,
       attemptOutcome: existing.execution.passed ? 'PASSED' : 'FAILED',
       skillDeltas: [],
       independenceScore: null,
@@ -178,6 +191,64 @@ export class SubmitSolutionUseCase {
     }
   }
 
+  /**
+   * Grades the written diagnosis on a DEBUGGING exercise (§13).
+   *
+   * Finding a fault and repairing it are different abilities, so they are scored
+   * separately — otherwise a user who shuffled code until the tests went green
+   * would be recorded as having learned to debug.
+   *
+   * The actual cause is revealed only once the user has committed to a diagnosis
+   * of their own, and only when they were right or the attempt has passed.
+   */
+  private async gradeDiagnosis(
+    attempt: Awaited<ReturnType<SubmitSolutionUseCase['loadAttempt']>>,
+    input: SubmitCodeInput,
+  ): Promise<DiagnosisResult | null> {
+    const exercise = attempt.exercise;
+    if (exercise.kind !== 'DEBUGGING') return null;
+
+    const stated = input.diagnosis?.trim();
+    if (!stated) {
+      return {
+        accuracy: 0,
+        feedback: 'No diagnosis submitted. Say what is wrong before you fix it.',
+        actualCause: null,
+      };
+    }
+
+    if (!this.ai || !exercise.bugExplanation) {
+      const fallback = ungradedDiagnosis(stated);
+      return { ...fallback, actualCause: null };
+    }
+
+    try {
+      const grade = await debuggerAgent.run(
+        this.ai,
+        {
+          exerciseTitle: exercise.title,
+          requirements: exercise.requirements,
+          brokenCode: exercise.brokenCode ?? '',
+          actualCause: exercise.bugExplanation,
+          userDiagnosis: stated,
+        },
+        { userId: attempt.userId },
+      );
+
+      return {
+        accuracy: grade.accuracy,
+        feedback: grade.feedback,
+        // Only once they have earned it: handing over the cause after a wrong
+        // guess removes the only thing a retry would teach.
+        actualCause: grade.accuracy >= 0.7 ? exercise.bugExplanation : null,
+      };
+    } catch (error) {
+      this.logger.warn({ err: error }, 'Diagnosis grading failed; recording ungraded');
+      const fallback = ungradedDiagnosis(stated);
+      return { ...fallback, actualCause: null };
+    }
+  }
+
   private async persist(args: {
     userId: string;
     attempt: Awaited<ReturnType<SubmitSolutionUseCase['loadAttempt']>>;
@@ -196,6 +267,7 @@ export class SubmitSolutionUseCase {
           userId,
           code: input.code,
           language: input.language,
+          diagnosis: input.diagnosis ?? null,
           idempotencyKey: idempotencyKey ?? null,
           execution: {
             create: {
@@ -223,6 +295,7 @@ export class SubmitSolutionUseCase {
               errorHandling: evaluation.quality.errorHandling,
               edgeCases: evaluation.quality.edgeCases,
               idiomatic: evaluation.quality.idiomatic,
+              diagnosisAccuracy: evaluation.quality.diagnosisAccuracy,
               strengths: evaluation.strengths,
               weaknesses: evaluation.weaknesses,
               conceptGaps: evaluation.conceptGaps,
@@ -298,7 +371,14 @@ export class SubmitSolutionUseCase {
           codingAbility: codingEvidence,
           conceptMastery: evaluation.overallScore ?? ratio,
           problemSolving: evaluation.quality.architecture ?? null,
-          debuggingAbility: attempt.submissionCount > 1 && passed ? ratio : null,
+          // On a debugging exercise, the diagnosis is the measure of debugging
+          // ability — passing the tests only shows the fix worked.
+          debuggingAbility:
+            attempt.exercise.kind === 'DEBUGGING'
+              ? evaluation.quality.diagnosisAccuracy
+              : attempt.submissionCount > 1 && passed
+                ? ratio
+                : null,
           confidence: passed && attempt.aiRequestCount === 0 ? 1 : null,
           recallStrength: attempt.assistanceLevel >= 3 ? codingEvidence : null,
         },

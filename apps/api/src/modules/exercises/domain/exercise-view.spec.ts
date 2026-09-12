@@ -24,6 +24,16 @@ const exercise: StoredExercise = {
     { name: 'collapses rapid calls', hidden: false },
     { name: 'cancel() prevents invocation', hidden: true },
   ],
+  brokenCode: null,
+};
+
+const debuggingExercise: StoredExercise = {
+  ...exercise,
+  id: 'ex2',
+  slug: 'debug-loop-closure',
+  kind: 'DEBUGGING',
+  objective: 'Every handler returns the wrong item. Find out why.',
+  brokenCode: 'for (var i = 0; i < items.length; i++) {}',
 };
 
 const levels: AssistanceLevel[] = [1, 2, 3, 4, 5];
@@ -124,6 +134,44 @@ describe('projectExercise', () => {
       const view = projectExercise(exercise, { level: 1, blindMode: true });
       expect(view.visibleTestNames).toEqual([]);
     });
+  });
+
+  describe('debugging exercises', () => {
+    it.each(levels)('shows the broken code at every level (level %i)', (level) => {
+      const view = projectExercise(debuggingExercise, { level, blindMode: false });
+
+      // The bug is the problem statement. Withholding it would leave nothing to do.
+      expect(view.brokenCode).toBe(debuggingExercise.brokenCode);
+    });
+
+    it.each(levels)('keeps the requirements visible at level %i', (level) => {
+      const view = projectExercise(debuggingExercise, { level, blindMode: false });
+
+      // Without them, "what should this do?" is unanswerable.
+      expect(view.requirements).toBe(debuggingExercise.requirements);
+    });
+
+    it.each(levels)('demands a written diagnosis at level %i', (level) => {
+      expect(
+        projectExercise(debuggingExercise, { level, blindMode: false }).requiresDiagnosis,
+      ).toBe(true);
+    });
+
+    it('still withholds the starter code above level 1', () => {
+      expect(
+        projectExercise(debuggingExercise, { level: 3, blindMode: false }).starterCode,
+      ).toBeNull();
+    });
+  });
+
+  it.each(levels)('never leaks brokenCode on a non-debugging exercise (level %i)', (level) => {
+    const view = projectExercise(
+      { ...exercise, brokenCode: 'should never be served' },
+      { level, blindMode: false },
+    );
+
+    expect(view.brokenCode).toBeNull();
+    expect(view.requiresDiagnosis).toBe(false);
   });
 
   it('enables AI assistance below level 5 outside blind mode', () => {

@@ -165,6 +165,8 @@ export interface Exercise extends Identified, Timestamped {
   staticHints: string[];
   estimatedMinutes: number;
   testCases: ExerciseTestCase[];
+  /** DEBUGGING only: the faulty code the user must diagnose (§13). */
+  brokenCode: string | null;
 }
 
 /** What the user is actually allowed to see, after the assistance level is applied. */
@@ -184,6 +186,13 @@ export interface ExerciseView {
   visibleTestNames: string[];
   estimatedMinutes: number;
   aiAssistanceEnabled: boolean;
+  /**
+   * DEBUGGING only. Shown at every assistance level: the bug *is* the problem
+   * statement, so withholding it would leave nothing to do.
+   */
+  brokenCode: string | null;
+  /** True when the user must submit a written diagnosis alongside the fix. */
+  requiresDiagnosis: boolean;
 }
 
 // -- Attempts and submissions ----------------------------------------------
@@ -236,6 +245,8 @@ export interface CodeQualityScores {
   errorHandling: UnitScore | null;
   edgeCases: UnitScore | null;
   idiomatic: UnitScore | null;
+  /** DEBUGGING only: how accurately the fault was identified, apart from the fix. */
+  diagnosisAccuracy: UnitScore | null;
 }
 
 export interface CodeEvaluation {

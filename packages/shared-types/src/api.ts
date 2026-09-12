@@ -40,6 +40,8 @@ export interface SubmitCodeRequest {
   attemptId: string;
   code: string;
   language: SupportedLanguage;
+  /** DEBUGGING only: what the user believes is wrong, graded separately. */
+  diagnosis?: string;
   /** Client-reported, advisory only. Never affects scoring. */
   clientSignals?: ClientAttemptSignals;
 }
@@ -50,10 +52,18 @@ export interface ClientAttemptSignals {
   firstCodeAtMs?: number;
 }
 
+export interface DiagnosisResult {
+  accuracy: UnitScore | null;
+  feedback: string;
+  /** Revealed only after the user has committed to a diagnosis of their own. */
+  actualCause: string | null;
+}
+
 export interface SubmissionResponse {
   submissionId: string;
   execution: ExecutionResult;
   evaluation: CodeEvaluation | null;
+  diagnosis: DiagnosisResult | null;
   attemptOutcome: 'PASSED' | 'FAILED';
   skillDeltas: SkillDelta[];
   independenceScore: UnitScore | null;

@@ -62,6 +62,7 @@ export class SubmissionsQueryService {
               errorHandling: row.evaluation.errorHandling,
               edgeCases: row.evaluation.edgeCases,
               idiomatic: row.evaluation.idiomatic,
+              diagnosisAccuracy: row.evaluation.diagnosisAccuracy,
             },
             strengths: row.evaluation.strengths,
             weaknesses: row.evaluation.weaknesses,

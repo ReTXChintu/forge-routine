@@ -31,6 +31,14 @@ export const seedExerciseSchema = z.object({
   examples: z.array(z.string()).default([]),
   staticHints: z.array(z.string()).default([]),
   referenceSolution: z.string().nullable().default(null),
+  /**
+   * DEBUGGING exercises (§13): realistic broken code the user must diagnose.
+   * Unlike starterCode this is shown at every assistance level — the bug *is*
+   * the problem statement, so withholding it would leave nothing to do.
+   */
+  brokenCode: z.string().nullable().default(null),
+  /** What is actually wrong. Grades the diagnosis; never sent before one arrives. */
+  bugExplanation: z.string().nullable().default(null),
   estimatedMinutes: z.number().int().min(1).max(240).default(15),
   testCases: z.array(seedTestCaseSchema).min(1),
 });

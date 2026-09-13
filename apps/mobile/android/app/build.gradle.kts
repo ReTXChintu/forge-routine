@@ -12,6 +12,12 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+
+        // Required by flutter_local_notifications, which uses java.time to
+        // schedule the daily reminder. Without it the release build fails at
+        // :app:checkReleaseAarMetadata — and only there, so `flutter analyze`
+        // and `flutter test` both pass on a project that cannot be packaged.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -46,4 +52,11 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // The backport that core library desugaring rewrites java.time calls
+    // against. Pinned rather than floating: a desugaring library that moves
+    // under you breaks the build in a task nobody reads.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }

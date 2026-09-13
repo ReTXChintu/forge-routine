@@ -131,3 +131,14 @@ jobs:
         run: flutter analyze
       - working-directory: apps/mobile
         run: flutter test
+
+      # Packaging is a separate failure mode from compiling, and only the
+      # release variant exercises it. `flutter_local_notifications` needing
+      # core library desugaring broke :app:checkReleaseAarMetadata while
+      # analyze and test both passed — so a project that could not be built
+      # at all went green here and failed in CD.
+      #
+      # The base URL is a placeholder: this proves the APK assembles, not
+      # that it points anywhere useful. CD supplies the real one.
+      - working-directory: apps/mobile
+        run: flutter build apk --release --dart-define=API_BASE_URL=http://localhost:50005/api/v1

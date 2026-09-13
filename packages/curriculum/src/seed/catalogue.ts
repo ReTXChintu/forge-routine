@@ -65,7 +65,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     description: 'Server-side JavaScript runtime: the event loop, streams, and I/O.',
     category: 'runtime',
     dependsOn: ['javascript'],
-    learningOrder: 3,
+    learningOrder: 5,
   },
   {
     slug: 'react',
@@ -76,7 +76,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     // Hooks are closures. Learning React first means learning the rules
     // without the reason for them.
     dependsOn: ['javascript', 'typescript'],
-    learningOrder: 6,
+    learningOrder: 10,
   },
   {
     slug: 'nextjs',
@@ -85,7 +85,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     description: 'React framework: routing, rendering strategies, and the server boundary.',
     category: 'frontend',
     dependsOn: ['react'],
-    learningOrder: 7,
+    learningOrder: 11,
   },
   {
     slug: 'nestjs',
@@ -95,7 +95,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     category: 'backend',
     // Decorators and DI on top of both.
     dependsOn: ['typescript', 'nodejs'],
-    learningOrder: 8,
+    learningOrder: 12,
   },
   {
     slug: 'mongodb',
@@ -105,7 +105,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     category: 'database',
     // Standalone: nothing here depends on the rest of the stack.
     dependsOn: [],
-    learningOrder: 12,
+    learningOrder: 7,
   },
   {
     slug: 'postgresql',
@@ -115,7 +115,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     category: 'database',
     // Standalone: SQL is worth learning on its own terms.
     dependsOn: [],
-    learningOrder: 9,
+    learningOrder: 6,
   },
   {
     slug: 'prisma',
@@ -126,7 +126,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     // A typed client over a schema. Without SQL underneath it you are
     // learning an API, not a database.
     dependsOn: ['typescript', 'postgresql'],
-    learningOrder: 10,
+    learningOrder: 8,
   },
   {
     slug: 'docker',
@@ -146,7 +146,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     category: 'systems',
     // Underneath Docker, Nginx and every deploy.
     dependsOn: [],
-    learningOrder: 5,
+    learningOrder: 4,
   },
   {
     slug: 'git',
@@ -156,7 +156,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     category: 'tooling',
     // Needed from the first day, depends on nothing.
     dependsOn: [],
-    learningOrder: 4,
+    learningOrder: 3,
   },
   {
     slug: 'github',
@@ -165,7 +165,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     description: 'Collaboration: pull requests, reviews, and repository configuration.',
     category: 'tooling',
     dependsOn: ['git'],
-    learningOrder: 15,
+    learningOrder: 17,
   },
   {
     slug: 'github-actions',
@@ -174,7 +174,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     description: 'CI/CD: workflows, jobs, caching, and deployment pipelines.',
     category: 'devops',
     dependsOn: ['github', 'docker'],
-    learningOrder: 16,
+    learningOrder: 18,
   },
   {
     slug: 'jenkins',
@@ -183,7 +183,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     description: 'Pipelines, agents, and build orchestration.',
     category: 'devops',
     dependsOn: ['docker'],
-    learningOrder: 17,
+    learningOrder: 19,
   },
   {
     slug: 'redis',
@@ -202,7 +202,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     description: 'Reverse proxy, TLS termination, static serving, and load balancing.',
     category: 'infrastructure',
     dependsOn: ['linux'],
-    learningOrder: 18,
+    learningOrder: 15,
   },
   {
     slug: 'traefik',
@@ -211,7 +211,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     description: 'Dynamic reverse proxy and routing.',
     category: 'infrastructure',
     dependsOn: ['docker', 'nginx'],
-    learningOrder: 19,
+    learningOrder: 16,
   },
   {
     slug: 'system-design',
@@ -222,7 +222,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     // No hard prerequisite, but it is ordered last deliberately: designing
     // systems is worth far more once you have built parts of one.
     dependsOn: [],
-    learningOrder: 22,
+    learningOrder: 21,
   },
   {
     slug: 'typeorm',
@@ -232,7 +232,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     category: 'database',
     // Same shape as Prisma: a typed layer over SQL you should already read.
     dependsOn: ['typescript', 'postgresql'],
-    learningOrder: 11,
+    learningOrder: 9,
   },
   {
     slug: 'rust',
@@ -244,7 +244,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     // so it sits late: useful, but never the thing standing between you and
     // the stack you actually ship.
     dependsOn: [],
-    learningOrder: 20,
+    learningOrder: 22,
   },
   {
     slug: 'software-architecture',
@@ -261,6 +261,6 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     // No hard prerequisite, but placed after the frameworks deliberately —
     // the patterns are answers to problems you have to have felt.
     dependsOn: [],
-    learningOrder: 21,
+    learningOrder: 20,
   },
 ];

@@ -38,7 +38,9 @@
     "delete": "pm2 delete all",
     "logs": "pm2 logs --lines 100",
     "status": "pm2 status",
-    "start:inline": "pm2 start ecosystem.config.cjs --only forgeroutine-api,forgeroutine-web --env production"
+    "start:inline": "pm2 start ecosystem.config.cjs --only forgeroutine-api,forgeroutine-web --env production",
+    "db:sync-order": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/sync-technology-order.mjs",
+    "db:ai-spend": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/ai-spend.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.19.9",

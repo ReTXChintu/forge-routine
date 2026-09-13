@@ -15,6 +15,7 @@ import {
 import {
   DEFAULT_CONCEPTS_PER_PHASE,
   assertAcyclic,
+  challengesFor,
   type GraphEdge,
   type GraphNode,
 } from '@forgeroutine/curriculum';
@@ -519,6 +520,7 @@ export class CurriculumGeneratorService {
         const exerciseCount = await this.persistExercises(tx, exercises, conceptIds);
         const questionCount = await this.persistQuestions(tx, questions, conceptIds);
         const projectCount = await this.persistProjects(tx, projects, conceptIds);
+        await this.persistSeedChallenges(tx, technology.slug, conceptIds);
 
         await tx.curriculumVersion.updateMany({
           where: { technologyId: technology.id, status: 'ACTIVE' },
@@ -761,6 +763,72 @@ export class CurriculumGeneratorService {
     return count;
   }
 
+  /**
+   * Attaches any hand-written Phase 9 challenges for this technology.
+   *
+   * These ship in the seed, but the seed can only attach them to concepts
+   * that already exist — and for a technology whose curriculum is generated,
+   * none do at seed time. Without this, a database reset silently loses
+   * every challenge belonging to a generated technology: the seed skips
+   * them, generation never adds them, and nothing reports a problem. All
+   * five Linux terminal challenges disappeared exactly this way.
+   *
+   * Idempotent, so regenerating a technology re-attaches rather than
+   * duplicating.
+   */
+  private async persistSeedChallenges(
+    tx: Prisma.TransactionClient,
+    technologySlug: string,
+    conceptIds: ReadonlyMap<string, string>,
+  ): Promise<number> {
+    const challenges = challengesFor(technologySlug);
+    if (challenges.length === 0) return 0;
+
+    let attached = 0;
+
+    for (const challenge of challenges) {
+      // The generated curriculum will not use the slug the challenge was
+      // written against, so fall back the way the seed does: the most
+      // distinctive word, then the first concept. A challenge on a slightly
+      // wrong concept is still worth doing; a missing one is not.
+      const conceptId =
+        conceptIds.get(challenge.conceptSlug) ?? nearestConcept(challenge.conceptSlug, conceptIds);
+
+      if (!conceptId) continue;
+
+      await tx.exercise.upsert({
+        where: { conceptId_slug: { conceptId, slug: challenge.slug } },
+        create: {
+          conceptId,
+          slug: challenge.slug,
+          title: challenge.title,
+          kind: challenge.spec.kind,
+          difficulty: challenge.difficulty,
+          // Not JavaScript: none of these is graded by running code.
+          language: 'text',
+          objective: challenge.objective,
+          requirements: '',
+          estimatedMinutes: challenge.estimatedMinutes,
+          challengeSpec: challenge.spec as unknown as Prisma.InputJsonValue,
+        },
+        update: {
+          title: challenge.title,
+          objective: challenge.objective,
+          challengeSpec: challenge.spec as unknown as Prisma.InputJsonValue,
+          archivedAt: null,
+        },
+      });
+
+      attached += 1;
+    }
+
+    if (attached > 0) {
+      this.logger.log(`${technologySlug}: attached ${attached} Phase 9 challenges`);
+    }
+
+    return attached;
+  }
+
   private async persistQuestions(
     tx: Prisma.TransactionClient,
     questions: ReadonlyMap<string, ConceptQuestionSetOutput['questions']>,
@@ -835,6 +903,29 @@ export class CurriculumGeneratorService {
     });
     return concept?.id;
   }
+}
+
+/**
+ * Best-effort concept match for a challenge whose intended slug is absent.
+ *
+ * Matches on the longest word in the intended slug, which is reliably the
+ * distinctive one: "file-permissions" matches a generated "permissions" or
+ * "linux-file-permissions". Falls back to the first concept rather than
+ * dropping the challenge.
+ */
+function nearestConcept(
+  conceptSlug: string,
+  conceptIds: ReadonlyMap<string, string>,
+): string | undefined {
+  const keyword = conceptSlug.split('-').sort((a, b) => b.length - a.length)[0];
+
+  if (keyword && keyword.length > 3) {
+    for (const [slug, id] of conceptIds) {
+      if (slug.includes(keyword)) return id;
+    }
+  }
+
+  return conceptIds.values().next().value;
 }
 
 /** A verified project, with the concept it hangs off. */

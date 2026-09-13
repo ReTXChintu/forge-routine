@@ -1,7 +1,7 @@
 name: forgeroutine_mobile
 description: "ForgeRoutine — forge your coding skills. Build your engineering mind."
 publish_to: 'none'
-version: 0.0.0+2
+version: 0.1.0+3
 environment:
   sdk: ^3.5.0
 

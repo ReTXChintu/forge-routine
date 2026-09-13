@@ -1,6 +1,6 @@
 {
   "name": "forgeroutine",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Forge your coding skills. Build your engineering mind.",
   "packageManager": "pnpm@12.4.1",

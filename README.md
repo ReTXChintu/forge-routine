@@ -168,8 +168,11 @@ pnpm start                    # PM2, all three processes
 pm2 save
 ```
 
-`forgeroutine-api` runs in cluster mode (reload is zero-downtime);
-`forgeroutine-sandbox` runs in fork mode because it spawns child processes of its own.
+All three run as a single fork-mode process, sized for roughly ten users. The sandbox
+would run in fork mode regardless, because it spawns child processes of its own.
+
+One instance means a restart is graceful but not zero-downtime — there is no second
+worker to hand over to. See [`docs/deployment.md`](docs/deployment.md) for the trade.
 
 ## Known limitations
 

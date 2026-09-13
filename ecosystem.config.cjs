@@ -5,9 +5,22 @@
  * reached by connection string.
  *
  *   pnpm start                      # everything, production env
- *   pnpm restart                    # zero-downtime reload
+ *   pnpm restart                    # graceful, brief downtime
  *   pnpm stop
  *   pm2 save && pm2 startup         # survive reboot
+ *
+ * Every process is a single fork-mode instance. The target is about ten
+ * users, and one Node process serves that without noticing.
+ *
+ * The cost of that choice, stated plainly: **restarts are not zero-downtime
+ * any more.** Zero-downtime reload needs cluster mode, where PM2 brings up a
+ * new worker before retiring the old one. With one process there is nothing
+ * to hand over to, so `pnpm restart` means a second or two of refused
+ * connections. It is still graceful — the process drains in-flight work and
+ * closes Prisma before exiting — but a request arriving in that window
+ * fails. At this scale that is the right trade; at a scale where it is not,
+ * set the API to `instances: 'max'` and `exec_mode: 'cluster'` and the
+ * property comes back.
  *
  * Ports: the web bundle is served on 50004 and the API listens on 50005.
  * Both are behind nginx in production, which is the only thing bound to 80
@@ -33,10 +46,15 @@ module.exports = {
       name: 'forgeroutine-api',
       cwd: resolve(ROOT, 'apps/api'),
       script: 'dist/main.js',
-      // One worker per core. The API is I/O-bound; code execution is somebody
-      // else's process entirely.
-      instances: 'max',
-      exec_mode: 'cluster',
+      // One process, fork mode. The target is about ten users, and a single
+      // Node process serves that without noticing — the API is I/O-bound and
+      // code execution happens in somebody else's process entirely.
+      //
+      // Cluster mode would buy throughput nobody needs and cost memory and a
+      // harder shutdown path. Raise `instances` and switch to 'cluster' if
+      // that ever changes; nothing else here depends on the mode.
+      instances: 1,
+      exec_mode: 'fork',
 
       // Graceful shutdown: the app drains in-flight requests and closes Prisma
       // and Redis before exiting. Give it room to finish a submission.
@@ -120,8 +138,12 @@ module.exports = {
 
       // Fork, deliberately. These workers spawn child processes of their own;
       // a cluster master sharing a socket with them buys nothing and
-      // complicates the shutdown path. Scale by raising `instances`.
-      instances: 2,
+      // complicates the shutdown path.
+      //
+      // One worker: at ten users, two submissions landing in the same second
+      // is already unlikely, and the second would queue for the few hundred
+      // milliseconds a run takes. Raise `instances` if runs start queueing.
+      instances: 1,
       exec_mode: 'fork',
 
       // Longer than the API's: a worker must be allowed to finish the run it is

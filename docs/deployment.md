@@ -15,7 +15,7 @@ PostgreSQL and Redis are external managed services reached by connection string.
            ▼
    ┌───────────────────┐        ┌────────────────────┐
    │ forgeroutine-api  │        │ forgeroutine-sandbox│
-   │ PM2 cluster × N   │        │ PM2 fork × M        │
+   │ PM2 fork × 1      │        │ PM2 fork × 1        │
    └─────┬─────────┬───┘        └──────────┬─────────┘
          │         │                       │
          ▼         ▼                       ▼
@@ -35,10 +35,14 @@ listening on 80 and 443.
 
 ## PM2 processes
 
-| Process                | Mode    | Purpose                                                                                                           |
-| ---------------------- | ------- | ----------------------------------------------------------------------------------------------------------------- |
-| `forgeroutine-api`     | cluster | HTTP API. Instance count = CPU cores.                                                                             |
-| `forgeroutine-sandbox` | fork    | Code execution workers. Fork mode deliberately — these spawn child processes and must not share a cluster master. |
+| Process                | Mode   | Instances | Purpose                                                                                    |
+| ---------------------- | ------ | --------- | ------------------------------------------------------------------------------------------ |
+| `forgeroutine-web`     | fork   | 1         | Static bundle on 50004, SPA fallback on.                                                     |
+| `forgeroutine-api`     | fork   | 1         | HTTP API on 50005.                                                                           |
+| `forgeroutine-sandbox` | fork   | 1         | Code execution. Fork always — these spawn child processes and must not share a cluster master. |
+
+One instance each, sized for about ten users. See [Restarts](#restarts) for what that
+costs.
 
 Defined in `ecosystem.config.cjs` at the repository root, which is where PM2
 looks by default.
@@ -133,11 +137,26 @@ the one being served now.
 The build fails if `MOBILE_API_BASE_URL` is unset rather than shipping an
 APK pointed at an emulator loopback, which is useless on a real phone.
 
-## Zero-downtime reloads
+## Restarts
 
-`pm2 reload forgeroutine-api` restarts cluster workers one at a time. The API implements
-graceful shutdown: it stops accepting connections, drains in-flight requests, closes Prisma
-and Redis, then exits. `kill_timeout` is 10s.
+Every process is a single fork-mode instance. The target is about ten users, and one
+Node process serves that without noticing — the API is I/O-bound, and code execution
+happens in a separate process anyway.
+
+**Restarts are therefore not zero-downtime.** That property comes from cluster mode,
+where PM2 starts a replacement worker before retiring the old one. With one process
+there is nothing to hand over to, so `pnpm restart` costs a second or two of refused
+connections.
+
+It is still *graceful*, which is a different thing: the API stops accepting connections,
+drains in-flight requests, closes Prisma and Redis, then exits, with `kill_timeout` at
+10s. Nobody loses a submission mid-flight. Somebody arriving during the gap gets a
+failure.
+
+At this scale that is the right trade — the alternative is carrying cluster mode, more
+memory and a more complicated shutdown path to protect a window nobody is likely to be
+in. If it stops being the right trade, set the API to `instances: 'max'` and
+`exec_mode: 'cluster'`; nothing else in the config depends on the mode.
 
 The sandbox worker traps shutdown, stops claiming new jobs, and kills any running child
 process group before exiting so no orphaned `node` processes survive a deploy.

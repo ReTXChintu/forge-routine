@@ -44,10 +44,14 @@ listening on 80 and 443.
 One instance each, sized for about ten users. See [Restarts](#restarts) for what that
 costs.
 
-`pnpm start` brings up the API and web only. The sandbox worker consumes a Redis queue
-and exits without one, so under `EXECUTION_DRIVER=inline` it would crash-loop forever
-and paint the dashboard red while nothing is actually wrong. Use `pnpm start:queue` when
-running the queue topology.
+`pnpm start` brings up all three. Use `pnpm start:inline` to leave the sandbox worker
+out, which is correct only when `EXECUTION_DRIVER=inline` — without Redis the worker
+exits immediately and crash-loops, painting the dashboard red while nothing is actually
+wrong.
+
+Getting that backwards in the other direction is the worse mistake and a quiet one:
+with `EXECUTION_DRIVER=queue` and no worker running, submissions are accepted, written
+to Redis, and sit there forever with nothing consuming them. Nothing errors.
 
 ## Execution driver
 
@@ -67,6 +71,19 @@ the old rule was really guarding against.
 
 So the driver choice is now about topology. Use `queue` to spread execution across
 machines; use `inline` when one box is enough, and skip Redis entirely.
+
+### Redis is not optional under `queue`
+
+The API refuses to boot if `EXECUTION_DRIVER=queue` and `REDIS_ENABLED=false`. What it
+does **not** refuse is a Redis that is configured but unreachable: the process starts
+normally, logs `Redis error` on a loop, and serves requests. Only code execution is
+broken, and only when somebody submits.
+
+`GET /api/v1/health/ready` is what catches this — it reports
+`{"status":"degraded","database":true,"redis":false}`. Note that it answers **200 even
+when degraded**, deliberately, because the API is still partly usable. Anything
+monitoring this must read the body; a status-code check alone will call a box healthy
+while nobody can run any code on it.
 
 Defined in `ecosystem.config.cjs` at the repository root, which is where PM2
 looks by default.

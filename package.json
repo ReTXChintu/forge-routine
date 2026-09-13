@@ -32,13 +32,13 @@
     "release:patch": "release-it patch",
     "release:major": "release-it major",
     "release:dry": "release-it --dry-run --ci",
-    "start": "pm2 start ecosystem.config.cjs --only forgeroutine-api,forgeroutine-web --env production",
+    "start": "pm2 start ecosystem.config.cjs --env production",
     "stop": "pm2 stop all",
     "restart": "pm2 reload all",
     "delete": "pm2 delete all",
     "logs": "pm2 logs --lines 100",
     "status": "pm2 status",
-    "start:queue": "pm2 start ecosystem.config.cjs --env production"
+    "start:inline": "pm2 start ecosystem.config.cjs --only forgeroutine-api,forgeroutine-web --env production"
   },
   "devDependencies": {
     "@types/node": "^20.19.9",

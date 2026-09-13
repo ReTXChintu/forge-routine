@@ -131,13 +131,16 @@ module.exports = {
       time: true,
     },
 
-    // Only started by `pnpm start:queue`.
+    // Part of the default topology (EXECUTION_DRIVER=queue).
     //
-    // This worker consumes a Redis queue and exits immediately without one,
-    // so under EXECUTION_DRIVER=inline it crash-loops forever and paints the
-    // dashboard red while nothing is actually wrong. `pnpm start` therefore
-    // starts the API and web only; this comes along when the topology calls
-    // for it.
+    // It consumes the Redis execution queue and exits immediately without
+    // Redis, so under EXECUTION_DRIVER=inline it crash-loops and paints the
+    // dashboard red while nothing is actually wrong. `pnpm start:inline`
+    // leaves it out for that case.
+    //
+    // Leaving it out while the driver is `queue` is the worse mistake and a
+    // quiet one: submissions are accepted, written to Redis, and then sit
+    // there forever with nothing consuming them.
     {
       name: 'forgeroutine-sandbox',
       cwd: resolve(ROOT, 'apps/sandbox'),

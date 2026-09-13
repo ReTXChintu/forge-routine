@@ -53,6 +53,78 @@ afterAll(async () => {
   await app?.close();
 });
 
+/**
+ * Brings the user to `slug`, the way working through the course would.
+ *
+ * Two gates gate an exercise and both have to be open:
+ *
+ *   - the **sequence**, which needs one passed attempt on each earlier
+ *     concept, and
+ *   - the **prerequisite graph**, which needs mastery above
+ *     `UNLOCK_THRESHOLD` on each HARD prerequisite.
+ *
+ * So this records both a passed attempt and the skill that attempt would
+ * have produced. Recording only the attempt leaves the graph gate shut, and
+ * the failure looks identical — a 409 from a concept that says it is locked
+ * behind something the user has visibly done.
+ *
+ * Written straight to the database because it is setup, not behaviour.
+ * Reaching the third concept through the API would mean solving two
+ * unrelated exercises first. The gates themselves are asserted in step 16.
+ */
+async function clearConceptsBefore(technologyId: string, slug: string): Promise<void> {
+  const account = await prisma.user.findUnique({ where: { email: user.email } });
+  if (!account) throw new Error('test user is missing');
+
+  const concepts = await prisma.concept.findMany({
+    where: { technologyId, archivedAt: null },
+    orderBy: { orderIndex: 'asc' },
+    include: { exercises: { where: { archivedAt: null }, select: { id: true }, take: 1 } },
+  });
+
+  const target = concepts.findIndex((concept) => concept.slug === slug);
+  if (target < 0) throw new Error(`no concept ${slug}`);
+
+  // Comfortably above UNLOCK_THRESHOLD (0.6), not 1: a test that only
+  // passes at perfect mastery would hide a threshold that had crept up.
+  const mastery = 0.8;
+
+  for (const concept of concepts.slice(0, target)) {
+    await prisma.skill.upsert({
+      where: { userId_conceptId: { userId: account.id, conceptId: concept.id } },
+      create: {
+        userId: account.id,
+        conceptId: concept.id,
+        attempts: 1,
+        conceptMastery: mastery,
+        codingAbility: mastery,
+        recallStrength: mastery,
+        lastPracticedAt: new Date(),
+      },
+      update: { conceptMastery: mastery, attempts: { increment: 0 } },
+    });
+
+    const exercise = concept.exercises[0];
+    if (!exercise) continue;
+
+    const existing = await prisma.exerciseAttempt.findFirst({
+      where: { userId: account.id, exerciseId: exercise.id, outcome: 'PASSED' },
+    });
+    if (existing) continue;
+
+    await prisma.exerciseAttempt.create({
+      data: {
+        userId: account.id,
+        exerciseId: exercise.id,
+        assistanceLevel: 3,
+        openedAt: new Date(),
+        completedAt: new Date(),
+        outcome: 'PASSED',
+      },
+    });
+  }
+}
+
 describe('vertical slice', () => {
   let technologyId: string;
   let conceptId: string;
@@ -101,12 +173,24 @@ describe('vertical slice', () => {
     const orders = response.body.map((c: { orderIndex: number }) => c.orderIndex);
     expect(orders).toEqual([...orders].sort((a, b) => a - b));
 
-    // Closures has no prerequisites, so it is reachable from a standing start.
     const closures = response.body.find(
       (c: { slug: string }) => c.slug === 'functions-and-closures',
     );
     expect(closures).toBeDefined();
     conceptId = closures.id;
+
+    // Everything from here to step 15 is about exercise mechanics — the
+    // assistance ladder, execution, scoring — and none of it is about where
+    // the concept sits in the course. So the course is walked up to this
+    // point first.
+    //
+    // This used to be unnecessary: closures was the first concept in the
+    // seeded set, and the only gate was the prerequisite graph, which it
+    // cleared from a standing start. It is now the third concept of a
+    // basics-to-advanced course, and a course is strictly sequential. The
+    // gate itself is asserted once, in step 16, rather than tripped over
+    // fifteen times here.
+    await clearConceptsBefore(technologyId, 'functions-and-closures');
   });
 
   it('5. returns concept detail with readiness and prerequisites', async () => {
@@ -289,12 +373,41 @@ describe('vertical slice', () => {
       .set(auth())
       .expect(200);
 
-    const debugging = exercises.body.find((e: { kind: string }) => e.kind === 'DEBUGGING');
+    // By slug, not by kind. A concept can hold several debugging exercises —
+    // the seeded one plus whatever generation added — and `find` would take
+    // whichever sorted first, leaving the fix below matched against a
+    // different bug. The test needs the exercise it has an answer for.
+    const debugging = exercises.body.find(
+      (e: { slug: string }) => e.slug === 'debug-splice-while-iterating',
+    );
     expect(debugging).toBeDefined();
 
     // The bug is the problem statement, so it is served at every level (§13).
     expect(debugging.brokenCode).toEqual(expect.any(String));
     expect(debugging.requiresDiagnosis).toBe(true);
+
+    // Readiness and the attempt endpoint must agree.
+    //
+    // Asserted as an invariant rather than as a fixed status code, because
+    // how far into the course this concept sits depends on the curriculum —
+    // fifth in the seeded set, fourth once generation fills in the basics.
+    // A test hard-coding 409 here passes against one seed and fails against
+    // the other, which says nothing about whether the gate works.
+    //
+    // What must always hold is that a concept the API reports as locked
+    // cannot be started, and one it reports as open can.
+    const before = await http.get(`/api/v1/concepts/${objects.id}`).set(auth()).expect(200);
+
+    await http
+      .post(`/api/v1/exercises/${debugging.id}/attempts`)
+      .set(auth())
+      .send({ blindMode: false })
+      .expect(before.body.readiness.unlocked ? 201 : 409);
+
+    await clearConceptsBefore(technologyId, 'objects-and-references');
+
+    const after = await http.get(`/api/v1/concepts/${objects.id}`).set(auth()).expect(200);
+    expect(after.body.readiness.unlocked).toBe(true);
 
     const attempt = await http
       .post(`/api/v1/exercises/${debugging.id}/attempts`)
@@ -340,7 +453,9 @@ describe('vertical slice', () => {
       .get(`/api/v1/exercises?conceptId=${closures.id}`)
       .set(auth())
       .expect(200);
-    const debugging = exercises.body.find((e: { kind: string }) => e.kind === 'DEBUGGING');
+    // By slug, for the same reason as step 16.
+    const debugging = exercises.body.find((e: { slug: string }) => e.slug === 'debug-loop-closure');
+    expect(debugging).toBeDefined();
 
     const attempt = await http
       .post(`/api/v1/exercises/${debugging.id}/attempts`)

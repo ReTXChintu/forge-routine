@@ -1,12 +1,18 @@
 name: CD
 
-# Runs on a release tag. Releases are cut with `pnpm release`, which bumps
-# every app, tags, and pushes — so the tag is the trigger rather than a push
-# to main. A build that ships to a server should correspond to a version
-# somebody chose.
+# Runs when a GitHub release is published, not when a tag is pushed.
+#
+# `pnpm release` pushes the tag and the commit together, so a tag trigger
+# fires the moment the tag lands — before anyone has looked at the release
+# notes, and with no way to stop it. Publishing a release is a deliberate
+# second action: the tag can exist, CI can run against it, and the deploy
+# only happens when someone decides it should.
+#
+# It also makes re-deploying a past version a matter of re-publishing that
+# release rather than deleting and re-pushing a tag.
 on:
-  push:
-    tags: ['v*']
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       ref:
@@ -29,6 +35,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # On a release event `github.ref` is the tag, which is what should
+          # be built. A manual run takes whatever was asked for.
           ref: ${{ inputs.ref || github.ref }}
 
       - uses: subosito/flutter-action@v2

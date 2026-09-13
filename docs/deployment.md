@@ -73,16 +73,29 @@ monotonically for any store to accept an upload — even across a version that
 goes backwards. So the semver part is replaced and the build number only
 ever increments.
 
-Lint, typecheck and tests run before anything is bumped. The tag is pushed,
-and pushing the tag is what triggers CD.
+Lint, typecheck and unit tests run before anything is bumped. End-to-end
+tests are not in that list: they need a live database, and CI already runs
+them on every push to main.
 
-Set `GITHUB_TOKEN` to have the GitHub release created automatically;
-without it release-it prints a URL to create it by hand.
+Tagging does **not** deploy. Publishing the GitHub release does.
+
+Set `GITHUB_TOKEN` and release-it publishes the release itself, so the
+release and the deploy follow from one command. Without it release-it prints
+a URL, the tag exists, and nothing ships until someone publishes the release
+by hand — which is a reasonable way to work if you want a look at the notes
+first.
 
 ## Continuous deployment
 
-`.github/workflows/cd.yml` runs on a `v*` tag. It builds the release APK,
-keeps it as a workflow artifact, and places it on the server.
+`.github/workflows/cd.yml` runs when a GitHub release is **published**. It
+builds the release APK, keeps it as a workflow artifact, and places it on
+the server.
+
+Published rather than tagged, deliberately. `pnpm release` pushes the tag
+and the commit together, so a tag trigger fires before anyone has read the
+release notes and with no way to stop it. Publishing is a separate,
+deliberate act — and re-deploying an old version becomes a matter of
+re-publishing that release rather than deleting and re-pushing a tag.
 
 Required secrets:
 

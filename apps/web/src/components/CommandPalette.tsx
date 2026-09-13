@@ -1,38 +1,47 @@
-import {
-  Box,
-  HStack,
-  Input,
-  Kbd,
-  Modal,
-  ModalContent,
-  ModalOverlay,
-  Text,
-  VStack,
-} from '@chakra-ui/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+import { Icon } from './Icon';
 
 /**
  * Global command palette (§37), Ctrl/Cmd+K.
  *
- * Keyboard-first is part of the design language: this is a developer tool, and
- * reaching for a mouse to start today's work is friction the product cannot
- * afford if it wants to be opened every day.
+ * Keyboard-first is part of the design language: this is a developer tool,
+ * and reaching for a mouse to start today's work is friction the product
+ * cannot afford if it wants to be opened every day.
+ *
+ * Also opens on a `forge:open-command-palette` event, so the topbar's search
+ * affordance and the shortcut share one implementation rather than two that
+ * drift.
  */
 
 interface Command {
   id: string;
   label: string;
   hint?: string;
+  icon: string;
   run: (navigate: ReturnType<typeof useNavigate>) => void;
 }
 
 const COMMANDS: Command[] = [
-  { id: 'dashboard', label: 'Open dashboard', run: (n) => n('/') },
-  { id: 'roadmap', label: 'Open roadmap', hint: 'Your whole path', run: (n) => n('/roadmap') },
-  { id: 'routine', label: "Start today's routine", run: (n) => n('/') },
-  { id: 'technologies', label: 'Add technology', run: (n) => n('/technologies') },
-  { id: 'skills', label: 'Review weak skills', hint: 'Weakest first', run: (n) => n('/skills') },
+  { id: 'dashboard', label: 'Open dashboard', icon: 'home', run: (n) => n('/') },
+  { id: 'routine', label: "Start today's routine", icon: 'routine', run: (n) => n('/today') },
+  {
+    id: 'roadmap',
+    label: 'Open roadmap',
+    hint: 'Your whole path',
+    icon: 'learn',
+    run: (n) => n('/roadmap'),
+  },
+  {
+    id: 'practice',
+    label: 'Engineering challenges',
+    icon: 'practice',
+    run: (n) => n('/engineering'),
+  },
+  { id: 'interview', label: 'Interview readiness', icon: 'interview', run: (n) => n('/interview') },
+  { id: 'technologies', label: 'Technologies', icon: 'tech', run: (n) => n('/technologies') },
+  { id: 'progress', label: 'Progress', icon: 'progress', run: (n) => n('/progress') },
 ];
 
 export function CommandPalette() {
@@ -43,10 +52,16 @@ export function CommandPalette() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const open = () => {
+      setIsOpen(true);
+      setQuery('');
+      setSelected(0);
+    };
+
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        setIsOpen((open) => !open);
+        setIsOpen((wasOpen) => !wasOpen);
         setQuery('');
         setSelected(0);
       }
@@ -54,8 +69,17 @@ export function CommandPalette() {
     };
 
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('forge:open-command-palette', open);
+
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('forge:open-command-palette', open);
+    };
   }, []);
+
+  useEffect(() => {
+    if (isOpen) inputRef.current?.focus();
+  }, [isOpen]);
 
   const matches = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -63,117 +87,69 @@ export function CommandPalette() {
     return COMMANDS.filter((command) => command.label.toLowerCase().includes(needle));
   }, [query]);
 
+  if (!isOpen) return null;
+
   const run = (command: Command) => {
     setIsOpen(false);
     command.run(navigate);
   };
 
+  const onInputKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setSelected((index) => Math.min(index + 1, matches.length - 1));
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setSelected((index) => Math.max(index - 1, 0));
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const command = matches[selected];
+      if (command) run(command);
+    }
+  };
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={() => setIsOpen(false)}
-      initialFocusRef={inputRef}
-      isCentered={false}
-      size="lg"
-    >
-      <ModalOverlay bg="blackAlpha.700" />
-      <ModalContent
-        bg="surface.100"
-        borderWidth="1px"
-        borderColor="surface.400"
-        borderRadius="lg"
-        mt="15vh"
-        overflow="hidden"
-      >
-        <Input
-          ref={inputRef}
-          placeholder="Type a command…"
-          value={query}
-          variant="unstyled"
-          px={4}
-          py={4}
-          fontSize="md"
-          borderBottomWidth="1px"
-          borderColor="surface.300"
-          borderRadius={0}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setSelected(0);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === 'ArrowDown') {
-              event.preventDefault();
-              setSelected((index) => Math.min(index + 1, matches.length - 1));
-            }
-            if (event.key === 'ArrowUp') {
-              event.preventDefault();
-              setSelected((index) => Math.max(index - 1, 0));
-            }
-            if (event.key === 'Enter') {
-              const command = matches[selected];
-              if (command) run(command);
-            }
-          }}
-        />
+    <div className="cmdk-overlay" onClick={() => setIsOpen(false)}>
+      <div className="cmdk" onClick={(event) => event.stopPropagation()}>
+        <div className="cmdk-input">
+          <Icon name="search" size={17} />
+          <input
+            ref={inputRef}
+            value={query}
+            placeholder="Search or jump to…"
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setSelected(0);
+            }}
+            onKeyDown={onInputKeyDown}
+          />
+          <span className="kbd">ESC</span>
+        </div>
 
-        <VStack align="stretch" spacing={0} maxH="320px" overflowY="auto" py={2}>
-          {matches.length === 0 && (
-            <Text px={4} py={3} fontSize="sm" color="ink.500">
-              Nothing matches.
-            </Text>
+        <div className="cmdk-list">
+          {matches.length === 0 ? (
+            <div className="cmdk-item" style={{ color: 'var(--text-muted)' }}>
+              Nothing matches “{query}”
+            </div>
+          ) : (
+            matches.map((command, index) => (
+              <div
+                key={command.id}
+                className={`cmdk-item ${index === selected ? 'sel' : ''}`}
+                onMouseEnter={() => setSelected(index)}
+                onClick={() => run(command)}
+              >
+                <Icon name={command.icon} size={16} />
+                <span>{command.label}</span>
+                {command.hint && <span className="t-caption">{command.hint}</span>}
+                {index === selected && <span className="kbd kbd-hint">↵</span>}
+              </div>
+            ))
           )}
-          {matches.map((command, index) => (
-            <HStack
-              key={command.id}
-              px={4}
-              py={2}
-              spacing={3}
-              bg={index === selected ? 'surface.300' : 'transparent'}
-              cursor="pointer"
-              onMouseEnter={() => setSelected(index)}
-              onClick={() => run(command)}
-            >
-              <Box
-                w="2px"
-                h="16px"
-                bg={index === selected ? 'forge.500' : 'transparent'}
-                borderRadius="full"
-              />
-              <Text fontSize="sm" color="ink.200" flex="1">
-                {command.label}
-              </Text>
-              {command.hint && (
-                <Text fontSize="xs" color="ink.500">
-                  {command.hint}
-                </Text>
-              )}
-            </HStack>
-          ))}
-        </VStack>
-
-        <HStack
-          px={4}
-          py={2}
-          borderTopWidth="1px"
-          borderColor="surface.300"
-          spacing={3}
-          bg="surface.50"
-        >
-          <HStack spacing={1}>
-            <Kbd fontSize="xs">↑</Kbd>
-            <Kbd fontSize="xs">↓</Kbd>
-            <Text fontSize="xs" color="ink.500">
-              navigate
-            </Text>
-          </HStack>
-          <HStack spacing={1}>
-            <Kbd fontSize="xs">↵</Kbd>
-            <Text fontSize="xs" color="ink.500">
-              run
-            </Text>
-          </HStack>
-        </HStack>
-      </ModalContent>
-    </Modal>
+        </div>
+      </div>
+    </div>
   );
 }

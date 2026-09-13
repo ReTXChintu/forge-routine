@@ -1,0 +1,2126 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ForgeRoutine — Design System &amp; Product Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   FORGEROUTINE DESIGN SYSTEM — TOKENS
+   ============================================================ */
+:root{
+  --font-ui:'Inter',system-ui,sans-serif;
+  --font-code:'JetBrains Mono',ui-monospace,monospace;
+
+  --bg:#0a0c0f;
+  --surface:#131619;
+  --surface-2:#181c20;
+  --elevated:#1d2226;
+  --overlay:rgba(6,7,9,.72);
+  --border:#262b30;
+  --border-strong:#343b42;
+  --text-primary:#eef1f3;
+  --text-secondary:#a3adb6;
+  --text-muted:#6d7680;
+  --primary:#ed7f11;
+  --primary-hover:#ff9a2e;
+  --primary-active:#d16d05;
+  --primary-subtle:rgba(237,127,17,.14);
+  --primary-border:rgba(237,127,17,.35);
+  --on-primary:#1a0f00;
+  --success:#3fb27f;
+  --success-subtle:rgba(63,178,127,.13);
+  --warning:#e0b341;
+  --warning-subtle:rgba(224,179,65,.13);
+  --error:#e5595d;
+  --error-subtle:rgba(229,89,93,.13);
+  --info:#4a9de0;
+  --info-subtle:rgba(74,157,224,.13);
+  --code-bg:#0d0f11;
+  --code-line:#3a4048;
+
+  --r-sm:4px; --r-md:7px; --r-lg:11px; --r-xl:16px; --r-full:999px;
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-7:32px; --sp-8:40px; --sp-9:48px; --sp-10:64px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.5);
+  --shadow-md:0 4px 16px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.4);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.5),0 2px 6px rgba(0,0,0,.4);
+  --ease:cubic-bezier(.2,.7,.3,1);
+}
+html[data-theme="light"]{
+  --bg:#f4f5f6;
+  --surface:#ffffff;
+  --surface-2:#fbfbfc;
+  --elevated:#ffffff;
+  --overlay:rgba(20,22,25,.4);
+  --border:#e2e5e8;
+  --border-strong:#cdd2d7;
+  --text-primary:#14171a;
+  --text-secondary:#565f68;
+  --text-muted:#899199;
+  --primary:#d9720a;
+  --primary-hover:#c2640a;
+  --primary-active:#a85606;
+  --primary-subtle:rgba(217,114,10,.1);
+  --primary-border:rgba(217,114,10,.3);
+  --on-primary:#fff8f0;
+  --code-bg:#f1f2f3;
+  --code-line:#dfe2e5;
+  --shadow-sm:0 1px 2px rgba(20,20,20,.06);
+  --shadow-md:0 6px 20px rgba(20,20,20,.08);
+  --shadow-lg:0 16px 40px rgba(20,20,20,.12);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text-primary);
+  font-family:var(--font-ui);
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+::selection{background:var(--primary-subtle);color:var(--text-primary);}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:99px;border:2px solid var(--surface);}
+a{color:inherit;}
+button{font-family:inherit;}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:3px;}
+.mono{font-family:var(--font-code);}
+.text-secondary{color:var(--text-secondary);}
+.text-muted{color:var(--text-muted);}
+.text-primary-c{color:var(--primary);}
+.text-success{color:var(--success);}
+.text-warning{color:var(--warning);}
+.text-error{color:var(--error);}
+
+/* ---------- type scale ---------- */
+.t-display{font-size:38px;line-height:1.12;font-weight:750;letter-spacing:-.02em;}
+.t-h1{font-size:28px;line-height:1.2;font-weight:700;letter-spacing:-.015em;}
+.t-h2{font-size:21px;line-height:1.3;font-weight:650;letter-spacing:-.01em;}
+.t-h3{font-size:17px;line-height:1.4;font-weight:650;}
+.t-h4{font-size:14.5px;line-height:1.4;font-weight:650;}
+.t-body{font-size:14px;line-height:1.6;font-weight:400;color:var(--text-secondary);}
+.t-small{font-size:12.5px;line-height:1.5;color:var(--text-secondary);}
+.t-caption{font-size:11.5px;line-height:1.4;color:var(--text-muted);font-weight:500;letter-spacing:.01em;}
+.t-code{font-family:var(--font-code);font-size:13px;}
+.t-metric{font-family:var(--font-ui);font-size:26px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+.t-metric-lg{font-family:var(--font-ui);font-size:44px;font-weight:750;letter-spacing:-.025em;font-variant-numeric:tabular-nums;}
+
+/* ---------- layout utils ---------- */
+.row{display:flex;flex-direction:row;}
+.col{display:flex;flex-direction:column;}
+.items-center{align-items:center;}
+.items-start{align-items:flex-start;}
+.items-end{align-items:flex-end;}
+.justify-between{justify-content:space-between;}
+.justify-center{justify-content:center;}
+.justify-end{justify-content:flex-end;}
+.wrap{flex-wrap:wrap;}
+.flex-1{flex:1 1 0%;}
+.w-full{width:100%;}
+.g1{gap:4px;} .g2{gap:8px;} .g3{gap:12px;} .g4{gap:16px;} .g5{gap:20px;} .g6{gap:24px;} .g7{gap:32px;}
+.p1{padding:4px;} .p2{padding:8px;} .p3{padding:12px;} .p4{padding:16px;} .p5{padding:20px;} .p6{padding:24px;} .p7{padding:32px;}
+.px2{padding-left:8px;padding-right:8px;} .px3{padding-left:12px;padding-right:12px;} .px4{padding-left:16px;padding-right:16px;}
+.py2{padding-top:8px;padding-bottom:8px;} .py3{padding-top:12px;padding-bottom:12px;}
+.mt1{margin-top:4px;} .mt2{margin-top:8px;} .mt3{margin-top:12px;} .mt4{margin-top:16px;} .mt5{margin-top:20px;} .mt6{margin-top:24px;} .mt7{margin-top:32px;} .mt8{margin-top:40px;}
+.mb2{margin-bottom:8px;} .mb3{margin-bottom:12px;} .mb4{margin-bottom:16px;} .mb6{margin-bottom:24px;}
+.grid{display:grid;}
+.grid-2{grid-template-columns:repeat(2,1fr);}
+.grid-3{grid-template-columns:repeat(3,1fr);}
+.grid-4{grid-template-columns:repeat(4,1fr);}
+.grid-5{grid-template-columns:repeat(5,1fr);}
+.divider{height:1px;background:var(--border);border:none;margin:0;}
+.vdivider{width:1px;background:var(--border);align-self:stretch;}
+.icon{display:inline-flex;flex-shrink:0;}
+.icon svg{display:block;}
+.scroll-y{overflow-y:auto;}
+.container-q{container-type:inline-size;}
+
+/* ============================================================
+   COMPONENTS
+   ============================================================ */
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:36px;padding:0 14px;border-radius:var(--r-md);font-size:13.5px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:background .12s var(--ease),border-color .12s,color .12s,transform .08s;white-space:nowrap;}
+.btn:active{transform:translateY(1px);}
+.btn-lg{height:42px;padding:0 18px;font-size:14.5px;}
+.btn-sm{height:29px;padding:0 10px;font-size:12.5px;border-radius:var(--r-sm);}
+.btn-primary{background:var(--primary);color:var(--on-primary);}
+.btn-primary:hover{background:var(--primary-hover);}
+.btn-primary:active{background:var(--primary-active);}
+.btn-secondary{background:var(--elevated);color:var(--text-primary);border-color:var(--border-strong);}
+.btn-secondary:hover{border-color:var(--text-muted);background:var(--surface-2);}
+.btn-ghost{background:transparent;color:var(--text-secondary);}
+.btn-ghost:hover{background:var(--surface-2);color:var(--text-primary);}
+.btn-danger{background:transparent;color:var(--error);border-color:rgba(229,89,93,.35);}
+.btn-danger:hover{background:var(--error-subtle);}
+.btn-solid-danger{background:var(--error);color:#fff;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-block{width:100%;}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:var(--r-md);background:transparent;border:1px solid transparent;color:var(--text-secondary);cursor:pointer;transition:background .12s,color .12s;}
+.icon-btn:hover{background:var(--surface-2);color:var(--text-primary);}
+.icon-btn.active{background:var(--primary-subtle);color:var(--primary);}
+
+/* Inputs */
+.field-label{font-size:12.5px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;display:block;}
+.input,.select,.textarea{width:100%;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text-primary);border-radius:var(--r-md);height:38px;padding:0 12px;font-size:13.5px;font-family:var(--font-ui);transition:border-color .12s,box-shadow .12s;}
+.input::placeholder,.textarea::placeholder{color:var(--text-muted);}
+.input:focus,.select:focus,.textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-subtle);}
+.textarea{height:auto;padding:10px 12px;resize:vertical;line-height:1.5;}
+.select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23a3adb6' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:32px;}
+.field-hint{font-size:12px;color:var(--text-muted);margin-top:5px;}
+.field-error{font-size:12px;color:var(--error);margin-top:5px;}
+.input.has-error{border-color:var(--error);}
+.checkbox-row{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--text-secondary);cursor:pointer;}
+.checkbox{width:17px;height:17px;border-radius:5px;border:1.5px solid var(--border-strong);background:var(--surface-2);flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;}
+.checkbox.checked{background:var(--primary);border-color:var(--primary);color:var(--on-primary);}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);}
+.tab{padding:9px 14px;font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .12s;white-space:nowrap;}
+.tab:hover{color:var(--text-secondary);}
+.tab.active{color:var(--text-primary);border-color:var(--primary);}
+.pill-tabs{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-md);padding:3px;gap:2px;}
+.pill-tab{padding:6px 12px;font-size:12.5px;font-weight:600;color:var(--text-muted);border-radius:var(--r-sm);cursor:pointer;}
+.pill-tab.active{background:var(--elevated);color:var(--text-primary);box-shadow:var(--shadow-sm);}
+
+/* Badges & chips */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:2.5px 8px;border-radius:var(--r-full);font-size:11.5px;font-weight:600;border:1px solid transparent;}
+.badge-neutral{background:var(--surface-2);color:var(--text-secondary);border-color:var(--border);}
+.badge-primary{background:var(--primary-subtle);color:var(--primary);border-color:var(--primary-border);}
+.badge-success{background:var(--success-subtle);color:var(--success);}
+.badge-warning{background:var(--warning-subtle);color:var(--warning);}
+.badge-error{background:var(--error-subtle);color:var(--error);}
+.badge-info{background:var(--info-subtle);color:var(--info);}
+.badge-dot{width:6px;height:6px;border-radius:99px;background:currentColor;}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--r-full);font-size:12.5px;font-weight:600;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text-secondary);cursor:pointer;transition:all .12s;}
+.chip:hover{border-color:var(--text-muted);color:var(--text-primary);}
+.chip.selected{background:var(--primary-subtle);border-color:var(--primary);color:var(--primary);}
+.chip .icon svg{width:13px;height:13px;}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px;}
+.card-elevated{background:var(--elevated);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:18px;}
+.card-hover{transition:border-color .15s,transform .15s;cursor:pointer;}
+.card-hover:hover{border-color:var(--border-strong);transform:translateY(-1px);}
+.card-flush{padding:0;overflow:hidden;}
+
+/* Progress */
+.progress-linear{height:7px;border-radius:99px;background:var(--surface-2);overflow:hidden;position:relative;}
+.progress-linear .fill{height:100%;border-radius:99px;background:var(--primary);transition:width .4s var(--ease);}
+.progress-linear.thin{height:4px;}
+.skill-meter{height:6px;border-radius:99px;background:var(--surface-2);display:flex;overflow:hidden;}
+.skill-meter .seg{height:100%;}
+.stat-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+
+/* Code block / editor */
+.code-block{background:var(--code-bg);border:1px solid var(--border);border-radius:var(--r-md);font-family:var(--font-code);font-size:12.8px;line-height:1.7;overflow-x:auto;}
+.code-block pre{margin:0;padding:14px 16px;}
+.cb-kw{color:#c586c0;} .cb-fn{color:#8fc0f0;} .cb-str{color:#c7a468;} .cb-com{color:#5f6b76;font-style:italic;} .cb-num{color:#d7a86e;} .cb-var{color:#eef1f3;} .cb-type{color:#4fbf9f;}
+.editor-shell{background:var(--code-bg);border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;display:flex;flex-direction:column;height:100%;}
+.editor-tabbar{display:flex;background:var(--surface-2);border-bottom:1px solid var(--border);}
+.editor-tab{padding:9px 14px;font-size:12px;font-family:var(--font-code);color:var(--text-muted);border-right:1px solid var(--border);display:flex;align-items:center;gap:7px;}
+.editor-tab.active{color:var(--text-primary);background:var(--code-bg);}
+.editor-body{display:flex;flex:1;overflow:auto;}
+.editor-gutter{padding:12px 12px 12px 16px;text-align:right;color:#454d55;font-family:var(--font-code);font-size:12.8px;line-height:1.7;user-select:none;border-right:1px solid var(--border);}
+.editor-code{padding:12px 16px;font-family:var(--font-code);font-size:12.8px;line-height:1.7;flex:1;white-space:pre;}
+
+/* Table */
+.table{width:100%;border-collapse:collapse;font-size:13px;}
+.table th{text-align:left;font-size:11.5px;text-transform:none;color:var(--text-muted);font-weight:600;padding:0 12px 8px;border-bottom:1px solid var(--border);}
+.table td{padding:11px 12px;border-bottom:1px solid var(--border);color:var(--text-secondary);}
+.table tr:last-child td{border-bottom:none;}
+.table tr:hover td{background:var(--surface-2);}
+
+/* Breadcrumbs */
+.breadcrumbs{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-muted);}
+.breadcrumbs a{color:var(--text-muted);}
+.breadcrumbs .current{color:var(--text-primary);font-weight:600;}
+
+/* Tooltip (demo) */
+.tooltip-demo{position:relative;display:inline-flex;}
+.tooltip-demo .tip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:#000;color:#fff;font-size:11.5px;padding:5px 9px;border-radius:6px;white-space:nowrap;box-shadow:var(--shadow-md);}
+
+/* Dropdown menu */
+.menu{background:var(--elevated);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-lg);padding:5px;min-width:200px;}
+.menu-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-sm);font-size:13px;color:var(--text-secondary);cursor:pointer;}
+.menu-item:hover{background:var(--surface-2);color:var(--text-primary);}
+.menu-sep{height:1px;background:var(--border);margin:5px 2px;}
+
+/* Notification item */
+.notif{display:flex;gap:12px;padding:13px 14px;border-radius:var(--r-md);cursor:pointer;position:relative;}
+.notif:hover{background:var(--surface-2);}
+.notif.unread::before{content:'';position:absolute;left:4px;top:50%;transform:translateY(-50%);width:6px;height:6px;border-radius:99px;background:var(--primary);}
+.notif-icon{width:34px;height:34px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+/* Empty / error states */
+.state-block{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:56px 24px;gap:6px;}
+.state-icon{width:52px;height:52px;border-radius:var(--r-lg);background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-muted);margin-bottom:10px;}
+
+/* Skeleton */
+@keyframes shimmer{0%{background-position:-300px 0;}100%{background-position:300px 0;}}
+.skeleton{background:linear-gradient(90deg,var(--surface-2) 25%,var(--elevated) 37%,var(--surface-2) 63%);background-size:400px 100%;animation:shimmer 1.4s infinite linear;border-radius:var(--r-sm);}
+
+/* Circular progress */
+.circ{position:relative;display:inline-flex;align-items:center;justify-content:center;}
+.circ svg{transform:rotate(-90deg);}
+.circ-label{position:absolute;display:flex;flex-direction:column;align-items:center;}
+
+/* App shell */
+.app-shell{display:flex;height:100%;background:var(--bg);}
+.app-sidebar{width:216px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 12px;background:var(--surface);}
+.app-sidebar.hidden-shell{display:none;}
+.app-brand{display:flex;align-items:center;gap:9px;padding:6px 8px 18px;}
+.app-brand .mark{width:26px;height:26px;border-radius:7px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:var(--on-primary);font-weight:800;font-size:13px;flex-shrink:0;}
+.app-nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-md);font-size:13px;font-weight:550;color:var(--text-secondary);cursor:pointer;margin-bottom:1px;}
+.app-nav-item:hover{background:var(--surface-2);color:var(--text-primary);}
+.app-nav-item.active{background:var(--primary-subtle);color:var(--primary);}
+.app-nav-item .icon svg{width:17px;height:17px;}
+.app-main{flex:1;display:flex;flex-direction:column;min-width:0;}
+.app-topbar{height:56px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:1px solid var(--border);background:var(--surface);gap:16px;}
+.app-content{flex:1;overflow:auto;padding:26px 30px 60px;}
+.app-content.no-pad{padding:0;}
+.searchbar-trigger{display:flex;align-items:center;gap:9px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-md);height:34px;padding:0 10px 0 12px;color:var(--text-muted);font-size:12.5px;min-width:230px;cursor:pointer;}
+.streak-pill{display:flex;align-items:center;gap:6px;background:var(--warning-subtle);color:var(--warning);border-radius:var(--r-full);padding:5px 10px 5px 8px;font-size:12.5px;font-weight:700;}
+.avatar{width:30px;height:30px;border-radius:99px;background:linear-gradient(135deg,#ed7f11,#c25b00);display:flex;align-items:center;justify-content:center;color:#1a0f00;font-weight:800;font-size:12px;flex-shrink:0;}
+.right-panel{width:320px;flex-shrink:0;border-left:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;}
+
+/* Browser chrome frame for web screens */
+.browser-frame{border:1px solid var(--border-strong);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow-lg);background:var(--surface);height:100%;display:flex;flex-direction:column;}
+.browser-topbar{height:38px;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 14px;background:var(--surface-2);border-bottom:1px solid var(--border);}
+.browser-dots{display:flex;gap:6px;}
+.browser-dots span{width:9px;height:9px;border-radius:99px;background:var(--border-strong);}
+.browser-url{flex:1;background:var(--elevated);border-radius:99px;height:22px;display:flex;align-items:center;padding:0 12px;font-size:11px;color:var(--text-muted);font-family:var(--font-code);}
+.browser-body{flex:1;min-height:0;overflow:hidden;}
+
+/* Phone frame for mobile screens */
+.phone-frame{width:375px;height:812px;border-radius:44px;border:10px solid #050607;background:#050607;box-shadow:var(--shadow-lg);position:relative;overflow:hidden;flex-shrink:0;}
+.phone-notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:150px;height:26px;background:#050607;border-radius:0 0 16px 16px;z-index:5;}
+.phone-screen{width:100%;height:100%;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;border-radius:34px;}
+.phone-statusbar{height:46px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 24px 0 26px;font-size:13px;font-weight:600;color:var(--text-primary);}
+.phone-content{flex:1;overflow-y:auto;padding:6px 18px 18px;}
+.phone-content.no-pad{padding:0;}
+.phone-tabbar{height:78px;flex-shrink:0;display:flex;align-items:flex-start;justify-content:space-around;padding-top:9px;border-top:1px solid var(--border);background:var(--surface);}
+.phone-tab{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--text-muted);font-size:10.5px;font-weight:600;}
+.phone-tab.active{color:var(--primary);}
+.phone-tab .icon svg{width:21px;height:21px;}
+
+/* AI mentor styling */
+.ai-tag{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--primary);}
+.ai-mark{width:16px;height:16px;border-radius:5px;background:var(--primary-subtle);border:1px solid var(--primary-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ai-mark svg{width:10px;height:10px;color:var(--primary);}
+.hint-level{border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px;cursor:pointer;transition:border-color .12s;}
+.hint-level:hover{border-color:var(--border-strong);}
+.hint-level.danger{border-color:rgba(229,89,93,.3);}
+.hint-level.danger:hover{border-color:var(--error);}
+
+/* Command palette */
+.cmdk-overlay{position:fixed;inset:0;background:var(--overlay);display:flex;align-items:flex-start;justify-content:center;padding-top:14vh;z-index:200;backdrop-filter:blur(2px);}
+.cmdk{width:560px;max-width:90vw;background:var(--elevated);border:1px solid var(--border-strong);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);overflow:hidden;}
+.cmdk-input{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);}
+.cmdk-input input{flex:1;background:none;border:none;color:var(--text-primary);font-size:15px;}
+.cmdk-input input:focus{outline:none;}
+.cmdk-list{max-height:340px;overflow-y:auto;padding:6px;}
+.cmdk-item{display:flex;align-items:center;gap:11px;padding:10px 10px;border-radius:var(--r-md);font-size:13.5px;cursor:pointer;}
+.cmdk-item.sel{background:var(--primary-subtle);color:var(--primary);}
+.cmdk-item .kbd-hint{margin-left:auto;}
+.kbd{font-family:var(--font-code);font-size:10.5px;background:var(--surface-2);border:1px solid var(--border-strong);border-bottom-width:2px;padding:2px 6px;border-radius:4px;color:var(--text-secondary);}
+
+/* Dialog */
+.dialog-overlay{position:fixed;inset:0;background:var(--overlay);display:flex;align-items:center;justify-content:center;z-index:180;}
+.dialog{width:420px;max-width:90vw;background:var(--elevated);border:1px solid var(--border-strong);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);padding:22px;}
+
+/* Device / canvas toolbar */
+#toolbar{height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:1px solid var(--border);background:var(--surface);gap:14px;}
+.device-toggle{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-md);padding:3px;}
+.device-btn{width:32px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-sm);color:var(--text-muted);cursor:pointer;}
+.device-btn.active{background:var(--elevated);color:var(--primary);box-shadow:var(--shadow-sm);}
+
+/* Meta app scaffold (the designer/prototype tool itself) */
+#app{display:flex;height:100vh;width:100vw;}
+#meta-nav{width:250px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;}
+#meta-nav-scroll{flex:1;overflow-y:auto;padding:8px 10px 20px;}
+.meta-brand{padding:16px 14px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);margin-bottom:6px;}
+.meta-group-label{font-size:10.5px;font-weight:700;color:var(--text-muted);letter-spacing:.03em;padding:14px 10px 6px;}
+.meta-nav-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:var(--r-sm);font-size:12.8px;color:var(--text-secondary);cursor:pointer;}
+.meta-nav-item:hover{background:var(--surface-2);color:var(--text-primary);}
+.meta-nav-item.active{background:var(--primary-subtle);color:var(--primary);font-weight:600;}
+.meta-nav-item .dot{width:5px;height:5px;border-radius:99px;background:var(--border-strong);flex-shrink:0;}
+.meta-nav-item.active .dot{background:var(--primary);}
+#main-col{flex:1;display:flex;flex-direction:column;min-width:0;height:100vh;background:#000;}
+#canvas-outer{flex:1;overflow:auto;padding:28px;display:flex;justify-content:center;align-items:flex-start;background:
+  radial-gradient(circle at 1px 1px, var(--border) 1px, transparent 0) 0 0/22px 22px, var(--bg);}
+#canvas{transition:width .25s var(--ease);}
+#canvas.dev-desktop{width:1360px;max-width:100%;}
+#canvas.dev-tablet{width:820px;}
+#canvas.dev-mobile-web{width:400px;}
+.canvas-web-inner{height:820px;}
+.meta-search{margin:6px 4px 4px;position:relative;}
+.meta-search input{width:100%;height:32px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-md);padding:0 10px 0 30px;font-size:12.5px;color:var(--text-primary);}
+.meta-search .icon{position:absolute;left:9px;top:8px;color:var(--text-muted);}
+.meta-search .icon svg{width:15px;height:15px;}
+@media(max-width:900px){
+  #meta-nav{position:fixed;left:0;top:0;z-index:50;transform:translateX(-100%);transition:transform .2s;}
+  #meta-nav.open{transform:translateX(0);}
+}
+
+/* Responsive reflow inside web canvas via container queries */
+@container (max-width: 900px){
+  .cq-sidebar-collapse{width:60px !important;}
+  .cq-sidebar-collapse .label-text{display:none;}
+  .cq-grid-3{grid-template-columns:repeat(2,1fr) !important;}
+  .cq-grid-4{grid-template-columns:repeat(2,1fr) !important;}
+  .cq-hide-right{display:none !important;}
+}
+@container (max-width: 620px){
+  .cq-grid-2,.cq-grid-3,.cq-grid-4{grid-template-columns:1fr !important;}
+  .cq-stack{flex-direction:column !important;}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important;transition-duration:.001ms !important;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <nav id="meta-nav">
+    <div class="meta-brand">
+      <div class="app-brand" style="padding:0;">
+        <div class="mark">F</div>
+        <div>
+          <div style="font-weight:800;font-size:14px;">ForgeRoutine</div>
+          <div class="t-caption">Design System v1.0</div>
+        </div>
+      </div>
+    </div>
+    <div class="meta-search">
+      <span class="icon" id="meta-search-icon"></span>
+      <input id="meta-search-input" placeholder="Filter screens…" oninput="filterNav(this.value)">
+    </div>
+    <div id="meta-nav-scroll"></div>
+    <div style="padding:12px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+      <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme"><span id="theme-icon"></span></button>
+      <button class="btn btn-secondary btn-sm" onclick="openCmdk()"><span class="icon" id="cmdk-nav-icon"></span> Search <span class="kbd" style="margin-left:4px;">⌘K</span></button>
+    </div>
+  </nav>
+
+  <div id="main-col">
+    <div id="toolbar">
+      <div class="row items-center g3">
+        <button class="icon-btn" style="display:none" id="mnav-toggle" onclick="document.getElementById('meta-nav').classList.toggle('open')"></button>
+        <div class="breadcrumbs">
+          <span id="tb-group">Foundations</span>
+          <span id="crumb-icon"></span>
+          <span class="current" id="tb-title">Cover</span>
+        </div>
+      </div>
+      <div class="row items-center g3">
+        <div class="device-toggle" id="device-toggle">
+          <div class="device-btn active" data-dev="dev-desktop" onclick="setDevice('dev-desktop')" title="Desktop"></div>
+          <div class="device-btn" data-dev="dev-tablet" onclick="setDevice('dev-tablet')" title="Tablet"></div>
+          <div class="device-btn" data-dev="dev-mobile-web" onclick="setDevice('dev-mobile-web')" title="Mobile web"></div>
+        </div>
+        <div class="vdivider" style="height:22px;"></div>
+        <span class="t-caption">Prototype — click ⌘K to jump anywhere</span>
+      </div>
+    </div>
+    <div id="canvas-outer">
+      <div id="canvas" class="dev-desktop">
+        <!-- rendered screen goes here -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="cmdk-root"></div>
+<div id="dialog-root"></div>
+
+<script>
+/* ============================================================
+   ICONS — minimal line-icon set, stroke=currentColor
+   ============================================================ */
+const ICONS = {
+  home:'<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9a1 1 0 0 0 1 1H10v-6h4v6h3.5a1 1 0 0 0 1-1v-9"/>',
+  routine:'<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17"/><path d="M8 3v4M16 3v4"/><path d="M8 13.5l1.8 1.8L12.5 12"/>',
+  learn:'<path d="M4 5.5c2.5-1.3 5.5-1.3 8 0v13.5c-2.5-1.3-5.5-1.3-8 0Z"/><path d="M20 5.5c-2.5-1.3-5.5-1.3-8 0v13.5c2.5-1.3 5.5-1.3 8 0Z"/>',
+  practice:'<polyline points="8 9 4 13 8 17"/><polyline points="16 9 20 13 16 17"/><line x1="13.5" y1="6" x2="10.5" y2="20"/>',
+  interview:'<rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><line x1="12" y1="17.5" x2="12" y2="21.5"/><line x1="8.5" y1="21.5" x2="15.5" y2="21.5"/>',
+  skills:'<circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M6 8.5v7"/><path d="M8.3 6.9 15.7 10.6"/><path d="M8.3 17.1 15.7 13.4"/>',
+  tech:'<rect x="8" y="8" width="8" height="8" rx="1.5"/><rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/><line x1="8" y1="1.5" x2="8" y2="3.5"/><line x1="16" y1="1.5" x2="16" y2="3.5"/><line x1="8" y1="20.5" x2="8" y2="22.5"/><line x1="16" y1="20.5" x2="16" y2="22.5"/><line x1="1.5" y1="8" x2="3.5" y2="8"/><line x1="1.5" y1="16" x2="3.5" y2="16"/><line x1="20.5" y1="8" x2="22.5" y2="8"/><line x1="20.5" y1="16" x2="22.5" y2="16"/>',
+  progress:'<line x1="4" y1="20" x2="4" y2="12"/><line x1="10" y1="20" x2="10" y2="6"/><line x1="16" y1="20" x2="16" y2="14"/><line x1="21" y1="20" x2="21" y2="4"/>',
+  settings:'<circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.9a7.6 7.6 0 0 0 0-3.8l2-1.5-2-3.5-2.4.7a7.6 7.6 0 0 0-3.3-1.9L13.2 2h-4l-.5 2.4a7.6 7.6 0 0 0-3.3 1.9l-2.4-.7-2 3.5 2 1.5a7.6 7.6 0 0 0 0 3.8l-2 1.5 2 3.5 2.4-.7a7.6 7.6 0 0 0 3.3 1.9l.5 2.3h4l.5-2.3a7.6 7.6 0 0 0 3.3-1.9l2.4.7 2-3.5Z"/>',
+  search:'<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/>',
+  bell:'<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/>',
+  chevronDown:'<polyline points="6 9 12 15 18 9"/>',
+  chevronRight:'<polyline points="9 6 15 12 9 18"/>',
+  chevronLeft:'<polyline points="15 6 9 12 15 18"/>',
+  check:'<polyline points="20 6 9 17 4 12"/>',
+  x:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  play:'<polygon points="6 4 20 12 6 20 6 4"/>',
+  send:'<line x1="21" y1="3" x2="10" y2="14"/><polygon points="21 3 14 21 10 14 3 10 21 3"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/>',
+  flame:'<path d="M12 2.5c1 3 4.5 5 4.5 9.5a4.5 4.5 0 0 1-9 0c0-1.4.6-2.3 1.2-3.2.2 1 .9 1.7 1.6 1.7.9 0 1.4-.9 1-1.8-.6-1.5-1.3-2.7-1.3-4.7 0-.6.4-1.1 1-1.5Z"/>',
+  alert:'<path d="M12 3 2 20h20Z"/><line x1="12" y1="9" x2="12" y2="14"/><circle cx="12" cy="17.2" r="0.4" fill="currentColor"/>',
+  info:'<circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><circle cx="12" cy="7.7" r="0.4" fill="currentColor"/>',
+  lock:'<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>',
+  star:'<polygon points="12 2.5 15 9 22 10 17 15 18.2 21.5 12 18.3 5.8 21.5 7 15 2 10 9 9 12 2.5"/>',
+  code:'<polyline points="9 8 4 12.5 9 17"/><polyline points="15 8 20 12.5 15 17"/>',
+  moon:'<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4 6.8 6.8 0 0 0 20 14.5Z"/>',
+  sun:'<circle cx="12" cy="12" r="4.2"/><line x1="12" y1="1.5" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22.5"/><line x1="4.2" y1="4.2" x2="6" y2="6"/><line x1="18" y1="18" x2="19.8" y2="19.8"/><line x1="1.5" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22.5" y2="12"/><line x1="4.2" y1="19.8" x2="6" y2="18"/><line x1="18" y1="6" x2="19.8" y2="4.2"/>',
+  mic:'<rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><line x1="12" y1="17.5" x2="12" y2="21.5"/>',
+  arrowRight:'<line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/>',
+  more:'<circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/>',
+  folder:'<path d="M3.5 6.5a1 1 0 0 1 1-1H9l2 2.2h8.5a1 1 0 0 1 1 1V18a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1Z"/>',
+  filter:'<polygon points="4 4 20 4 14 12.5 14 19 10 21 10 12.5 4 4"/>',
+  refresh:'<polyline points="17 2.5 21 6.5 17 10.5"/><path d="M3 12.5a8.5 8.5 0 0 1 15-5.5l3 -.5"/><polyline points="7 21.5 3 17.5 7 13.5"/><path d="M21 11.5a8.5 8.5 0 0 1-15 5.5l-3 .5"/>',
+  help:'<circle cx="12" cy="12" r="9.2"/><path d="M9.2 9.2a2.8 2.8 0 1 1 3.9 2.6c-.9.4-1.4 1-1.4 2.1"/><circle cx="12" cy="17.3" r="0.4" fill="currentColor"/>',
+  keyboard:'<rect x="2.5" y="6" width="19" height="12" rx="2"/><line x1="6" y1="10" x2="6" y2="10.2"/><line x1="9.5" y1="10" x2="9.5" y2="10.2"/><line x1="13" y1="10" x2="13" y2="10.2"/><line x1="16.5" y1="10" x2="16.5" y2="10.2"/><line x1="8" y1="14" x2="16" y2="14"/>',
+  monitor:'<rect x="2.5" y="4" width="19" height="13" rx="2"/><line x1="8" y1="20.5" x2="16" y2="20.5"/><line x1="12" y1="17" x2="12" y2="20.5"/>',
+  tablet:'<rect x="5" y="2.5" width="14" height="19" rx="2"/><line x1="12" y1="18.5" x2="12" y2="18.6"/>',
+  smartphone:'<rect x="7" y="2.5" width="10" height="19" rx="2.2"/><line x1="12" y1="18" x2="12" y2="18.1"/>',
+  zap:'<polygon points="13 2 4 14 11 14 10 22 20 9 13 9 13 2"/>',
+  logout:'<path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"/><polyline points="15 8 20 12.5 15 17"/><line x1="20" y1="12.5" x2="8.5" y2="12.5"/>',
+  trend:'<polyline points="3 17 9 10.5 13.5 14 21 5"/><polyline points="15 5 21 5 21 11"/>',
+  layers:'<polygon points="12 3 21 8 12 13 3 8 12 3"/><polyline points="3 13 12 18 21 13"/><polyline points="3 17.5 12 22.5 21 17.5"/>',
+  cpu:'<rect x="7" y="7" width="10" height="10" rx="1.5"/><rect x="3" y="3" width="18" height="18" rx="2.5"/><line x1="9" y1="1" x2="9" y2="3"/><line x1="15" y1="1" x2="15" y2="3"/><line x1="9" y1="21" x2="9" y2="23"/><line x1="15" y1="21" x2="15" y2="23"/><line x1="1" y1="9" x2="3" y2="9"/><line x1="1" y1="15" x2="3" y2="15"/><line x1="21" y1="9" x2="23" y2="9"/><line x1="21" y1="15" x2="23" y2="15"/>',
+  database:'<ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v13c0 1.66 3.58 3 8 3s8-1.34 8-3v-13"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/>',
+  git:'<circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M6 8.5v7"/><path d="M18 15.5V11a5 5 0 0 0-5-5H8.5"/>',
+  bug:'<path d="M9 8.5v-1a3 3 0 0 1 6 0v1"/><rect x="6.5" y="8.5" width="11" height="10.5" rx="5.5"/><line x1="2" y1="10.5" x2="6.5" y2="12.5"/><line x1="22" y1="10.5" x2="17.5" y2="12.5"/><line x1="2" y1="18.5" x2="6.5" y2="16"/><line x1="22" y1="18.5" x2="17.5" y2="16"/><line x1="12" y1="8.5" x2="12" y2="19"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
+  wifi_off:'<line x1="2" y1="2" x2="22" y2="22"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M5 12.5a10 10 0 0 1 3.5-2.4"/><path d="M12.8 6.5A12 12 0 0 1 19 8.9"/><path d="M2.5 9a15 15 0 0 1 2.5-2"/><line x1="12" y1="20" x2="12" y2="20.1"/>',
+  shield:'<path d="M12 2.5 20 6v6c0 5-3.4 8.4-8 9.5-4.6-1.1-8-4.5-8-9.5V6Z"/><polyline points="8.5 12 11 14.5 15.5 9.5"/>',
+  eye:'<path d="M2 12.5S5.5 5.5 12 5.5 22 12.5 22 12.5 18.5 19.5 12 19.5 2 12.5 2 12.5Z"/><circle cx="12" cy="12.5" r="3"/>',
+  brain:'<path d="M9 4.5a3 3 0 0 0-3 3v.3A3.2 3.2 0 0 0 4.5 13a3.2 3.2 0 0 0 1 5.5A3 3 0 0 0 8.5 21H9a3 3 0 0 0 3-3v-10a3 3 0 0 0-3-3Z"/><path d="M15 4.5a3 3 0 0 1 3 3v.3a3.2 3.2 0 0 1 1.5 5.2 3.2 3.2 0 0 1-1 5.5A3 3 0 0 1 15.5 21H15a3 3 0 0 1-3-3v-10a3 3 0 0 1 3-3Z"/>',
+  download:'<path d="M12 3v13"/><polyline points="6.5 11 12 16.5 17.5 11"/><line x1="4" y1="20.5" x2="20" y2="20.5"/>',
+  link:'<path d="M9.5 14.5 14.5 9.5"/><path d="M11 6.5 13 4.6a3.6 3.6 0 0 1 5 5l-2 2"/><path d="M13 17.5 11 19.4a3.6 3.6 0 0 1-5-5l2-2"/>',
+  circleSlash:'<circle cx="12" cy="12" r="9"/><line x1="5.5" y1="18.5" x2="18.5" y2="5.5"/>',
+  fastForward:'<polygon points="4 4.5 12 12.5 4 20.5 4 4.5"/><polygon points="12 4.5 20 12.5 12 20.5 12 4.5"/>',
+  volume:'<polygon points="3 9.5 8 9.5 13 5 13 20 8 15.5 3 15.5 3 9.5"/><path d="M17 8.5a5.5 5.5 0 0 1 0 8"/>',
+};
+function icon(name,size=18,strokeW=1.8){
+  const p = ICONS[name] || ICONS.help;
+  return `<span class="icon"><svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeW}" stroke-linecap="round" stroke-linejoin="round">${p}</svg></span>`;
+}
+
+/* ============================================================
+   DATA
+   ============================================================ */
+const TECHS = [
+  {id:'js',name:'JavaScript',icon:'code',mastery:84,coding:79,interview:80,concepts:'38/42',review:'ok'},
+  {id:'ts',name:'TypeScript',icon:'code',mastery:71,coding:64,interview:68,concepts:'21/30',review:'due'},
+  {id:'node',name:'Node.js',icon:'cpu',mastery:81,coding:67,interview:78,concepts:'26/34',review:'due'},
+  {id:'react',name:'React',icon:'layers',mastery:76,coding:72,interview:70,concepts:'24/29',review:'ok'},
+  {id:'nextjs',name:'Next.js',icon:'layers',mastery:58,coding:49,interview:52,concepts:'12/26',review:'ok'},
+  {id:'nestjs',name:'NestJS',icon:'cpu',mastery:41,coding:33,interview:38,concepts:'8/24',review:'new'},
+  {id:'mongo',name:'MongoDB',icon:'database',mastery:63,coding:55,interview:60,concepts:'15/22',review:'ok'},
+  {id:'postgres',name:'PostgreSQL',icon:'database',mastery:55,coding:44,interview:51,concepts:'14/28',review:'due'},
+  {id:'prisma',name:'Prisma',icon:'database',mastery:62,coding:58,interview:57,concepts:'10/16',review:'ok'},
+  {id:'docker',name:'Docker',icon:'layers',mastery:47,coding:38,interview:41,concepts:'9/23',review:'weak'},
+  {id:'linux',name:'Linux',icon:'terminal',mastery:39,coding:31,interview:36,concepts:'11/30',review:'weak'},
+  {id:'git',name:'Git',icon:'git',mastery:88,coding:85,interview:82,concepts:'19/20',review:'ok'},
+  {id:'gha',name:'GitHub Actions',icon:'zap',mastery:52,coding:45,interview:48,concepts:'7/18',review:'ok'},
+  {id:'jenkins',name:'Jenkins',icon:'zap',mastery:29,coding:20,interview:26,concepts:'4/17',review:'new'},
+  {id:'redis',name:'Redis',icon:'database',mastery:58,coding:50,interview:55,concepts:'9/15',review:'ok'},
+  {id:'sysdesign',name:'System Design',icon:'git',mastery:44,coding:0,interview:44,concepts:'10/26',review:'due'},
+];
+function reviewBadge(r){
+  if(r==='weak') return badge('Needs work','error');
+  if(r==='due') return badge('Review due','warning');
+  if(r==='new') return badge('New','info');
+  return badge('On track','success');
+}
+
+const SKILL_TREE = [
+  {name:'Asynchronous JavaScript',status:'strong',children:[
+    {name:'Promises',status:'mastered'},
+    {name:'async / await',status:'mastered'},
+    {name:'Event loop phases',status:'developing'},
+    {name:'Microtask queue',status:'weak'},
+  ]},
+  {name:'Advanced Language Features',status:'developing',children:[
+    {name:'Closures',status:'mastered'},
+    {name:'Prototypes & inheritance',status:'developing'},
+    {name:'Generators & iterators',status:'weak'},
+  ]},
+  {name:'Node.js Runtime',status:'developing',children:[
+    {name:'Event loop internals',status:'developing'},
+    {name:'Streams & buffers',status:'weak'},
+    {name:'Worker threads',status:'locked'},
+    {name:'Process & cluster model',status:'weak'},
+  ]},
+  {name:'Systems & Infrastructure',status:'weak',children:[
+    {name:'Linux processes & signals',status:'weak'},
+    {name:'Docker networking',status:'weak'},
+    {name:'PostgreSQL transactions',status:'developing'},
+  ]},
+];
+const STATUS_META = {
+  mastered:{color:'var(--success)',label:'Mastered',ic:'check'},
+  strong:{color:'var(--success)',label:'Strong',ic:'check'},
+  developing:{color:'var(--warning)',label:'Developing',ic:'clock'},
+  weak:{color:'var(--error)',label:'Needs work',ic:'alert'},
+  locked:{color:'var(--text-muted)',label:'Locked',ic:'lock'},
+};
+
+const NOTIFS = [
+  {icon:'routine',color:'primary',title:"Today's routine is ready",desc:'4 items · 60 min · focus: Node.js, Docker',time:'8:00 AM',unread:true},
+  {icon:'brain',color:'info',title:'Review due: 8 concepts',desc:'Microtask queue, Docker networking and 6 more',time:'8:00 AM',unread:true},
+  {icon:'alert',color:'error',title:'AI dependency rising',desc:'Your last 5 exercises used more hints than usual',time:'Yesterday',unread:true},
+  {icon:'interview',color:'primary',title:'Interview readiness up 4%',desc:'Node.js interview readiness moved from 74% to 78%',time:'Yesterday',unread:false},
+  {icon:'star',color:'warning',title:'12-day streak',desc:"You've completed your routine 12 days in a row",time:'2 days ago',unread:false},
+  {icon:'check',color:'success',title:'Rust curriculum ready',desc:'Knowledge graph, concepts and exercises generated',time:'3 days ago',unread:false},
+];
+
+/* ============================================================
+   SHARED UI HELPERS
+   ============================================================ */
+function badge(text,variant='neutral',ic=null){
+  return `<span class="badge badge-${variant}">${ic?icon(ic,11):''}${text}</span>`;
+}
+function chip(text,selected=false){
+  return `<span class="chip ${selected?'selected':''}">${text}</span>`;
+}
+function btn(text,variant='primary',size='',ic=null,extra=''){
+  return `<button class="btn btn-${variant} ${size?'btn-'+size:''}" ${extra}>${ic?icon(ic,15):''}${text}</button>`;
+}
+function circularProgress(pct,size=64,stroke=6,color='var(--primary)',label='',sub=''){
+  const r=(size-stroke)/2, c=2*Math.PI*r, off=c-(pct/100)*c;
+  return `<div class="circ" style="width:${size}px;height:${size}px;">
+    <svg width="${size}" height="${size}">
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="var(--surface-2)" stroke-width="${stroke}" fill="none"/>
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="${color}" stroke-width="${stroke}" fill="none" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}" style="transition:stroke-dashoffset .6s var(--ease);"/>
+    </svg>
+    <div class="circ-label"><span style="font-size:${size*0.26}px;font-weight:800;">${pct}%</span>${label?`<span class="t-caption" style="margin-top:1px;">${label}</span>`:''}</div>
+  </div>${sub?`<div class="t-caption" style="text-align:center;margin-top:6px;">${sub}</div>`:''}`;
+}
+function metricColor(pct){ return pct>=70?'var(--success)':pct>=45?'var(--warning)':'var(--error)'; }
+function skillMeter(pct,color){
+  color = color || metricColor(pct);
+  return `<div class="skill-meter"><div class="seg" style="width:${pct}%;background:${color};"></div></div>`;
+}
+function statRow(label,pct,extra=''){
+  return `<div class="mb3">
+    <div class="stat-row mb1"><span class="t-small" style="color:var(--text-secondary);">${label}</span><span class="t-code" style="font-weight:700;font-size:12.5px;">${pct}%</span></div>
+    ${skillMeter(pct)}
+    ${extra}
+  </div>`;
+}
+function techCardHtml(t){
+  return `<div class="card card-hover" onclick="go('tech-detail')">
+    <div class="row justify-between items-start mb3">
+      <div class="row items-center g2">
+        <div style="width:32px;height:32px;border-radius:8px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);">${icon(t.icon,16)}</div>
+        <div class="t-h4">${t.name}</div>
+      </div>
+      ${reviewBadge(t.review)}
+    </div>
+    ${statRow('Mastery',t.mastery)}
+    <div class="row justify-between t-caption mt3">
+      <span>Coding <b class="mono" style="color:var(--text-secondary)">${t.coding}%</b></span>
+      <span>Interview <b class="mono" style="color:var(--text-secondary)">${t.interview}%</b></span>
+      <span>Concepts <b class="mono" style="color:var(--text-secondary)">${t.concepts}</b></span>
+    </div>
+  </div>`;
+}
+function sectionHead(eyebrow,title,desc,right=''){
+  return `<div class="row justify-between items-end mb6 g4 wrap">
+    <div>
+      ${eyebrow?`<div class="t-caption mb1">${eyebrow}</div>`:''}
+      <div class="t-h1">${title}</div>
+      ${desc?`<div class="t-body mt1" style="max-width:640px;">${desc}</div>`:''}
+    </div>
+    ${right?`<div>${right}</div>`:''}
+  </div>`;
+}
+function emptyState(iconName,title,desc,cta=''){
+  return `<div class="state-block">
+    <div class="state-icon">${icon(iconName,24)}</div>
+    <div class="t-h4">${title}</div>
+    <div class="t-small" style="max-width:280px;">${desc}</div>
+    ${cta?`<div class="mt4">${cta}</div>`:''}
+  </div>`;
+}
+function aiTag(text='AI Mentor'){
+  return `<div class="ai-tag"><span class="ai-mark">${icon('zap',10)}</span>${text}</div>`;
+}
+
+/* ============================================================
+   APP SHELL (product chrome used inside the browser frame)
+   ============================================================ */
+const APP_NAV = [
+  {id:'dashboard',label:'Dashboard',ic:'home'},
+  {id:'my-routine',label:'My Routine',ic:'routine'},
+  {id:'learn-home',label:'Learn',ic:'learn'},
+  {id:'coding-practice',label:'Practice',ic:'practice'},
+  {id:'interviews-hub',label:'Interviews',ic:'interview'},
+  {id:'skill-tree',label:'Skills',ic:'skills'},
+  {id:'tech-library',label:'Technologies',ic:'tech'},
+  {id:'progress-dashboard',label:'Progress',ic:'progress'},
+  {id:'settings',label:'Settings',ic:'settings'},
+];
+function appTopbar(opts={}){
+  return `<header class="app-topbar">
+    <div class="row items-center g4" style="min-width:0;">
+      ${opts.back?`<button class="icon-btn" onclick="go('${opts.back}')">${icon('chevronLeft',18)}</button>`:''}
+      <div class="searchbar-trigger" onclick="openCmdk()">${icon('search',15)}<span>Search or jump to…</span><span class="kbd" style="margin-left:auto;">⌘K</span></div>
+    </div>
+    <div class="row items-center g4">
+      <div class="streak-pill">${icon('flame',13)} 12</div>
+      <button class="icon-btn" style="position:relative;" title="Notifications">${icon('bell',17)}<span style="position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:99px;background:var(--primary);border:1.5px solid var(--surface);"></span></button>
+      <div class="avatar">B</div>
+    </div>
+  </header>`;
+}
+function appShell({active,content,hideSidebar=false,rightPanel=null,noPad=false}){
+  const navItems = APP_NAV.map(n=>`
+    <div class="app-nav-item ${n.id===active?'active':''}">
+      <span class="icon">${icon(n.ic,17)}</span><span class="label-text">${n.label}</span>
+    </div>`).join('');
+  return `<div class="app-shell">
+    <aside class="app-sidebar ${hideSidebar?'hidden-shell':''} cq-sidebar-collapse">
+      <div class="app-brand"><div class="mark">F</div><span class="label-text" style="font-weight:800;font-size:14px;">ForgeRoutine</span></div>
+      <div class="col g1">${navItems}</div>
+      <div style="flex:1;"></div>
+      <div class="app-nav-item"><span class="icon">${icon('help',17)}</span><span class="label-text">Help &amp; shortcuts</span></div>
+    </aside>
+    <div class="app-main">
+      ${appTopbar()}
+      <div class="app-content ${noPad?'no-pad':''}">${content}</div>
+    </div>
+    ${rightPanel?`<aside class="right-panel cq-hide-right">${rightPanel}</aside>`:''}
+  </div>`;
+}
+function browserFrame(path,inner){
+  return `<div class="browser-frame">
+    <div class="browser-topbar">
+      <div class="browser-dots"><span></span><span></span><span></span></div>
+      <div class="browser-url">${icon('lock',11)} app.forgeroutine.dev/${path}</div>
+      <div style="width:52px;"></div>
+    </div>
+    <div class="browser-body container-q">${inner}</div>
+  </div>`;
+}
+function phoneFrame(active,content,opts={}){
+  const tabs=[{id:'mobile-home',label:'Home',ic:'home'},{id:'mobile-learning',label:'Learn',ic:'learn'},{id:'mobile-coding',label:'Practice',ic:'practice'},{id:'mobile-interview',label:'Interview',ic:'interview'},{id:'mobile-progress',label:'Profile',ic:'progress'}];
+  const now = new Date();
+  const time = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  return `<div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen">
+    <div class="phone-statusbar"><span>${time}</span><span class="row g1 items-center">${icon('wifi_off',0)?'':''}<svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><rect width="3" height="5" y="6"/><rect width="3" height="7" x="4.5" y="4"/><rect width="3" height="9" x="9" y="2"/><rect width="3" height="11" x="13" rx=".5"/></svg><svg width="20" height="11" viewBox="0 0 24 12" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1" y="1" width="19" height="10" rx="2.5"/><rect x="2.5" y="2.5" width="13" height="7" fill="currentColor" stroke="none"/><rect x="21" y="4" width="2" height="4" rx="1" fill="currentColor" stroke="none"/></svg></span></div>
+    <div class="phone-content ${opts.noPad?'no-pad':''}">${content}</div>
+    ${opts.hideTabbar?'':`<div class="phone-tabbar">${tabs.map(t=>`<div class="phone-tab ${t.id===active?'active':''}">${icon(t.ic,20)}<span>${t.label}</span></div>`).join('')}</div>`}
+  </div></div>`;
+}
+
+/* ============================================================
+   SCREENS — registry
+   ============================================================ */
+const SCREENS = {};
+
+/* ---------- FOUNDATIONS ---------- */
+SCREENS['cover'] = {group:'Overview',title:'Cover',kind:'doc',render:()=>`
+<div class="card" style="max-width:920px;margin:0 auto;padding:56px;">
+  <div class="row items-center g3 mb6"><div class="mark" style="width:40px;height:40px;border-radius:11px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:var(--on-primary);font-weight:800;font-size:19px;">F</div>
+  <div><div class="t-h2">ForgeRoutine</div><div class="t-caption">Product design system &amp; prototype</div></div></div>
+  <div class="t-display mb3">Forge your coding skills.<br>Build your engineering mind.</div>
+  <div class="t-body" style="max-width:600px;">An AI-coached practice system for developers who want to keep the ability to write code, debug, and reason on their own — with AI as the mentor, never the author.</div>
+  <div class="divider mt7 mb7"></div>
+  <div class="grid grid-3 g6">
+    <div><div class="t-caption mb2">Platforms</div><div class="t-h4">Web application</div><div class="t-h4">Flutter mobile app</div></div>
+    <div><div class="t-caption mb2">Core loop</div><div class="t-small">Learn → Recall → Write → Debug → Explain → Apply → Interview → Evaluate → Adapt</div></div>
+    <div><div class="t-caption mb2">Guiding principle</div><div class="t-small">"I am getting better at writing code" — not at asking AI to write it.</div></div>
+  </div>
+  <div class="divider mt7 mb7"></div>
+  <div class="t-caption mb3">What's in this file</div>
+  <div class="grid grid-2 g3">
+    ${['Foundations & full component library','Auth, onboarding, dashboard','Learn, technology &amp; concept system','Coding, debugging, interview workspaces','Progress, skills, analytics, settings','Purpose-built mobile app — 7 screens'].map(t=>`<div class="row g2 items-center t-small">${icon('check',15,2)} ${t}</div>`).join('')}
+  </div>
+  <div class="t-caption mt7">Use the panel on the left to open every screen. Press <span class="kbd">⌘K</span> anywhere to jump around like a real product.</div>
+</div>`};
+
+SCREENS['design-tokens'] = {group:'Foundations',title:'Design System — Tokens',kind:'doc',render:()=>{
+  const colors = [
+    ['Background','var(--bg)'],['Surface','var(--surface)'],['Elevated surface','var(--elevated)'],['Border','var(--border)'],
+    ['Text primary','var(--text-primary)'],['Text secondary','var(--text-secondary)'],['Text muted','var(--text-muted)'],
+    ['Primary','var(--primary)'],['Primary hover','var(--primary-hover)'],['Primary active','var(--primary-active)'],
+    ['Success','var(--success)'],['Warning','var(--warning)'],['Error','var(--error)'],['Info','var(--info)'],
+  ];
+  const type = [['Display','t-display','38 / 750'],['H1','t-h1','28 / 700'],['H2','t-h2','21 / 650'],['H3','t-h3','17 / 650'],['H4','t-h4','14.5 / 650'],['Body','t-body','14 / 400'],['Small','t-small','12.5 / 400'],['Caption','t-caption','11.5 / 500'],['Code','t-code','13 / mono'],['Metric','t-metric','26 / 750 tabular']];
+  return `${sectionHead('Foundations','Design tokens','The base system every screen in ForgeRoutine is built from. Dark is the primary theme; light is a first-class alternative, not an afterthought.')}
+  <div class="t-h3 mb4">Color</div>
+  <div class="grid grid-4 g3 mb7">
+    ${colors.map(c=>`<div class="card p3"><div style="height:52px;border-radius:7px;background:${c[1]};border:1px solid var(--border);margin-bottom:10px;"></div><div class="t-h4" style="font-size:13px;">${c[0]}</div><div class="t-caption mono">${c[1]}</div></div>`).join('')}
+  </div>
+  <div class="t-h3 mb4">Typography — Inter (UI) / JetBrains Mono (code)</div>
+  <div class="card mb7">
+    ${type.map((t,i)=>`<div class="row items-center justify-between ${i?'mt4 pt4':''}" style="${i?'border-top:1px solid var(--border);':''}"><span class="${t[1]}">${t[0]} — The quick brown fox</span><span class="t-caption mono">${t[2]}</span></div>`).join('')}
+  </div>
+  <div class="grid grid-2 g6">
+    <div>
+      <div class="t-h3 mb4">Spacing scale</div>
+      <div class="card row items-end g2" style="height:110px;">
+        ${[4,8,12,16,20,24,32,40].map(s=>`<div style="width:${Math.max(s*0.9,10)}px;height:${s*2}px;background:var(--primary-subtle);border:1px solid var(--primary-border);border-radius:3px;" title="${s}px"></div>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="t-h3 mb4">Radius &amp; elevation</div>
+      <div class="card row g3">
+        <div style="width:56px;height:56px;background:var(--surface-2);border-radius:var(--r-sm);"></div>
+        <div style="width:56px;height:56px;background:var(--surface-2);border-radius:var(--r-md);"></div>
+        <div style="width:56px;height:56px;background:var(--surface-2);border-radius:var(--r-lg);"></div>
+        <div style="width:56px;height:56px;background:var(--elevated);border-radius:var(--r-lg);box-shadow:var(--shadow-md);"></div>
+      </div>
+    </div>
+  </div>
+  <div class="t-h3 mb4 mt7">Icon family — single line-icon set, 1.8px stroke</div>
+  <div class="card row g4 wrap">
+    ${['home','routine','learn','practice','interview','skills','tech','progress','settings','search','bell','flame','check','x','clock','brain','shield','target'].map(n=>`<div class="col items-center g2" style="width:52px;">${icon(n,22)}<span class="t-caption">${n}</span></div>`).join('')}
+  </div>`;
+}};
+
+SCREENS['components'] = {group:'Foundations',title:'Component Library',kind:'doc',render:()=>`
+${sectionHead('Foundations','Components','Every primitive used across the product, with the states each one supports.')}
+<div class="t-h3 mb3">Buttons</div>
+<div class="card mb6 row g3 wrap items-center">
+  ${btn('Start Routine','primary')} ${btn('Save changes','secondary')} ${btn('Cancel','ghost')} ${btn('Delete account','danger')}
+  ${btn('Disabled','primary','',null,'disabled')} ${btn('Small','primary','sm')} ${btn('Large','primary','lg')}
+  <button class="icon-btn">${icon('bell',17)}</button><button class="icon-btn active">${icon('flame',17)}</button>
+</div>
+<div class="t-h3 mb3">Inputs &amp; selects</div>
+<div class="card mb6 grid grid-3 g4">
+  <div><label class="field-label">Email</label><input class="input" placeholder="you@company.com"></div>
+  <div><label class="field-label">Daily availability</label><select class="select"><option>30 minutes</option><option>60 minutes</option></select></div>
+  <div><label class="field-label">Password</label><input class="input has-error" value="short"><div class="field-error">Use at least 8 characters</div></div>
+</div>
+<div class="t-h3 mb3">Badges, chips &amp; tabs</div>
+<div class="card mb6 col g4">
+  <div class="row g2 wrap">${badge('On track','success')}${badge('Review due','warning')}${badge('Needs work','error')}${badge('New','info')}${badge('Locked','neutral')}</div>
+  <div class="row g2 wrap">${chip('JavaScript',true)}${chip('Docker')}${chip('PostgreSQL')}${chip('+ Add technology')}</div>
+  <div class="tabs">${['Overview','Coding','Interview','History'].map((t,i)=>`<div class="tab ${i===0?'active':''}">${t}</div>`).join('')}</div>
+</div>
+<div class="t-h3 mb3">Progress &amp; skill meters</div>
+<div class="card mb6 grid grid-4 g5 items-center">
+  ${circularProgress(78,88,8,'var(--primary)')}
+  ${circularProgress(41,88,8,'var(--error)')}
+  <div style="grid-column:span 2;">${statRow('Independent coding score',78)}${statRow('Docker networking',34)}</div>
+</div>
+<div class="t-h3 mb3">Code block</div>
+<div class="code-block mb6"><pre><span class="cb-kw">function</span> <span class="cb-fn">rateLimiter</span>(<span class="cb-var">windowMs</span>, <span class="cb-var">max</span>) {
+  <span class="cb-kw">const</span> hits = <span class="cb-kw">new</span> <span class="cb-type">Map</span>();
+  <span class="cb-com">// returns Express middleware</span>
+  <span class="cb-kw">return</span> (req, res, next) => { ... };
+}</pre></div>
+<div class="t-h3 mb3">States — empty, loading, error</div>
+<div class="grid grid-3 g4">
+  <div class="card">${emptyState('folder','No technologies yet','Add your first technology to build your learning universe.',btn('Add technology','primary','sm','plus'))}</div>
+  <div class="card col g3"><div class="skeleton" style="height:16px;width:60%;"></div><div class="skeleton" style="height:12px;width:90%;"></div><div class="skeleton" style="height:12px;width:80%;"></div><div class="skeleton" style="height:34px;width:40%;margin-top:6px;"></div></div>
+  <div class="card">${emptyState('alert',"Couldn't run your code",'The sandbox timed out. Your code has been saved.',btn('Try again','secondary','sm','refresh'))}</div>
+</div>
+<div class="t-h3 mb3 mt6">AI mentor components</div>
+<div class="card mb6">
+  ${aiTag()}
+  <div class="t-body mt2" style="color:var(--text-primary);">Before I show you an approach — what have you tried so far for handling the concurrent requests?</div>
+  <div class="row g2 mt4">
+    <div class="hint-level" style="flex:1;"><div class="row justify-between"><span class="t-h4" style="font-size:13px;">Small hint</span>${badge('Preserves challenge','success')}</div><div class="t-caption mt1">A nudge in the right direction</div></div>
+    <div class="hint-level danger" style="flex:1;"><div class="row justify-between"><span class="t-h4" style="font-size:13px;">Show solution</span>${badge('Ends challenge','error')}</div><div class="t-caption mt1">Full worked solution</div></div>
+  </div>
+</div>`};
+
+/* ---------- AUTH ---------- */
+function authShell(inner,footNote){
+  return `<div class="row" style="height:100%;">
+    <div class="col justify-center" style="flex:1;padding:60px;">
+      <div style="max-width:380px;margin:0 auto;width:100%;">
+        <div class="row items-center g2 mb7"><div class="mark" style="width:28px;height:28px;border-radius:8px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:var(--on-primary);font-weight:800;">F</div><span class="t-h3">ForgeRoutine</span></div>
+        ${inner}
+        ${footNote?`<div class="t-caption mt6">${footNote}</div>`:''}
+      </div>
+    </div>
+    <div class="col justify-center items-center" style="flex:1;background:var(--surface);border-left:1px solid var(--border);position:relative;overflow:hidden;">
+      <div style="position:absolute;inset:0;background:radial-gradient(circle at 30% 20%, var(--primary-subtle), transparent 45%);"></div>
+      <div style="max-width:420px;padding:40px;position:relative;">
+        <div class="t-caption mb2">Independent coding score</div>
+        <div class="row items-end g2 mb4"><span class="t-metric-lg text-primary-c">78%</span><span class="text-success t-small">${icon('trend',14)} +6% this week</span></div>
+        <div class="code-block"><pre><span class="cb-kw">async function</span> <span class="cb-fn">handleRequest</span>(req) {
+  <span class="cb-kw">const</span> data = <span class="cb-kw">await</span> fetchUser(req.id);
+  <span class="cb-kw">return</span> res.json(data);
+}</pre></div>
+        <div class="t-small mt5">"ForgeRoutine is the first tool that made me feel like I was actually re-learning to code, not just watching AI do it."</div>
+      </div>
+    </div>
+  </div>`;
+}
+SCREENS['welcome'] = {group:'Auth',title:'Welcome',kind:'web',render:()=>authShell(`
+  <div class="t-h1 mb2">Forge your coding skills.</div>
+  <div class="t-body mb6">Build your engineering mind. ForgeRoutine is an AI-coached practice system that rebuilds your ability to write, debug, and explain code independently — AI stays the mentor, you stay the engineer.</div>
+  ${btn('Create account','primary','lg','', 'style="width:100%;margin-bottom:10px;"')}
+  ${btn('Sign in','secondary','lg','',' style="width:100%;"')}
+`,`By continuing you agree to the Terms and Privacy Policy.`)};
+
+SCREENS['sign-in'] = {group:'Auth',title:'Sign In',kind:'web',render:()=>authShell(`
+  <div class="t-h1 mb1">Welcome back</div>
+  <div class="t-body mb6">Sign in to continue today's routine.</div>
+  <label class="field-label">Email</label>
+  <input class="input mb3" value="biswajit@forgeroutine.dev">
+  <label class="field-label">Password</label>
+  <input class="input mb2" type="password" value="••••••••••">
+  <div class="row justify-end mb5"><a class="t-caption text-primary-c" onclick="go('forgot-password')" style="cursor:pointer;">Forgot password?</a></div>
+  ${btn('Sign in','primary','lg','',' style="width:100%;"')}
+  <div class="row items-center g3 mt5 mb5"><div class="divider" style="flex:1;"></div><span class="t-caption">or</span><div class="divider" style="flex:1;"></div></div>
+  ${btn('Continue with GitHub','secondary','lg','git',' style="width:100%;"')}
+`,`New to ForgeRoutine? <a class="text-primary-c" onclick="go('sign-up')" style="cursor:pointer;">Create an account</a>`)};
+
+SCREENS['sign-up'] = {group:'Auth',title:'Sign Up',kind:'web',render:()=>authShell(`
+  <div class="t-h1 mb1">Start rebuilding your edge</div>
+  <div class="t-body mb6">Create your account — it takes about 2 minutes.</div>
+  <label class="field-label">Full name</label>
+  <input class="input mb3" placeholder="Biswajit Dash">
+  <label class="field-label">Email</label>
+  <input class="input mb3" placeholder="you@company.com">
+  <label class="field-label">Password</label>
+  <input class="input mb2" type="password" placeholder="At least 8 characters">
+  <div class="field-hint mb5">Use 8+ characters with a number. We never share your data — see Data &amp; Privacy in Settings.</div>
+  ${btn('Create account','primary','lg','',' style="width:100%;"')}
+`,`Already have an account? <a class="text-primary-c" onclick="go('sign-in')" style="cursor:pointer;">Sign in</a>`)};
+
+SCREENS['forgot-password'] = {group:'Auth',title:'Forgot Password',kind:'web',render:()=>authShell(`
+  <div class="t-h1 mb1">Reset your password</div>
+  <div class="t-body mb6">Enter the email on your account and we'll send a reset link.</div>
+  <label class="field-label">Email</label>
+  <input class="input mb5" placeholder="you@company.com">
+  ${btn('Send reset link','primary','lg','',' style="width:100%;"')}
+`,`<a class="text-primary-c" onclick="go('sign-in')" style="cursor:pointer;">${icon('chevronLeft',12)} Back to sign in</a>`)};
+
+SCREENS['reset-password'] = {group:'Auth',title:'Reset Password',kind:'web',render:()=>authShell(`
+  <div class="badge badge-success mb4">${icon('check',12)} Link verified</div>
+  <div class="t-h1 mb1">Set a new password</div>
+  <div class="t-body mb6">Choose a password you haven't used before on ForgeRoutine.</div>
+  <label class="field-label">New password</label>
+  <input class="input mb3" type="password" placeholder="At least 8 characters">
+  <label class="field-label">Confirm new password</label>
+  <input class="input mb5" type="password" placeholder="Repeat password">
+  ${btn('Update password','primary','lg','',' style="width:100%;"')}
+`)};
+
+SCREENS['auth-states'] = {group:'Auth',title:'Loading &amp; Error States',kind:'web',render:()=>`
+${sectionHead('Auth','Loading &amp; error states','Every auth action needs a state for waiting, succeeding, and failing clearly.')}
+<div class="grid grid-3 g5">
+  <div class="card col items-center g3 p6" style="text-align:center;">
+    <div class="skeleton" style="width:40px;height:40px;border-radius:99px;"></div>
+    <div class="t-h4">Signing you in…</div>
+    <div class="t-small">This usually takes a second.</div>
+  </div>
+  <div class="card col items-center g3 p6" style="text-align:center;">
+    <div class="state-icon" style="background:var(--error-subtle);border-color:rgba(229,89,93,.3);color:var(--error);">${icon('alert',22)}</div>
+    <div class="t-h4">Incorrect email or password</div>
+    <div class="t-small">Double-check your details, or reset your password.</div>
+    ${btn('Try again','secondary','sm')}
+  </div>
+  <div class="card col items-center g3 p6" style="text-align:center;">
+    <div class="state-icon" style="background:var(--warning-subtle);color:var(--warning);">${icon('wifi_off',22)}</div>
+    <div class="t-h4">You're offline</div>
+    <div class="t-small">Reconnect to sign in. Your routine data is safe.</div>
+  </div>
+</div>`};
+
+/* ---------- ONBOARDING (interactive 10-step flow) ---------- */
+const obState = {step:1, goal:'Interview preparation', level:'Mid-level', techs:new Set(['JavaScript','Node.js','React','PostgreSQL']), customTech:'', confidence:{ 'JavaScript':4,'Node.js':3,'React':3,'PostgreSQL':2 }, time:'60 min', target:'Senior Backend Engineer'};
+const OB_STEPS = ['Welcome','Goal','Level','Technologies','Add custom tech','Confidence','Availability','Interview target','AI assessment','Your plan'];
+function obGoto(n){ obState.step=n; renderScreen(); }
+function obNext(){ obGoto(Math.min(10,obState.step+1)); }
+function obPrev(){ obGoto(Math.max(1,obState.step-1)); }
+function obToggleTech(t){ obState.techs.has(t)?obState.techs.delete(t):obState.techs.add(t); renderScreen(); }
+function obAddCustom(){ const v=document.getElementById('ob-custom-input').value.trim(); if(v){obState.techs.add(v); obState.customTech='';} renderScreen(); }
+function obShell(inner){
+  const pct = (obState.step/10)*100;
+  return `<div class="col" style="height:100%;background:var(--bg);">
+    <div class="row items-center justify-between" style="padding:20px 40px;border-bottom:1px solid var(--border);">
+      <div class="row items-center g2"><div class="mark" style="width:24px;height:24px;border-radius:7px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:var(--on-primary);font-weight:800;font-size:12px;">F</div><span class="t-h4">ForgeRoutine setup</span></div>
+      <span class="t-caption">Step ${obState.step} of 10 — ${OB_STEPS[obState.step-1]}</span>
+    </div>
+    <div class="progress-linear thin" style="border-radius:0;"><div class="fill" style="width:${pct}%;border-radius:0;"></div></div>
+    <div class="flex-1 scroll-y" style="padding:48px;display:flex;justify-content:center;">
+      <div style="max-width:560px;width:100%;">${inner}</div>
+    </div>
+  </div>`;
+}
+function obNavButtons(nextLabel='Continue',opts={}){
+  return `<div class="row justify-between mt7">
+    ${obState.step>1?btn('Back','ghost','','chevronLeft','onclick="obPrev()"'):`<span></span>`}
+    ${btn(nextLabel,'primary','','',`onclick="obNext()" ${opts.disabled?'disabled':''}`)}
+  </div>`;
+}
+function obStepContent(){
+  const s = obState.step;
+  if(s===1) return `
+    <div class="t-caption mb2">Welcome</div>
+    <div class="t-display mb4">Let's set up your engineering routine.</div>
+    <div class="t-body mb6">ForgeRoutine builds a personal curriculum from what you already know, what you're weak on, and how much time you have. It takes about 2 minutes to set up, and adapts every day after that.</div>
+    ${['AI plans your daily routine','You write and debug the code','AI evaluates — never rewrites for you'].map(t=>`<div class="row g2 items-center t-small mb2">${icon('check',15,2)} ${t}</div>`).join('')}
+    ${obNavButtons("Let's go")}`;
+  if(s===2) return `
+    <div class="t-caption mb2">01 · Goal</div>
+    <div class="t-h1 mb5">What are you preparing for?</div>
+    <div class="col g3">
+      ${['Coding improvement','Interview preparation','Job preparation','Engineering mastery','All of the above'].map(g=>`
+      <div class="card card-hover row justify-between items-center ${obState.goal===g?'':''}" style="border-color:${obState.goal===g?'var(--primary)':'var(--border)'};background:${obState.goal===g?'var(--primary-subtle)':'var(--surface)'};" onclick="obState.goal='${g}';renderScreen();">
+        <span class="t-h4" style="color:${obState.goal===g?'var(--primary)':'var(--text-primary)'};">${g}</span>
+        ${obState.goal===g?icon('check',18):''}
+      </div>`).join('')}
+    </div>
+    ${obNavButtons()}`;
+  if(s===3) return `
+    <div class="t-caption mb2">02 · Current level</div>
+    <div class="t-h1 mb5">Where are you right now?</div>
+    <div class="grid grid-2 g3">
+      ${['Beginner','Junior','Mid-level','Senior'].map(l=>`
+      <div class="card card-hover" style="text-align:center;border-color:${obState.level===l?'var(--primary)':'var(--border)'};background:${obState.level===l?'var(--primary-subtle)':'var(--surface)'};" onclick="obState.level='${l}';renderScreen();">
+        <div class="t-h4" style="color:${obState.level===l?'var(--primary)':'var(--text-primary)'};">${l}</div>
+      </div>`).join('')}
+    </div>
+    ${obNavButtons()}`;
+  if(s===4){
+    const opts=['JavaScript','TypeScript','Node.js','React','Next.js','NestJS','MongoDB','PostgreSQL','Docker','Linux','Git','GitHub Actions','Jenkins','Redis','System Design'];
+    return `
+    <div class="t-caption mb2">03 · Technologies</div>
+    <div class="t-h1 mb2">What do you work with?</div>
+    <div class="t-body mb5">Select everything relevant — you can add or remove technologies later.</div>
+    <div class="row g2 wrap mb5">${opts.map(o=>`<span class="chip ${obState.techs.has(o)?'selected':''}" onclick="obToggleTech('${o}')">${obState.techs.has(o)?icon('check',12):''}${o}</span>`).join('')}</div>
+    <div class="t-caption">${obState.techs.size} selected</div>
+    ${obNavButtons()}`;
+  }
+  if(s===5) return `
+    <div class="t-caption mb2">04 · Add custom technology</div>
+    <div class="t-h1 mb2">Can't find what you're looking for?</div>
+    <div class="t-body mb5">ForgeRoutine can generate a full curriculum for any technology — including niche or new ones.</div>
+    <div class="row g2 mb4"><input class="input flex-1" id="ob-custom-input" placeholder="e.g. Rust" onkeydown="if(event.key==='Enter')obAddCustom()"> ${btn('Add','secondary','','plus','onclick="obAddCustom()"')}</div>
+    <div class="row g2 wrap">${[...obState.techs].map(o=>`<span class="chip selected">${o}</span>`).join('')}</div>
+    ${obNavButtons()}`;
+  if(s===6) return `
+    <div class="t-caption mb2">05 · Confidence</div>
+    <div class="t-h1 mb2">How confident are you today?</div>
+    <div class="t-body mb5">Be honest — this only shapes your starting point, not a score anyone sees.</div>
+    <div class="col g5">
+    ${[...obState.techs].slice(0,6).map(t=>{const v=obState.confidence[t]||3; return `
+      <div>
+        <div class="row justify-between mb2"><span class="t-h4" style="font-size:13px;">${t}</span><span class="t-caption">${['Never used','Beginner','Comfortable','Confident','Expert'][v-1]}</span></div>
+        <input type="range" min="1" max="5" value="${v}" style="width:100%;accent-color:var(--primary);" oninput="obState.confidence['${t}']=+this.value; this.previousElementSibling.querySelector('.t-caption').textContent=['Never used','Beginner','Comfortable','Confident','Expert'][this.value-1];">
+      </div>`;}).join('')}
+    </div>
+    ${obNavButtons()}`;
+  if(s===7) return `
+    <div class="t-caption mb2">06 · Daily availability</div>
+    <div class="t-h1 mb2">How much time can you give this, daily?</div>
+    <div class="t-body mb5">Your routine is built to fit exactly inside this window.</div>
+    <div class="grid grid-3 g3">
+      ${['15 min','30 min','45 min','60 min','90 min','120 min'].map(t=>`
+      <div class="card card-hover" style="text-align:center;border-color:${obState.time===t?'var(--primary)':'var(--border)'};background:${obState.time===t?'var(--primary-subtle)':'var(--surface)'};" onclick="obState.time='${t}';renderScreen();">
+        <div class="t-h3" style="color:${obState.time===t?'var(--primary)':'var(--text-primary)'};">${t}</div>
+      </div>`).join('')}
+    </div>
+    ${obNavButtons()}`;
+  if(s===8) return `
+    <div class="t-caption mb2">07 · Interview target</div>
+    <div class="t-h1 mb2">What role are you aiming for?</div>
+    <label class="field-label">Target role</label>
+    <input class="input mb3" value="${obState.target}" oninput="obState.target=this.value">
+    <label class="field-label">Timeline</label>
+    <select class="select mb5"><option>Actively interviewing</option><option selected>Within 3 months</option><option>Just building the habit</option></select>
+    ${obNavButtons()}`;
+  if(s===9) return `
+    <div class="t-caption mb2">08 · AI assessment</div>
+    <div class="t-h1 mb2">Quick baseline check</div>
+    <div class="t-body mb5">Four short questions so ForgeRoutine can calibrate your starting difficulty. This isn't graded.</div>
+    <div class="card">
+      ${aiTag()}
+      <div class="t-body mt2" style="color:var(--text-primary);">Node.js runs JavaScript on a single thread. In your own words, how does it still handle thousands of concurrent requests?</div>
+      <textarea class="textarea mt3" rows="3" placeholder="Type your answer…"></textarea>
+      <div class="row justify-between mt3"><span class="t-caption">Question 1 of 4</span>${btn('Submit answer','primary','sm','send')}</div>
+    </div>
+    ${obNavButtons('Skip for now')}`;
+  if(s===10) return `
+    <div class="badge badge-success mb3">${icon('check',12)} Plan generated</div>
+    <div class="t-h1 mb2">Your first two weeks</div>
+    <div class="t-body mb6">Built from ${obState.techs.size} technologies, a ${obState.time} daily window, and your goal: ${obState.goal.toLowerCase()}.</div>
+    <div class="card mb4">
+      <div class="row justify-between mb3"><span class="t-h4">Week 1 focus</span><span class="badge badge-primary">${[...obState.techs][0]||'Node.js'}</span></div>
+      ${['Recall — core syntax and language fundamentals','Blind coding — 3 short exercises daily','1 debugging session','1 mock interview question'].map(t=>`<div class="row g2 items-center t-small mb2">${icon('check',14,2)} ${t}</div>`).join('')}
+    </div>
+    <div class="grid grid-3 g3 mb6">
+      <div class="card p3" style="text-align:center;"><div class="t-metric text-primary-c">${obState.time}</div><div class="t-caption">per day</div></div>
+      <div class="card p3" style="text-align:center;"><div class="t-metric text-primary-c">${obState.techs.size}</div><div class="t-caption">technologies</div></div>
+      <div class="card p3" style="text-align:center;"><div class="t-metric text-primary-c">14</div><div class="t-caption">day plan</div></div>
+    </div>
+    ${btn('Go to dashboard','primary','lg','arrowRight',`style="width:100%;" onclick="go('dashboard')"`)}`;
+  return '';
+}
+SCREENS['onboarding'] = {group:'Onboarding',title:'Onboarding Flow',kind:'web',render:()=>obShell(obStepContent())};
+
+/* ---------- DASHBOARD ---------- */
+SCREENS['dashboard'] = {group:'Dashboard',title:'Dashboard',kind:'web',render:()=>browserFrame('dashboard', appShell({active:'dashboard', rightPanel:`
+    <div class="p5" style="border-bottom:1px solid var(--border);"><div class="t-h4 mb1">AI recommendation</div><div class="t-small">Your Docker networking score dropped 6% last week. Add a 10-minute review session before Friday's mock interview.</div><div class="mt3">${btn('Add to routine','secondary','sm','plus')}</div></div>
+    <div class="p5 flex-1 scroll-y">
+      <div class="t-h4 mb3">Upcoming reviews</div>
+      ${[['Microtask queue','due today'],['Docker networking','due today'],['PostgreSQL transactions','tomorrow'],['Git rebase','in 3 days']].map(r=>`<div class="row justify-between items-center mb3"><span class="t-small" style="color:var(--text-primary);">${r[0]}</span><span class="t-caption">${r[1]}</span></div>`).join('')}
+      <div class="divider mb4 mt2"></div>
+      <div class="t-h4 mb3">Skill trend — 7 days</div>
+      <svg viewBox="0 0 260 70" width="100%" height="70"><polyline points="0,50 40,46 80,38 120,42 160,28 200,24 260,14" fill="none" stroke="var(--primary)" stroke-width="2.4"/></svg>
+      <div class="t-caption mt2">Independent coding score is trending up.</div>
+    </div>`, content:`
+    ${sectionHead('Monday, September 14','Good morning, Biswajit','Your coding session is ready.',
+      `<button class="btn btn-primary btn-lg" onclick="go('coding-practice')">${icon('play',16)} Start Today's Routine</button>`)}
+    <div class="grid grid-4 g4 mb6 cq-grid-4">
+      <div class="card"><div class="t-caption mb2">Today's progress</div><div class="row items-end g2 mb2"><span class="t-metric">42</span><span class="t-caption" style="padding-bottom:4px;">/ 60 min</span></div>${skillMeter(70)}</div>
+      <div class="card"><div class="t-caption mb2">Independent coding score</div><div class="t-metric text-success">78%</div><div class="t-caption text-success mt1">${icon('trend',11)} +6% this week</div></div>
+      <div class="card"><div class="t-caption mb2">Interview readiness</div><div class="t-metric" style="color:var(--warning);">71%</div><div class="t-caption mt1">Target: Senior Backend</div></div>
+      <div class="card"><div class="t-caption mb2">Streak</div><div class="row items-center g2"><span class="t-metric" style="color:var(--warning);">12</span>${icon('flame',20)}</div><div class="t-caption mt1">days in a row</div></div>
+    </div>
+    <div class="grid grid-2 g5 mb6 cq-stack">
+      <div class="card">
+        <div class="row justify-between items-center mb4"><span class="t-h3">Today's routine</span><a class="t-caption text-primary-c" onclick="go('my-routine')" style="cursor:pointer;">View full week</a></div>
+        <div class="col g1">
+        ${[
+          ['10 min','Recall','Node.js Event Loop','done'],
+          ['20 min','Blind Coding','Express middleware','active'],
+          ['15 min','Debugging','Async JavaScript','todo'],
+          ['15 min','Interview','Node.js — follow-up questions','todo'],
+        ].map(r=>`<div class="row items-center g3 p3" style="border-radius:var(--r-md);${r[3]==='active'?'background:var(--primary-subtle);':''}" onclick="go('coding-practice')">
+          <div style="width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${r[3]==='done'?'var(--success-subtle)':'var(--surface-2)'};color:${r[3]==='done'?'var(--success)':'var(--text-secondary)'};">${r[3]==='done'?icon('check',15):icon(r[1]==='Recall'?'brain':r[1]==='Interview'?'interview':r[1]==='Debugging'?'bug':'practice',15)}</div>
+          <div class="flex-1"><div class="t-h4" style="font-size:13.5px;">${r[2]}</div><div class="t-caption">${r[1]} · ${r[0]}</div></div>
+          ${r[3]==='active'?badge('In progress','primary'):r[3]==='done'?badge('Done','success'):''}
+        </div>`).join('')}
+        </div>
+      </div>
+      <div class="col g5">
+        <div class="card">
+          <div class="t-h3 mb3">Current focus</div>
+          <div class="row g2 wrap">${['Node.js','Docker','PostgreSQL'].map(t=>badge(t,'primary')).join('')}</div>
+        </div>
+        <div class="card">
+          <div class="t-h3 mb3">Weakest skills</div>
+          <div class="col g3">
+            ${statRow('Linux',31)}${statRow('Docker networking',34)}${statRow('PostgreSQL transactions',41)}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="t-h3 mb3">Recent activity</div>
+      <table class="table">
+        <tr><th>Activity</th><th>Technology</th><th>Result</th><th>When</th></tr>
+        <tr><td>Blind coding — LRU cache</td><td>JavaScript</td><td>${badge('7/8 tests','success')}</td><td class="t-caption">Yesterday, 9:40 PM</td></tr>
+        <tr><td>Mock interview — Node.js internals</td><td>Node.js</td><td>${badge('7.8 / 10','primary')}</td><td class="t-caption">Yesterday, 8:05 PM</td></tr>
+        <tr><td>Debugging — race condition</td><td>JavaScript</td><td>${badge('Fixed','success')}</td><td class="t-caption">Sunday, 7:12 PM</td></tr>
+        <tr><td>Recall — PostgreSQL isolation levels</td><td>PostgreSQL</td><td>${badge('Partial','warning')}</td><td class="t-caption">Sunday, 6:50 PM</td></tr>
+      </table>
+    </div>
+  `}))};
+
+/* ---------- MY ROUTINE ---------- */
+SCREENS['my-routine'] = {group:'My Routine',title:'Routine Overview',kind:'web',render:()=>browserFrame('routine', appShell({active:'my-routine', content:`
+  ${sectionHead('My Routine','This week', 'Available time: 60 min/day · Current focus: Node.js, Docker, PostgreSQL', btn('Customize routine','secondary','','settings',`onclick="go('routine-customization')"`))}
+  <div class="card mb6">
+    <div class="row justify-between mb4">
+      ${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d,i)=>`<div class="col items-center g2" style="flex:1;"><span class="t-caption">${d}</span>
+        <div style="width:36px;height:36px;border-radius:99px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12.5px;background:${i<4?'var(--success-subtle)':i===4?'var(--primary-subtle)':'var(--surface-2)'};color:${i<4?'var(--success)':i===4?'var(--primary)':'var(--text-muted)'};border:${i===4?'2px solid var(--primary)':'1px solid var(--border)'};">${i<4?icon('check',15):9+i}</div></div>`).join('')}
+    </div>
+    <div class="t-caption">Completed 4 of 7 days · 12 day streak overall</div>
+  </div>
+  <div class="t-h3 mb3">Today — Friday</div>
+  <div class="col g2 mb6">
+  ${[
+    ['10 min','Recall','Node.js Event Loop','Medium','done'],
+    ['20 min','Blind Coding','Implement an Express rate limiter','Medium','active'],
+    ['15 min','Debugging','Async JavaScript race condition','Easy','todo'],
+    ['15 min','Interview','Node.js — follow-up questions','Hard','todo'],
+  ].map(r=>`<div class="card card-hover row justify-between items-center" onclick="go('routine-item-detail')">
+    <div class="row items-center g3"><div style="width:34px;height:34px;border-radius:9px;background:${r[4]==='done'?'var(--success-subtle)':'var(--surface-2)'};color:${r[4]==='done'?'var(--success)':'var(--text-secondary)'};display:flex;align-items:center;justify-content:center;">${r[4]==='done'?icon('check',16):icon(r[1]==='Recall'?'brain':r[1]==='Interview'?'interview':r[1]==='Debugging'?'bug':'practice',16)}</div>
+      <div><div class="t-h4">${r[2]}</div><div class="t-caption">${r[1]} · ${r[0]} · ${r[3]}</div></div></div>
+    ${r[4]==='done'?badge('Done','success'):r[4]==='active'?btn('Continue','primary','sm'):btn('Start','secondary','sm')}
+  </div>`).join('')}
+  </div>
+  <div class="t-h3 mb3">This week's plan</div>
+  <div class="grid grid-3 g3 cq-grid-3">
+    ${[['Mon','Node.js fundamentals','4 items'],['Tue','Async patterns','5 items'],['Wed','Debugging drills','3 items'],['Thu','Docker basics','4 items'],['Fri','Interview prep','4 items'],['Sat','Review + light practice','2 items'],['Sun','Rest / optional recall','1 item']].map(d=>`<div class="card p3"><div class="t-caption mb1">${d[0]}</div><div class="t-h4" style="font-size:13px;">${d[1]}</div><div class="t-caption mt1">${d[2]}</div></div>`).join('')}
+  </div>
+`}))};
+
+SCREENS['routine-item-detail'] = {group:'My Routine',title:'Routine Item Detail',kind:'web',render:()=>browserFrame('routine/item', appShell({active:'my-routine', content:`
+  <div class="breadcrumbs mb4"><a onclick="go('my-routine')" style="cursor:pointer;">My Routine</a>${icon('chevronRight',12)}<span class="current">Blind Coding</span></div>
+  <div class="row justify-between items-start mb6">
+    <div><div class="badge badge-primary mb2">Blind Coding</div><div class="t-h1">Implement an Express rate limiter</div></div>
+    <div class="col items-end g2"><div class="t-caption">15 minutes</div>${badge('Medium','warning')}</div>
+  </div>
+  <div class="card mb5">
+    <div class="t-h4 mb2">What this covers</div>
+    <div class="t-body">Middleware composition, closures for shared state, and time-window logic — the same pattern behind most production API rate limits.</div>
+  </div>
+  <div class="grid grid-3 g4 mb6">
+    <div class="card p3" style="text-align:center;"><div class="t-caption mb1">Related technology</div><div class="t-h4" style="font-size:13px;">Node.js</div></div>
+    <div class="card p3" style="text-align:center;"><div class="t-caption mb1">No AI assistance</div><div class="t-h4" style="font-size:13px;">Blind mode</div></div>
+    <div class="card p3" style="text-align:center;"><div class="t-caption mb1">Attempts so far</div><div class="t-h4" style="font-size:13px;">0</div></div>
+  </div>
+  ${btn('Start','primary','lg','play',`style="width:100%;" onclick="go('blind-coding')"`)}
+`}))};
+
+SCREENS['routine-customization'] = {group:'My Routine',title:'Routine Customization',kind:'web',render:()=>browserFrame('routine/customize', appShell({active:'my-routine', content:`
+  ${sectionHead('My Routine','Customize your routine','Change how much time you give ForgeRoutine and what it prioritizes.')}
+  <div class="grid grid-2 g6 cq-stack">
+    <div class="col g5">
+      <div class="card">
+        <div class="t-h4 mb3">Daily duration</div>
+        <div class="row g2 wrap">${['15 min','30 min','45 min','60 min','90 min','120 min'].map(t=>`<span class="chip ${t==='60 min'?'selected':''}">${t}</span>`).join('')}</div>
+      </div>
+      <div class="card">
+        <div class="t-h4 mb3">Active topics</div>
+        <div class="col g2">
+        ${[['Node.js',true],['Docker',true],['PostgreSQL',true],['System Design',false],['Redis',false]].map(t=>`<div class="row justify-between items-center py2"><span class="t-small" style="color:var(--text-primary);">${t[0]}</span><div class="checkbox ${t[1]?'checked':''}">${t[1]?icon('check',12):''}</div></div>`).join('')}
+        </div>
+        <div class="divider mt3 mb3"></div>
+        <button class="btn btn-ghost btn-sm">${icon('plus',14)} Add a topic</button>
+      </div>
+    </div>
+    <div class="col g5">
+      <div class="card">
+        <div class="t-h4 mb3">Priority order</div>
+        <div class="col g2">
+        ${['Weak skills first','Interview prep','Spaced review','New concepts'].map((t,i)=>`<div class="row items-center g3 p2" style="border:1px solid var(--border);border-radius:var(--r-md);"><span class="mono t-caption">${i+1}</span><span class="flex-1 t-small" style="color:var(--text-primary);">${t}</span>${icon('more',16)}</div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="t-h4 mb3">Goals</div>
+        <label class="field-label">Interview target</label>
+        <input class="input mb3" value="Senior Backend Engineer">
+        <label class="field-label">Timeline</label>
+        <select class="select"><option>Within 3 months</option></select>
+      </div>
+    </div>
+  </div>
+  <div class="row justify-end g3 mt6">${btn('Cancel','ghost')}${btn('Save changes','primary')}</div>
+`}))};
+
+/* ---------- LEARN ---------- */
+SCREENS['learn-home'] = {group:'Learn',title:'Learn Home',kind:'web',render:()=>browserFrame('learn', appShell({active:'learn-home', content:`
+  ${sectionHead('Learn','Continue building understanding','Concepts, technologies, and review — organized around what moves your mastery fastest.')}
+  <div class="row justify-between items-center mb3"><span class="t-h3">Continue learning</span></div>
+  <div class="card card-hover row justify-between items-center mb6" onclick="go('concept-detail')">
+    <div class="row items-center g4"><div style="width:44px;height:44px;border-radius:10px;background:var(--primary-subtle);color:var(--primary);display:flex;align-items:center;justify-content:center;">${icon('cpu',20)}</div>
+    <div><div class="t-h4">Node.js Event Loop</div><div class="t-caption">62% through · microtask queue is next</div></div></div>
+    ${btn('Resume','primary','sm','play')}
+  </div>
+  <div class="t-h3 mb3">Recommended for you</div>
+  <div class="grid grid-3 g3 mb6 cq-grid-3">
+    ${[['Docker Networking','Weak area','error'],['PostgreSQL Transactions','Weak area','error'],['React useEffect','Builds on recall','info']].map(c=>`
+    <div class="card card-hover" onclick="go('concept-detail')"><div class="row justify-between mb3">${badge(c[1],c[2])}</div><div class="t-h4 mb1">${c[0]}</div><div class="t-caption">~12 min · coding + recall</div></div>`).join('')}
+  </div>
+  <div class="t-h3 mb3">Due for review</div>
+  <div class="card mb6">
+    <div class="row justify-between items-center"><span class="t-body" style="color:var(--text-primary);">8 concepts are due today, including microtask queue and Git rebase.</span>${btn('Start review','secondary','sm','arrowRight',`onclick="go('review-center')"`)}</div>
+  </div>
+  <div class="row justify-between items-center mb3"><span class="t-h3">Technologies</span><a class="t-caption text-primary-c" onclick="go('tech-library')" style="cursor:pointer;">View all</a></div>
+  <div class="grid grid-4 g3 cq-grid-4">${TECHS.slice(0,4).map(techCardHtml).join('')}</div>
+`}))};
+
+SCREENS['tech-library'] = {group:'Learn',title:'Technology Library',kind:'web',render:()=>browserFrame('technologies', appShell({active:'tech-library', content:`
+  ${sectionHead('Technologies','Your technology library','Every technology ForgeRoutine is coaching you on, and how independent you are in each.',
+    btn('Add technology','primary','','plus',`onclick="go('add-technology')"`))}
+  <div class="row g3 mb5 items-center">
+    <div class="searchbar-trigger" style="min-width:280px;">${icon('search',14)}<span>Search technologies…</span></div>
+    <div class="pill-tabs"><div class="pill-tab active">All</div><div class="pill-tab">Needs work</div><div class="pill-tab">Review due</div></div>
+  </div>
+  <div class="grid grid-4 g3 cq-grid-4">${TECHS.map(techCardHtml).join('')}</div>
+`}))};
+
+SCREENS['add-technology'] = {group:'Learn',title:'Add Technology',kind:'web',render:()=>browserFrame('technologies/add', appShell({active:'tech-library', content:`
+  <div class="breadcrumbs mb5"><a onclick="go('tech-library')" style="cursor:pointer;">Technologies</a>${icon('chevronRight',12)}<span class="current">Add technology</span></div>
+  <div style="max-width:560px;margin:0 auto;">
+    <div class="t-h1 mb1" style="text-align:center;">Add a technology</div>
+    <div class="t-body mb6" style="text-align:center;">ForgeRoutine builds a full curriculum — automatically.</div>
+    <div class="searchbar-trigger w-full mb4" style="height:44px;">${icon('search',16)}<span>Search technologies…</span></div>
+    <div class="row g2 wrap mb6">${['Kubernetes','GraphQL','Rust','Go','Kafka'].map(t=>chip(t)).join('')}</div>
+    <div class="card" style="text-align:center;">
+      <div class="t-caption mb2">Can't find what you're looking for?</div>
+      <div class="row g2"><input class="input flex-1" value="Rust"> ${btn('+ Add Technology','primary')}</div>
+    </div>
+    <div class="card mt5">
+      ${aiTag('Generating curriculum')}
+      <div class="t-h3 mt2 mb3">Rust added.</div>
+      <div class="t-body mb4">ForgeRoutine is preparing:</div>
+      <div class="col g2">
+      ${[['Knowledge graph',true],['Prerequisites',true],['Concepts',true],['Coding exercises',false],['Interview questions',false],['Review schedule',false]].map(s=>`<div class="row g2 items-center t-small">${s[1]?icon('check',15,2):'<span class="skeleton" style="width:15px;height:15px;border-radius:99px;display:inline-block;"></span>'} <span style="color:${s[1]?'var(--text-primary)':'var(--text-muted)'}">${s[0]}</span></div>`).join('')}
+      </div>
+      <div class="progress-linear mt4"><div class="fill" style="width:52%;"></div></div>
+    </div>
+  </div>
+`}))};
+
+SCREENS['tech-detail'] = {group:'Learn',title:'Technology Detail',kind:'web',render:()=>browserFrame('technologies/node', appShell({active:'tech-library', content:`
+  <div class="breadcrumbs mb4"><a onclick="go('tech-library')" style="cursor:pointer;">Technologies</a>${icon('chevronRight',12)}<span class="current">Node.js</span></div>
+  <div class="row justify-between items-start mb6">
+    <div class="row items-center g3"><div style="width:44px;height:44px;border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;">${icon('cpu',20)}</div><div><div class="t-h1">Node.js</div><div class="t-caption">26 of 34 concepts completed</div></div></div>
+    <div class="row g2">${btn('Practice','secondary','','practice',`onclick="go('coding-practice')"`)}${btn('Interview','primary','','interview',`onclick="go('interviews-hub')"`)}</div>
+  </div>
+  <div class="grid grid-5 g3 mb6">
+    ${[['Overall mastery',81],['Coding ability',67],['Recall',74],['Debugging',72],['Interview readiness',78]].map(m=>`<div class="card p3" style="text-align:center;"><div class="t-metric" style="color:${metricColor(m[1])};font-size:22px;">${m[1]}%</div><div class="t-caption mt1">${m[0]}</div></div>`).join('')}
+  </div>
+  <div class="grid grid-2 g6 cq-stack">
+    <div class="card">
+      <div class="t-h3 mb4">Knowledge tree</div>
+      <div class="col g1">
+      ${[['Runtime','mastered'],['Event Loop','developing'],['HTTP','strong'],['Streams','weak'],['Buffers','weak'],['Workers','locked'],['Security','developing'],['Performance','weak']].map(n=>`<div class="row items-center g2 py2" onclick="go('concept-detail')" style="cursor:pointer;"><span style="color:${STATUS_META[n[1]].color}">${icon(STATUS_META[n[1]].ic,14)}</span><span class="t-small flex-1" style="color:var(--text-primary);">${n[0]}</span><span class="t-caption">${STATUS_META[n[1]].label}</span></div>`).join('')}
+      </div>
+    </div>
+    <div class="col g5">
+      <div class="card">
+        <div class="t-h3 mb3">Weak concepts</div>
+        ${statRow('Streams',38)}${statRow('Buffers',41)}${statRow('Performance tuning',44)}
+      </div>
+      <div class="card">
+        <div class="t-h3 mb3">Recent activity</div>
+        <div class="col g3">
+          <div class="row justify-between t-small"><span style="color:var(--text-primary);">Blind coding — rate limiter</span>${badge('7/8','success')}</div>
+          <div class="row justify-between t-small"><span style="color:var(--text-primary);">Recall — event loop phases</span>${badge('Partial','warning')}</div>
+          <div class="row justify-between t-small"><span style="color:var(--text-primary);">Mock interview</span>${badge('7.8/10','primary')}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+`}))};
+
+SCREENS['concept-detail'] = {group:'Learn',title:'Concept Detail',kind:'web',render:()=>browserFrame('technologies/node/event-loop', appShell({active:'tech-library', content:`
+  <div class="breadcrumbs mb4"><a onclick="go('tech-detail')" style="cursor:pointer;">Node.js</a>${icon('chevronRight',12)}<span class="current">Event Loop</span></div>
+  <div class="row justify-between items-start mb6">
+    <div><div class="badge badge-warning mb2">Developing</div><div class="t-h1">Node.js Event Loop</div></div>
+    <button class="btn btn-primary btn-lg" onclick="go('ai-tutor')">${icon('brain',16)} Learn this concept</button>
+  </div>
+  <div class="grid grid-4 g3 mb6">
+    ${[['Mastery',72],['Coding',51],['Recall',68],['Interview',63]].map(m=>`<div class="card p3" style="text-align:center;"><div class="t-metric" style="color:${metricColor(m[1])};font-size:22px;">${m[1]}%</div><div class="t-caption mt1">${m[0]}</div></div>`).join('')}
+  </div>
+  <div class="grid grid-2 g6 cq-stack">
+    <div class="col g5">
+      <div class="card">
+        <div class="t-h4 mb2">What you know</div>
+        <div class="row g2 items-center t-small mb1">${icon('check',14,2)} Asynchronous, non-blocking I/O basics</div>
+        <div class="row g2 items-center t-small">${icon('check',14,2)} Callback queue fundamentals</div>
+      </div>
+      <div class="card">
+        <div class="t-h4 mb2">What you need to learn</div>
+        <div class="row g2 items-center t-small mb1"><span style="color:var(--error);">${icon('alert',14,2)}</span> Microtask vs macrotask ordering</div>
+        <div class="row g2 items-center t-small"><span style="color:var(--error);">${icon('alert',14,2)}</span> The 6 event loop phases</div>
+      </div>
+      <div class="card">
+        <div class="t-h4 mb2">Prerequisites</div>
+        <div class="row g2 wrap">${chip('Callbacks',true)}${chip('Promises',true)}${chip('Call stack',true)}</div>
+      </div>
+      <div class="card">
+        <div class="t-h4 mb2">Related concepts</div>
+        <div class="row g2 wrap">${chip('libuv thread pool')}${chip('process.nextTick')}${chip('setImmediate')}</div>
+      </div>
+    </div>
+    <div class="col g5">
+      <div class="card">
+        <div class="t-h4 mb3">Coding exercises</div>
+        <div class="col g2">
+        ${[['Order the output','Easy','done'],['Build a task scheduler','Medium','todo'],['Fix the blocking handler','Hard','todo']].map(e=>`<div class="row justify-between items-center py2" style="border-bottom:1px solid var(--border);"><span class="t-small" style="color:var(--text-primary);">${e[0]}</span><div class="row g2 items-center">${badge(e[1],'neutral')}${e[2]==='done'?icon('check',15):icon('chevronRight',15)}</div></div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="t-h4 mb3">Interview questions</div>
+        <div class="t-small">"Node.js is single-threaded — how does it handle thousands of concurrent connections?"</div>
+        <div class="t-caption mt2">Asked in 3 of your last 8 mock interviews</div>
+      </div>
+      <div class="card">
+        <div class="t-h4 mb3">Review history</div>
+        <div class="row g2">${[80,45,60,70,55,68].map(h=>`<div style="width:14px;height:${h*0.4}px;background:var(--primary);border-radius:3px;align-self:flex-end;"></div>`).join('')}</div>
+      </div>
+    </div>
+  </div>
+`}))};
+
+SCREENS['ai-tutor'] = {group:'Learn',title:'AI Tutor',kind:'web',render:()=>browserFrame('learn/tutor', appShell({active:'learn-home', content:`
+  <div class="row justify-between items-center mb5">
+    <div>${aiTag('AI Mentor')}<div class="t-h1 mt2">Node.js Event Loop</div></div>
+    <div class="row g2 items-center"><span class="t-caption">Question 2 of 5</span><div class="progress-linear" style="width:120px;"><div class="fill" style="width:40%;"></div></div></div>
+  </div>
+  <div class="grid cq-stack" style="grid-template-columns:1fr 300px;gap:24px;">
+    <div class="col g5">
+      <div class="card">
+        <div class="t-caption mb2">Let's see what you already know.</div>
+        <div class="t-h3 mb4">Node.js uses a single JavaScript thread. How can it handle thousands of concurrent requests?</div>
+        <textarea class="textarea" rows="4" placeholder="Type your answer, or paste a code snippet…">It uses async I/O so the main thread never blocks — I/O work is handed off to libuv's thread pool or the OS, and results come back through the event loop as callbacks.</textarea>
+        <div class="row justify-between mt3">
+          <div class="row g2">${btn('Hint','ghost','sm','help')}${btn('Code block','ghost','sm','code')}</div>
+          ${btn('Submit answer','primary','','send')}
+        </div>
+      </div>
+      <div class="card" style="border-color:var(--primary-border);">
+        <div class="row justify-between items-center mb3"><span class="t-h4">Understanding</span>${badge('Partial','warning')}</div>
+        <div class="t-caption mb2">Strong</div>
+        <div class="row g2 items-center t-small mb3">${icon('check',15,2)} Asynchronous I/O</div>
+        <div class="t-caption mb2">Needs work</div>
+        <div class="row g2 items-center t-small mb1"><span style="color:var(--text-muted)">○</span> Microtasks</div>
+        <div class="row g2 items-center t-small"><span style="color:var(--text-muted)">○</span> Event loop phases</div>
+      </div>
+    </div>
+    <div class="col g4">
+      <div class="card">
+        <div class="t-h4 mb3">Concept diagram</div>
+        <svg viewBox="0 0 240 160" width="100%">
+          <rect x="6" y="10" width="90" height="26" rx="5" fill="none" stroke="var(--border-strong)"/><text x="51" y="27" fill="var(--text-secondary)" font-size="9" text-anchor="middle">Call stack</text>
+          <rect x="6" y="120" width="90" height="26" rx="5" fill="none" stroke="var(--border-strong)"/><text x="51" y="137" fill="var(--text-secondary)" font-size="9" text-anchor="middle">Callback queue</text>
+          <rect x="144" y="65" width="90" height="26" rx="13" fill="var(--primary-subtle)" stroke="var(--primary)"/><text x="189" y="82" fill="var(--primary)" font-size="9" text-anchor="middle">Event loop</text>
+          <path d="M51 36 L51 118" stroke="var(--border-strong)" fill="none" stroke-dasharray="3 3"/>
+          <path d="M96 133 L144 88" stroke="var(--border-strong)" fill="none" marker-end="url(#a)"/>
+          <path d="M189 65 L96 30" stroke="var(--border-strong)" fill="none"/>
+        </svg>
+      </div>
+      <div class="card">
+        <div class="t-h4 mb2">Progress this session</div>
+        ${circularProgress(40,72,7)}
+      </div>
+    </div>
+  </div>
+`}))};
+
+SCREENS['recall-mode'] = {group:'Learn',title:'Recall Mode',kind:'web',render:()=>browserFrame('learn/recall', appShell({active:'learn-home', content:`
+  <div class="col items-center" style="max-width:520px;margin:40px auto;text-align:center;">
+    <div class="t-caption mb3">Recall · 3 of 10 · Node.js</div>
+    <div class="progress-linear w-full mb7"><div class="fill" style="width:30%;"></div></div>
+    <div class="t-h1 mb7">What happens to Promise callbacks relative to setTimeout callbacks?</div>
+    <textarea class="textarea w-full mb4" rows="3" placeholder="Type a quick answer…"></textarea>
+    <div class="row g3 w-full">
+      ${btn('Skip','ghost','','','style="flex:1;"')}
+      ${btn('Check answer','primary','','check','style="flex:2;"')}
+    </div>
+    <div class="card mt6 w-full" style="text-align:left;border-color:var(--success-border, var(--success));">
+      <div class="row items-center g2 mb2"><span style="color:var(--success);">${icon('check',18)}</span><span class="t-h4">Correct — microtasks run first</span></div>
+      <div class="t-small">Promise callbacks are microtasks and drain completely before the event loop moves to the next macrotask, like <span class="mono">setTimeout</span>.</div>
+    </div>
+  </div>
+`}))};
+
+/* ---------- PRACTICE ---------- */
+function codeSample(){
+  return `<span class="cb-kw">function</span> <span class="cb-fn">rateLimiter</span>(<span class="cb-var">windowMs</span>, <span class="cb-var">max</span>) {
+  <span class="cb-kw">const</span> hits = <span class="cb-kw">new</span> <span class="cb-type">Map</span>();
+
+  <span class="cb-kw">return function</span> (req, res, next) {
+    <span class="cb-kw">const</span> key = req.ip;
+    <span class="cb-kw">const</span> now = <span class="cb-type">Date</span>.now();
+    <span class="cb-kw">const</span> record = hits.get(key) ?? { count: <span class="cb-num">0</span>, start: now };
+
+    <span class="cb-kw">if</span> (now - record.start > windowMs) {
+      record.count = <span class="cb-num">0</span>;
+      record.start = now;
+    }
+
+    record.count++;
+    hits.set(key, record);
+
+    <span class="cb-kw">if</span> (record.count > max) {
+      <span class="cb-kw">return</span> res.status(<span class="cb-num">429</span>).send(<span class="cb-str">'Too many requests'</span>);
+    }
+    next();
+  };
+}`;
+}
+function editorPane(withGutter=true){
+  const code = codeSample();
+  const lines = code.split('\\n').length;
+  return `<div class="editor-shell flex-1">
+    <div class="editor-tabbar"><div class="editor-tab active">${icon('code',13)} rateLimiter.js</div><div class="editor-tab">test.spec.js</div></div>
+    <div class="editor-body">
+      ${withGutter?`<div class="editor-gutter">${Array.from({length:lines}).map((_,i)=>i+1).join('<br>')}</div>`:''}
+      <div class="editor-code">${code}</div>
+    </div>
+  </div>`;
+}
+function consolePane(){
+  return `<div style="height:150px;border-top:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;">
+    <div class="tabs" style="padding:0 14px;">${['Console','Tests','Results'].map((t,i)=>`<div class="tab ${i===1?'active':''}">${t}</div>`).join('')}</div>
+    <div class="flex-1 scroll-y p3 mono" style="font-size:12.5px;">
+      <div class="row justify-between mb2"><span>✓ allows requests under the limit</span><span class="text-success">passed</span></div>
+      <div class="row justify-between mb2"><span>✓ blocks the 6th request in a window</span><span class="text-success">passed</span></div>
+      <div class="row justify-between mb2"><span>✗ resets count after the window elapses</span><span class="text-error">failed</span></div>
+      <div class="t-caption mt2">2 / 3 tests passed</div>
+    </div>
+  </div>`;
+}
+SCREENS['coding-practice'] = {group:'Practice',title:'Coding Practice',kind:'web',render:()=>browserFrame('practice/rate-limiter', `<div class="col" style="height:100%;">
+  <div class="row items-center justify-between" style="height:52px;padding:0 18px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;">
+    <div class="row items-center g3"><button class="icon-btn" onclick="go('my-routine')">${icon('x',16)}</button><div><div class="t-h4" style="font-size:13.5px;">Implement an Express rate limiter</div><div class="t-caption">Blind Coding · Node.js · Medium</div></div></div>
+    <div class="row items-center g4">
+      <div class="row g2 items-center t-code" style="color:var(--text-secondary);">${icon('clock',15)} 08:42</div>
+      <button class="btn btn-secondary btn-sm">${icon('play',13)} Run</button>
+      <button class="btn btn-primary btn-sm" onclick="go('submission-result')">Submit</button>
+    </div>
+  </div>
+  <div class="row flex-1" style="min-height:0;">
+    <div class="col scroll-y" style="width:300px;border-right:1px solid var(--border);background:var(--surface);flex-shrink:0;">
+      <div class="tabs px3" style="padding-top:8px;">${['Problem','Examples','Constraints','Hints'].map((t,i)=>`<div class="tab ${i===0?'active':''}">${t}</div>`).join('')}</div>
+      <div class="p4">
+        <div class="t-h4 mb2">Requirements</div>
+        <div class="t-small mb4">Write Express middleware that limits each IP to <span class="mono">max</span> requests per <span class="mono">windowMs</span>. Return <span class="mono">429</span> once the limit is exceeded, and reset the count once the window passes.</div>
+        <div class="t-h4 mb2">Examples</div>
+        <div class="code-block mb4"><pre style="font-size:11.5px;"><span class="cb-fn">rateLimiter</span>(<span class="cb-num">1000</span>, <span class="cb-num">5</span>)
+<span class="cb-com">// 5 requests/sec allowed</span>
+<span class="cb-com">// 6th request → 429</span></pre></div>
+        <div class="t-h4 mb2">Constraints</div>
+        <div class="t-small">No external dependencies. Must be safe under concurrent requests from different IPs.</div>
+      </div>
+    </div>
+    ${editorPane()}
+    <div class="col" style="width:290px;border-left:1px solid var(--border);background:var(--surface);flex-shrink:0;">
+      <div class="p4" style="border-bottom:1px solid var(--border);">${aiTag('AI Assistance')}<div class="t-caption mt2">Hints preserve the challenge. Solutions end it.</div></div>
+      <div class="col g2 p3 scroll-y">
+        <div class="hint-level"><div class="row justify-between items-center"><span class="t-h4" style="font-size:13px;">Small hint</span>${badge('Preserves challenge','success')}</div></div>
+        <div class="hint-level"><div class="row justify-between items-center"><span class="t-h4" style="font-size:13px;">Concept reminder</span>${badge('Preserves challenge','success')}</div></div>
+        <div class="hint-level"><div class="row justify-between items-center"><span class="t-h4" style="font-size:13px;">Debugging question</span>${badge('Preserves challenge','success')}</div></div>
+        <div class="hint-level"><div class="row justify-between items-center"><span class="t-h4" style="font-size:13px;">Explain this error</span>${badge('Preserves challenge','success')}</div></div>
+        <div class="hint-level danger"><div class="row justify-between items-center"><span class="t-h4" style="font-size:13px;">Show approach</span>${badge('Reduces challenge','warning')}</div></div>
+        <div class="hint-level danger"><div class="row justify-between items-center"><span class="t-h4" style="font-size:13px;">Show solution</span>${badge('Ends challenge','error')}</div></div>
+      </div>
+    </div>
+  </div>
+  ${consolePane()}
+</div>`)};
+
+SCREENS['blind-coding'] = {group:'Practice',title:'Blind Coding',kind:'web',render:()=>browserFrame('practice/blind', `<div class="col" style="height:100%;">
+  <div class="row items-center justify-between" style="height:52px;padding:0 18px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;">
+    <div class="row items-center g3"><button class="icon-btn" onclick="go('my-routine')">${icon('x',16)}</button><div><div class="t-h4" style="font-size:13.5px;">Implement an Express rate limiter</div><div class="t-caption">Blind coding · no AI assistance</div></div></div>
+    <div class="row items-center g4"><div class="row g2 items-center t-code" style="color:var(--warning);">${icon('clock',15)} 04:15</div><button class="btn btn-secondary btn-sm">${icon('play',13)} Run</button><button class="btn btn-primary btn-sm" onclick="go('submission-result')">Submit</button></div>
+  </div>
+  <div class="row flex-1" style="min-height:0;">
+    <div class="col scroll-y p4" style="width:300px;border-right:1px solid var(--border);background:var(--surface);flex-shrink:0;">
+      <div class="t-h4 mb2">Implement an Express rate limiter</div>
+      <div class="t-small">Write middleware that limits each IP to <span class="mono">max</span> requests per <span class="mono">windowMs</span>, returning <span class="mono">429</span> once exceeded.</div>
+      <div class="badge badge-neutral mt4">${icon('circleSlash',12)} Hints disabled in this mode</div>
+    </div>
+    ${editorPane()}
+  </div>
+  ${consolePane()}
+</div>`)};
+
+SCREENS['submission-result'] = {group:'Practice',title:'Submission Result',kind:'web',render:()=>browserFrame('practice/result', appShell({active:'coding-practice', content:`
+  <div style="max-width:760px;margin:0 auto;">
+    <div class="row justify-between items-center mb6"><div><div class="t-caption mb1">Implement an Express rate limiter</div><div class="t-h1">Passed 8 / 10 tests</div></div>${circularProgress(80,72,7,'var(--success)')}</div>
+    <div class="grid grid-4 g3 mb6">
+      ${[['Correctness',82],['Code Quality',74],['Edge Cases',61],['Performance',78]].map(m=>`<div class="card p3" style="text-align:center;"><div class="t-metric" style="color:${metricColor(m[1])};font-size:20px;">${m[1]}%</div><div class="t-caption mt1">${m[0]}</div></div>`).join('')}
+    </div>
+    <div class="card mb4">
+      <div class="t-h4 mb2" style="color:var(--success);">${icon('check',15)} What you did well</div>
+      <div class="t-small">Clean separation between the timing logic and the middleware signature. Correct use of a closure to keep per-IP state without leaking globals.</div>
+    </div>
+    <div class="card mb4">
+      <div class="t-h4 mb2" style="color:var(--error);">${icon('alert',15)} What went wrong</div>
+      <div class="t-small">The window reset doesn't account for requests that arrive exactly at the boundary — two tests failed on that edge case.</div>
+    </div>
+    <div class="card mb6" style="border-color:var(--primary-border);">
+      ${aiTag('Think about this')}
+      <div class="t-body mt2" style="color:var(--text-primary);">What should happen to a request that lands in the same millisecond your window resets — should it count against the old window or the new one?</div>
+    </div>
+    <div class="row g3">
+      ${btn('Try again','primary','lg','refresh',`style="flex:1;" onclick="go('coding-practice')"`)}
+      ${btn('Get hint','secondary','lg','help','style="flex:1;"')}
+      ${btn('See solution','ghost','lg','','style="flex:1;"')}
+    </div>
+  </div>
+`}))};
+
+SCREENS['debugging-mode'] = {group:'Practice',title:'Debugging Mode',kind:'web',render:()=>browserFrame('practice/debug', appShell({active:'coding-practice', content:`
+  ${sectionHead('Debugging','Fix the race condition','Two concurrent requests are corrupting the counter. Inspect, identify, explain, then fix.')}
+  <div class="grid cq-stack" style="grid-template-columns:1fr 320px;gap:20px;">
+    <div class="col g4">
+      <div class="editor-shell" style="height:320px;">
+        <div class="editor-tabbar"><div class="editor-tab active">${icon('bug',13)} counter.js — broken</div></div>
+        <div class="editor-body"><div class="editor-code" style="padding:16px;">
+<span class="cb-kw">let</span> total = <span class="cb-num">0</span>;
+<span class="cb-kw">async function</span> <span class="cb-fn">increment</span>() {
+  <span class="cb-kw">const</span> current = total;
+  <span class="cb-kw">await</span> persistToDb(current);
+  total = current + <span class="cb-num">1</span>; <span class="cb-com">// ← two calls can read the same "current"</span>
+}
+        </div></div>
+      </div>
+      <div class="card">
+        <div class="t-h4 mb2">Explain the issue</div>
+        <textarea class="textarea" rows="3" placeholder="What's going wrong, and why?">Two concurrent calls both read total before either write finishes, so one increment gets lost — a classic read-modify-write race.</textarea>
+        <div class="row justify-end mt3">${btn('Submit explanation','primary','','send')}</div>
+      </div>
+    </div>
+    <div class="col g4">
+      <div class="card">
+        <div class="t-h4 mb3">Debugging timeline</div>
+        <div class="col g3">
+          ${[['Inspect the code','done'],['Identify the issue','done'],['Explain the issue','active'],['Fix the issue','todo'],['Run tests','todo']].map(s=>`<div class="row items-center g2"><span style="color:${s[1]==='done'?'var(--success)':s[1]==='active'?'var(--primary)':'var(--text-muted)'};">${icon(s[1]==='done'?'check':'clock',15)}</span><span class="t-small" style="color:${s[1]==='todo'?'var(--text-muted)':'var(--text-primary)'};">${s[0]}</span></div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="t-h4 mb2">Failing test</div>
+        <div class="t-small mono" style="color:var(--error);">expected total to be 100, received 94</div>
+      </div>
+    </div>
+  </div>
+`}))};
+
+SCREENS['code-review'] = {group:'Practice',title:'Code Review',kind:'web',render:()=>browserFrame('practice/review', `<div class="row" style="height:100%;">
+  <div class="col scroll-y flex-1" style="border-right:1px solid var(--border);background:var(--code-bg);">
+    <div class="row items-center g2 p3" style="border-bottom:1px solid var(--border);background:var(--surface-2);"><span class="t-h4" style="font-size:12.5px;">${icon('code',14)} Your code — cache.js</span></div>
+    <div class="editor-code" style="padding:16px;">
+<span class="cb-kw">function</span> <span class="cb-fn">createCache</span>(limit) {
+  <span class="cb-kw">const</span> store = {};
+  <span class="cb-kw">return</span> {
+    get: k => store[k],
+    set: (k, v) => { store[k] = v; } <span style="background:rgba(229,89,93,.18);border-radius:3px;">// no eviction — unbounded growth</span>
+  };
+}
+    </div>
+  </div>
+  <div class="col scroll-y" style="width:340px;background:var(--surface);flex-shrink:0;">
+    <div class="p4" style="border-bottom:1px solid var(--border);">${aiTag('AI Review')}
+      <div class="grid grid-2 g2 mt3">
+        ${[['Correctness',8],['Performance',6],['Security',9],['Maintainability',7]].map(m=>`<div class="row justify-between t-small"><span>${m[0]}</span><b class="mono">${m[1]}/10</b></div>`).join('')}
+      </div>
+    </div>
+    <div class="col g3 p3">
+      <div class="card p3" style="border-left:3px solid var(--warning);"><div class="t-caption mb1">Line 5</div><div class="t-small">No eviction policy — this cache grows without bound. Consider an LRU cap.</div></div>
+      <div class="card p3" style="border-left:3px solid var(--info);"><div class="t-caption mb1">Line 2</div><div class="t-small">Using a plain object works, but a Map avoids prototype-key collisions.</div></div>
+      <div class="card p3" style="border-left:3px solid var(--success);"><div class="t-caption mb1">Overall</div><div class="t-small">Clean, minimal interface — easy to extend later.</div></div>
+    </div>
+    <div class="p3" style="margin-top:auto;border-top:1px solid var(--border);"><div class="t-caption">AI annotates — it doesn't rewrite your code for you.</div></div>
+  </div>
+</div>`)};
+
+SCREENS['challenges'] = {group:'Practice',title:'Challenges',kind:'web',render:()=>browserFrame('practice/challenges', appShell({active:'coding-practice', content:`
+  ${sectionHead('Challenges','Project-level engineering challenges',"Multi-hour builds that combine everything you've practiced.")}
+  <div class="grid grid-2 g4 cq-stack">
+    <div class="card card-hover" onclick="go('challenges')">
+      <div class="badge badge-primary mb3">Advanced</div>
+      <div class="t-h2 mb2">Build a Production API</div>
+      <div class="row g2 wrap mb4">${['Node.js','PostgreSQL','Redis','Docker','GitHub Actions'].map(t=>chip(t)).join('')}</div>
+      <div class="t-caption mb4">Estimated 2–4 hours · 34% complete</div>
+      <div class="progress-linear mb4"><div class="fill" style="width:34%;"></div></div>
+      <div class="t-h4 mb2">Milestones</div>
+      <div class="col g1">${[['Scaffold + Docker Compose','done'],['Auth + rate limiting','active'],['CI pipeline','todo'],['Load test + tune','todo']].map(m=>`<div class="row g2 items-center t-small">${m[1]==='done'?icon('check',14,2):m[1]==='active'?icon('clock',14,2):'<span style="width:14px;display:inline-block;"></span>'} ${m[0]}</div>`).join('')}</div>
+      ${btn('Continue challenge','primary','','arrowRight','style="width:100%;margin-top:16px;"')}
+    </div>
+    <div class="card">
+      <div class="badge badge-neutral mb3">Intermediate</div>
+      <div class="t-h2 mb2">Design a URL Shortener</div>
+      <div class="row g2 wrap mb4">${['Node.js','Redis','System Design'].map(t=>chip(t)).join('')}</div>
+      <div class="t-caption mb4">Estimated 1–2 hours</div>
+      ${emptyState('folder','Not started','Requirements, acceptance criteria and an AI mentor are ready when you begin.', btn('Start challenge','secondary','sm'))}
+    </div>
+  </div>
+`}))};
+
+/* ---------- INTERVIEWS ---------- */
+SCREENS['interviews-hub'] = {group:'Interviews',title:'Interviews Hub',kind:'web',render:()=>browserFrame('interviews', appShell({active:'interviews-hub', content:`
+  ${sectionHead('Interviews','Interview practice','Realistic, adaptive interviews across formats — with follow-up questions like a real interviewer.')}
+  <div class="grid grid-4 g3 mb7 cq-grid-4">
+    ${[['Technical Interview','interview','Concepts + trade-offs'],['Coding Interview','practice','Live coding, narrated'],['Debugging Interview','bug','Find it under pressure'],['System Design','git','Architect and defend'],['Senior Engineer','shield','Mixed, higher bar']].map(c=>`
+    <div class="card card-hover" onclick="go('live-interview')"><div style="width:36px;height:36px;border-radius:9px;background:var(--primary-subtle);color:var(--primary);display:flex;align-items:center;justify-content:center;margin-bottom:12px;">${icon(c[1],17)}</div><div class="t-h4 mb1">${c[0]}</div><div class="t-caption">${c[2]}</div></div>`).join('')}
+  </div>
+  <div class="t-h3 mb3">Previous interviews</div>
+  <table class="table">
+    <tr><th>Interview</th><th>Score</th><th>Focus</th><th>Date</th></tr>
+    <tr><td>Senior Node.js Interview</td><td>${badge('7.8/10','primary')}</td><td>Node.js, System Design</td><td class="t-caption">Yesterday</td></tr>
+    <tr><td>Coding Interview — Arrays</td><td>${badge('8.4/10','success')}</td><td>JavaScript</td><td class="t-caption">4 days ago</td></tr>
+    <tr><td>Debugging Interview</td><td>${badge('6.1/10','warning')}</td><td>Node.js</td><td class="t-caption">1 week ago</td></tr>
+  </table>
+`}))};
+
+SCREENS['live-interview'] = {group:'Interviews',title:'Live Interview',kind:'web',render:()=>browserFrame('interviews/live', `<div class="col" style="height:100%;background:var(--bg);">
+  <div class="row items-center justify-between" style="height:52px;padding:0 18px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;">
+    <div class="t-h4" style="font-size:13.5px;">Senior Node.js Interview</div>
+    <div class="row g4 items-center"><div class="row g2 items-center t-code">${icon('clock',15)} 18:42</div><button class="icon-btn">${icon('mic',17)}</button><button class="btn btn-secondary btn-sm" onclick="go('interview-result')">End interview</button></div>
+  </div>
+  <div class="row flex-1" style="min-height:0;">
+    <div class="col scroll-y flex-1 p5" style="border-right:1px solid var(--border);">
+      ${aiTag('Interviewer')}
+      <div class="col g4 mt4" style="max-width:640px;">
+        <div class="card p3"><div class="t-caption mb1">Question 3</div><div class="t-h4" style="font-size:14px;">Walk me through what happens when a Node.js server receives 10,000 simultaneous requests, each doing a database read.</div></div>
+        <div class="card p3" style="background:transparent;border-style:dashed;"><div class="t-caption mb1">Your answer</div><div class="t-small">Each request is queued as a callback once its DB read starts; the event loop keeps accepting new connections while awaiting I/O. The bottleneck becomes the DB connection pool, not the event loop itself.</div></div>
+        <div class="card p3" style="border-color:var(--primary-border);"><div class="t-caption mb1">Follow-up</div><div class="t-h4" style="font-size:14px;">What happens if the pool has only 20 connections?</div></div>
+      </div>
+    </div>
+    <div class="col scroll-y" style="width:300px;background:var(--surface);flex-shrink:0;">
+      <div class="p3" style="border-bottom:1px solid var(--border);"><div class="t-h4">Your notes</div></div>
+      <textarea class="textarea flex-1" style="border:none;border-radius:0;height:100%;background:transparent;" placeholder="Jot down anything before you answer…">Pool size caps concurrent DB ops — requests beyond 20 queue up, latency rises under load.</textarea>
+    </div>
+  </div>
+  <div class="row items-center g3 p3" style="border-top:1px solid var(--border);background:var(--surface);">
+    <button class="icon-btn" style="width:40px;height:40px;background:var(--primary-subtle);color:var(--primary);">${icon('mic',19)}</button>
+    <input class="input flex-1" placeholder="Type your answer, or use voice…">
+    <button class="btn btn-primary">${icon('send',15)} Submit</button>
+  </div>
+</div>`)};
+
+SCREENS['interview-result'] = {group:'Interviews',title:'Interview Result',kind:'web',render:()=>browserFrame('interviews/result', appShell({active:'interviews-hub', content:`
+  <div style="max-width:760px;margin:0 auto;">
+    <div class="row justify-between items-center mb6"><div><div class="t-caption mb1">Senior Node.js Interview</div><div class="t-h1">Interview Score</div><div class="t-metric-lg text-primary-c mt1">7.8 <span class="t-h3" style="color:var(--text-muted);">/ 10</span></div></div>${circularProgress(78,90,8)}</div>
+    <div class="grid grid-3 g3 mb6">
+      ${[['Technical Accuracy',82],['Problem Solving',75],['Communication',88],['Depth',68],['Practical Knowledge',80],['Trade-offs',71]].map(m=>`<div class="card p3"><div class="t-caption mb2">${m[0]}</div>${skillMeter(m[1])}<div class="t-caption mt1 mono">${m[1]}%</div></div>`).join('')}
+    </div>
+    <div class="grid grid-2 g4 mb6 cq-stack">
+      <div class="card"><div class="t-h4 mb2" style="color:var(--success);">Strong areas</div><div class="t-small">Clear explanation of async I/O; correctly identified the connection pool as the real bottleneck.</div></div>
+      <div class="card"><div class="t-h4 mb2" style="color:var(--error);">Weak areas</div><div class="t-small">Didn't mention backpressure or queuing strategy when the pool saturates.</div></div>
+    </div>
+    <div class="card mb4"><div class="t-h4 mb2">Questions you struggled with</div><div class="t-small">"What happens if the pool has only 20 connections?" — partial answer, missing queuing behavior.</div></div>
+    <div class="card mb6"><div class="t-h4 mb2">Concept gaps discovered</div><div class="row g2 wrap">${chip('Connection pooling')}${chip('Backpressure')}</div></div>
+    <div class="t-h4 mb3">Recommended practice</div>
+    <div class="card card-hover row justify-between items-center" onclick="go('coding-practice')"><span class="t-small" style="color:var(--text-primary);">3 exercises on connection pooling and backpressure</span>${btn('Add to routine','secondary','sm','plus')}</div>
+  </div>
+`}))};
+
+SCREENS['system-design'] = {group:'Interviews',title:'System Design',kind:'web',render:()=>browserFrame('interviews/system-design', `<div class="row" style="height:100%;">
+  <div class="col scroll-y" style="width:280px;border-right:1px solid var(--border);background:var(--surface);flex-shrink:0;">
+    <div class="p4"><div class="t-h4 mb2">Design a URL shortener</div><div class="t-small">Design a system that shortens URLs and redirects at scale — 100M writes/day, low read latency.</div></div>
+    <div class="p4" style="border-top:1px solid var(--border);"><div class="t-h4 mb2">Requirements</div><div class="row g2 items-center t-small mb1">${icon('check',13,2)} 100M new URLs / day</div><div class="row g2 items-center t-small mb1">${icon('check',13,2)} p99 redirect &lt; 50ms</div><div class="row g2 items-center t-small">${icon('check',13,2)} Custom aliases supported</div></div>
+    <div class="p4" style="border-top:1px solid var(--border);">${aiTag('AI Interviewer')}<div class="t-small mt2">What happens when your caching layer, Redis, goes down entirely?</div></div>
+  </div>
+  <div class="flex-1 col">
+    <div class="flex-1 p5" style="background:repeating-linear-gradient(0deg,transparent,transparent 23px,var(--border) 24px),repeating-linear-gradient(90deg,transparent,transparent 23px,var(--border) 24px);">
+      <svg width="100%" height="100%" viewBox="0 0 700 340">
+        ${[['Client',60,30],['Load Balancer',60,110],['API',60,190],['Cache — Redis',260,190],['Database',60,270]].map(n=>`<rect x="${n[1]-70}" y="${n[2]-18}" width="140" height="36" rx="8" fill="var(--surface)" stroke="var(--border-strong)"/><text x="${n[1]}" y="${n[2]+4}" fill="var(--text-primary)" font-size="12" text-anchor="middle" font-family="Inter">${n[0]}</text>`).join('')}
+        <path d="M60 48 L60 92" stroke="var(--border-strong)" fill="none" marker-end="url(#arrow)"/>
+        <path d="M60 128 L60 172" stroke="var(--border-strong)" fill="none"/>
+        <path d="M60 208 L60 252" stroke="var(--border-strong)" fill="none"/>
+        <path d="M130 190 L190 190" stroke="var(--primary)" stroke-dasharray="4 3" fill="none"/>
+      </svg>
+    </div>
+    <div class="p3 row g2" style="border-top:1px solid var(--border);background:var(--surface);">
+      <input class="input flex-1" placeholder="Explain your answer, or add a node to the diagram…">
+      <button class="btn btn-secondary">${icon('plus',15)} Add node</button>
+      <button class="btn btn-primary">${icon('send',15)} Respond</button>
+    </div>
+  </div>
+</div>`)};
+
+/* ---------- PROGRESS ---------- */
+SCREENS['progress-dashboard'] = {group:'Progress',title:'Progress Dashboard',kind:'web',render:()=>browserFrame('progress', appShell({active:'progress-dashboard', content:`
+  ${sectionHead('Progress','Your engineering trajectory','Every number here should move because you wrote more code on your own — not because AI wrote it for you.')}
+  <div class="grid grid-4 g3 mb6 cq-grid-4">
+    ${[['Independent coding',78,'success'],['Interview readiness',71,'warning'],['Retention',66,'warning'],['Overall mastery',69,'warning']].map(m=>`<div class="card p4" style="text-align:center;">${circularProgress(m[1],76,7, m[2]==='success'?'var(--success)':'var(--warning)')}<div class="t-caption mt2">${m[0]}</div></div>`).join('')}
+  </div>
+  <div class="grid grid-2 g5 mb6 cq-stack">
+    <div class="card">
+      <div class="t-h3 mb3">Weekly trend</div>
+      <svg viewBox="0 0 320 100" width="100%" height="100"><polyline points="0,70 45,64 90,58 135,60 180,44 225,38 270,26 320,20" fill="none" stroke="var(--primary)" stroke-width="2.5"/><polyline points="0,80 45,78 90,74 135,76 180,66 225,62 270,55 320,50" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="3 3"/></svg>
+      <div class="row g4 mt2"><span class="t-caption">${icon('check',10)} Independent coding</span><span class="t-caption" style="color:var(--text-muted);">- - - AI dependency</span></div>
+    </div>
+    <div class="card">
+      <div class="t-h3 mb3">Time spent — last 4 weeks</div>
+      <div class="row g2 items-end" style="height:100px;">${[38,52,44,60].map(h=>`<div class="flex-1 col items-center g1"><div style="width:100%;height:${h}px;background:var(--primary-subtle);border:1px solid var(--primary-border);border-radius:4px 4px 0 0;"></div><span class="t-caption">${h}h</span></div>`).join('')}</div>
+    </div>
+  </div>
+  <div class="grid grid-2 g5 cq-stack">
+    <div class="card">
+      <div class="t-h3 mb3">Technology mastery</div>
+      <div class="col g3">${TECHS.slice(0,6).map(t=>statRow(t.name,t.mastery)).join('')}</div>
+    </div>
+    <div class="col g5">
+      <div class="card"><div class="t-h4 mb2">Exercise success</div><div class="row justify-between t-small mb2"><span>First-attempt success</span><b class="mono">44%</b></div><div class="row justify-between t-small"><span>Retry success</span><b class="mono">81%</b></div></div>
+      <div class="card"><div class="t-h4 mb2">Coding ability</div>${skillMeter(67)}<div class="t-caption mt1">67% — up from 58% a month ago</div></div>
+    </div>
+  </div>
+`}))};
+
+function skillNode(n){
+  const m = STATUS_META[n.status];
+  return `<div class="row g3 items-center py2"><span style="color:${m.color};">${icon(m.ic,15)}</span><span class="t-small flex-1" style="color:${n.status==='locked'?'var(--text-muted)':'var(--text-primary)'};">${n.name}</span><span class="t-caption" style="color:${m.color};">${m.label}</span></div>`;
+}
+SCREENS['skill-tree'] = {group:'Progress',title:'Skill Tree',kind:'web',render:()=>browserFrame('skills', appShell({active:'skill-tree', content:`
+  ${sectionHead('Skills','JavaScript skill tree',"A visual map of what you've mastered, what's developing, and what's still locked behind prerequisites.")}
+  <div class="grid grid-2 g5 cq-stack">
+    ${SKILL_TREE.map(branch=>`<div class="card">
+      <div class="row justify-between items-center mb3"><span class="t-h3">${branch.name}</span><span style="color:${STATUS_META[branch.status].color};">${icon(STATUS_META[branch.status].ic,16)}</span></div>
+      <div class="col g1" style="padding-left:8px;border-left:2px solid var(--border);">${branch.children.map(skillNode).join('')}</div>
+    </div>`).join('')}
+  </div>
+  <div class="row g4 mt6 wrap">
+    ${Object.entries(STATUS_META).map(([k,v])=>`<div class="row g2 items-center t-caption"><span style="color:${v.color};">${icon(v.ic,13)}</span>${v.label}</div>`).join('')}
+  </div>
+`}))};
+
+SCREENS['review-center'] = {group:'Progress',title:'Review Center',kind:'web',render:()=>browserFrame('review', appShell({active:'progress-dashboard', content:`
+  ${sectionHead('Review','Due today',"Spaced repetition keeps what you've learned from decaying.")}
+  <div class="grid grid-3 g3 mb6">
+    <div class="card p4" style="text-align:center;"><div class="t-metric text-primary-c">8</div><div class="t-caption mt1">Due today</div></div>
+    <div class="card p4" style="text-align:center;"><div class="t-metric" style="color:var(--error);">3</div><div class="t-caption mt1">High priority</div></div>
+    <div class="card p4" style="text-align:center;"><div class="t-metric" style="color:var(--info);">5</div><div class="t-caption mt1">Quick review</div></div>
+  </div>
+  <div class="row justify-between items-center mb4"><span class="t-h3">Queue</span>${btn('Start rapid review','primary','','play')}</div>
+  <div class="col g2">
+  ${[['Microtask queue ordering','Node.js','High'],['Docker networking modes','Docker','High'],['PostgreSQL isolation levels','PostgreSQL','High'],['Git rebase vs merge','Git','Normal'],['React useEffect cleanup','React','Normal'],['CSS specificity','JavaScript','Normal'],['Closures','JavaScript','Quick'],['Array destructuring','JavaScript','Quick']].map(r=>`<div class="card card-hover row justify-between items-center p3"><span class="t-small" style="color:var(--text-primary);">${r[0]}</span><div class="row g2 items-center"><span class="t-caption">${r[1]}</span>${badge(r[2],r[2]==='High'?'error':r[2]==='Quick'?'info':'neutral')}</div></div>`).join('')}
+  </div>
+`}))};
+
+SCREENS['analytics'] = {group:'Progress',title:'Analytics',kind:'web',render:()=>browserFrame('progress/analytics', appShell({active:'progress-dashboard', content:`
+  ${sectionHead('Analytics','How you actually solve problems','No score here is meant to shame you — it exists so you know exactly what to rebuild.')}
+  <div class="grid grid-4 g3 mb6 cq-grid-4">
+    ${[['AI dependency','32%','up','warning'],['Avg. time to first code','1m 40s','down','success'],['Hints per exercise','1.4','up','warning'],['Solution reveals','2 this week','flat','neutral']].map(m=>`<div class="card p3"><div class="t-caption mb2">${m[0]}</div><div class="t-h2">${m[1]}</div></div>`).join('')}
+  </div>
+  <div class="card mb6" style="border-color:var(--warning-border,var(--warning));">
+    ${aiTag('Recommendation')}
+    <div class="t-body mt2" style="color:var(--text-primary);">Your recent exercises required more assistance.</div>
+    <div class="t-small mt1">Let's rebuild your independent solving ability.</div>
+    <div class="mt3">${btn('Start 3 blind coding sessions','primary','sm','play')}</div>
+  </div>
+  <div class="grid grid-2 g5 cq-stack">
+    <div class="card"><div class="t-h4 mb3">First-attempt vs retry success</div><div class="row g4 items-end" style="height:110px;"><div class="flex-1 col items-center g1"><div style="height:48px;width:100%;background:var(--primary-subtle);border:1px solid var(--primary-border);border-radius:4px 4px 0 0;"></div><span class="t-caption">44% first try</span></div><div class="flex-1 col items-center g1"><div style="height:88px;width:100%;background:var(--success-subtle);border:1px solid var(--success);border-radius:4px 4px 0 0;"></div><span class="t-caption">81% on retry</span></div></div></div>
+    <div class="card"><div class="t-h4 mb3">Retention over time</div><svg viewBox="0 0 260 90" width="100%" height="90"><polyline points="0,20 50,35 100,50 150,45 200,55 260,42" fill="none" stroke="var(--info)" stroke-width="2.2"/></svg><div class="t-caption mt2">Retention dips before each review cycle — expected.</div></div>
+  </div>
+`}))};
+
+/* ---------- SYSTEM ---------- */
+SCREENS['notifications-center'] = {group:'System',title:'Notifications Center',kind:'web',render:()=>browserFrame('notifications', appShell({active:'dashboard', content:`
+  <div class="row justify-between items-center mb6"><div class="t-h1">Notifications</div>${btn('Mark all read','ghost','sm')}</div>
+  <div class="col g1">
+  ${NOTIFS.map(n=>`<div class="notif ${n.unread?'unread':''}"><div class="notif-icon" style="background:var(--${n.color}-subtle);color:var(--${n.color});">${icon(n.icon,17)}</div><div class="flex-1"><div class="t-h4" style="font-size:13.5px;">${n.title}</div><div class="t-small">${n.desc}</div></div><span class="t-caption" style="white-space:nowrap;">${n.time}</span></div>`).join('')}
+  </div>
+`}))};
+
+SCREENS['settings'] = {group:'System',title:'Settings',kind:'web',render:()=>{
+  window._settingsTab = window._settingsTab || 'Profile';
+  const tabs = ['Profile','Learning preferences','Daily routine','Technologies','Notifications','AI preferences','Appearance','Keyboard shortcuts','Account','Data & privacy'];
+  return browserFrame('settings', appShell({active:'settings', content:`
+  <div class="t-h1 mb6">Settings</div>
+  <div class="row g6" style="align-items:flex-start;">
+    <div class="col g1" style="width:200px;flex-shrink:0;">
+      ${tabs.map(t=>`<div class="app-nav-item ${t===window._settingsTab?'active':''}" onclick="window._settingsTab='${t}';renderScreen();">${t}</div>`).join('')}
+    </div>
+    <div class="flex-1">
+      ${window._settingsTab==='Profile'?`
+        <div class="card">
+          <div class="row g4 items-center mb5"><div class="avatar" style="width:56px;height:56px;font-size:20px;">B</div>${btn('Change avatar','secondary','sm')}</div>
+          <div class="grid grid-2 g4">
+            <div><label class="field-label">Full name</label><input class="input" value="Biswajit Dash"></div>
+            <div><label class="field-label">Email</label><input class="input" value="biswajit@forgeroutine.dev"></div>
+            <div><label class="field-label">Current role</label><input class="input" value="Backend Engineer"></div>
+            <div><label class="field-label">Interview target</label><input class="input" value="Senior Backend Engineer"></div>
+          </div>
+          <div class="row justify-end mt5">${btn('Save changes','primary')}</div>
+        </div>`:
+      window._settingsTab==='Appearance'?`
+        <div class="card">
+          <div class="t-h4 mb3">Theme</div>
+          <div class="row g3">
+            <div class="card p3" style="text-align:center;width:140px;border-color:${document.documentElement.getAttribute('data-theme')==='dark'?'var(--primary)':'var(--border)'};cursor:pointer;" onclick="setTheme('dark')"><div style="height:60px;border-radius:6px;background:#0a0c0f;border:1px solid #262b30;margin-bottom:8px;"></div>Dark</div>
+            <div class="card p3" style="text-align:center;width:140px;border-color:${document.documentElement.getAttribute('data-theme')==='light'?'var(--primary)':'var(--border)'};cursor:pointer;" onclick="setTheme('light')"><div style="height:60px;border-radius:6px;background:#f4f5f6;border:1px solid #e2e5e8;margin-bottom:8px;"></div>Light</div>
+          </div>
+        </div>`:
+      window._settingsTab==='Daily routine'?`
+        <div class="card"><div class="t-h4 mb3">Daily duration</div><div class="row g2 wrap">${['15 min','30 min','45 min','60 min','90 min','120 min'].map(t=>chip(t,t==='60 min')).join('')}</div></div>`:
+      window._settingsTab==='Technologies'?`
+        <div class="card"><div class="t-h4 mb3">Active technologies</div><div class="row g2 wrap">${TECHS.slice(0,8).map(t=>chip(t.name,true)).join('')}${chip('+ Add')}</div></div>`:
+      window._settingsTab==='AI preferences'?`
+        <div class="card col g4">
+          <div class="row justify-between items-center"><div><div class="t-h4">Hint escalation speed</div><div class="t-caption">How quickly hints get stronger</div></div><select class="select" style="width:160px;"><option>Gradual</option><option selected>Standard</option><option>Fast</option></select></div>
+          <div class="divider"></div>
+          <div class="row justify-between items-center"><div><div class="t-h4">Mentor tone</div><div class="t-caption">How the AI mentor talks to you</div></div><select class="select" style="width:160px;"><option selected>Socratic</option><option>Direct</option></select></div>
+          <div class="divider"></div>
+          <div class="row justify-between items-center"><div><div class="t-h4">Warn on rising AI dependency</div></div><div class="checkbox checked">${icon('check',12)}</div></div>
+        </div>`:
+      window._settingsTab==='Keyboard shortcuts'? SCREENS['keyboard-shortcuts'].bodyOnly():
+      window._settingsTab==='Notifications'?`
+        <div class="card col g3">
+          ${['Routine reminders','Review reminders','AI recommendations','Achievement updates'].map((t,i)=>`<div class="row justify-between items-center py2"><span class="t-small" style="color:var(--text-primary);">${t}</span><div class="checkbox ${i<3?'checked':''}">${i<3?icon('check',12):''}</div></div>`).join('')}
+        </div>`:
+      window._settingsTab==='Data & privacy'?`
+        <div class="card col g3">
+          <div class="row justify-between items-center"><span class="t-small" style="color:var(--text-primary);">Export my data</span>${btn('Export','secondary','sm','download')}</div>
+          <div class="divider"></div>
+          <div class="row justify-between items-center"><span class="t-small" style="color:var(--text-primary);">Delete account</span>${btn('Delete account','danger','sm')}</div>
+        </div>`:
+      window._settingsTab==='Account'?`
+        <div class="card col g3">
+          <div class="row justify-between items-center"><span class="t-small" style="color:var(--text-primary);">Password</span>${btn('Change password','secondary','sm')}</div>
+          <div class="divider"></div>
+          <div class="row justify-between items-center"><span class="t-small" style="color:var(--text-primary);">Sign out of all devices</span>${btn('Sign out everywhere','secondary','sm','logout')}</div>
+        </div>`:
+      `<div class="card">${emptyState('settings','Learning preferences','Configure difficulty curve, weak-skill weighting, and pacing here.')}</div>`}
+    </div>
+  </div>
+`}));
+}};
+
+SCREENS['keyboard-shortcuts'] = {group:'System',title:'Keyboard Shortcuts',kind:'web',bodyOnly:()=>`
+  <div class="card">
+  <div class="col g1">
+  ${[['⌘ K','Command palette'],['⌘ Enter','Run code'],['⌘ Shift Enter','Submit'],['⌘ /','Toggle AI mentor'],['Esc','Close panel'],['⌘ B','Toggle sidebar'],['⌘ .','Get a hint'],['G then D','Go to dashboard']].map(s=>`<div class="row justify-between items-center py2" style="border-bottom:1px solid var(--border);"><span class="t-small" style="color:var(--text-primary);">${s[1]}</span><span class="row g1">${s[0].split(' ').map(k=>`<span class="kbd">${k}</span>`).join('')}</span></div>`).join('')}
+  </div></div>`,
+  render:()=>browserFrame('settings/shortcuts', appShell({active:'settings', content:`${sectionHead('Settings','Keyboard shortcuts','Move through ForgeRoutine without leaving the keyboard.')}${SCREENS['keyboard-shortcuts'].bodyOnly()}`}))};
+
+SCREENS['states-gallery'] = {group:'System',title:'Empty, Loading &amp; Error States',kind:'web',render:()=>browserFrame('states', appShell({active:'dashboard', content:`
+  ${sectionHead('System','Empty, loading &amp; error states','Every major screen needs an intentional state for first-time use, waiting, and failure.')}
+  <div class="t-h3 mb3">Empty states</div>
+  <div class="grid grid-3 g4 mb7">
+    <div class="card">${emptyState('tech','No technologies yet.','Add your first technology to build your learning universe.',btn('Add technology','primary','sm','plus'))}</div>
+    <div class="card">${emptyState('interview','No interviews yet.','Your first interview is waiting.',btn('Start an interview','primary','sm','play'))}</div>
+    <div class="card">${emptyState('check','No reviews today.',"You're caught up.")}</div>
+  </div>
+  <div class="t-h3 mb3">Loading states</div>
+  <div class="grid grid-3 g4 mb7">
+    <div class="card col g2"><div class="skeleton" style="height:14px;width:50%;"></div><div class="skeleton" style="height:10px;width:90%;"></div><div class="skeleton" style="height:10px;width:70%;"></div></div>
+    <div class="card">${aiTag('Analyzing your answer')}<div class="col g2 mt3">
+      <div class="row g2 items-center t-small">${icon('check',14,2)} Technical accuracy</div>
+      <div class="row g2 items-center t-small">${icon('check',14,2)} Concept depth</div>
+      <div class="row g2 items-center t-small"><span class="skeleton" style="width:14px;height:14px;border-radius:99px;display:inline-block;"></span> Missing prerequisite</div>
+    </div></div>
+    <div class="card">${aiTag('Generating curriculum')}<div class="progress-linear mt3"><div class="fill" style="width:66%;"></div></div><div class="t-caption mt2">Building coding exercises…</div></div>
+  </div>
+  <div class="t-h3 mb3">Error states</div>
+  <div class="grid grid-4 g3 cq-grid-4">
+    ${[['wifi_off','Offline','Reconnect to sync your routine.'],['alert','Code execution failed','The sandbox timed out. Your code is saved.'],['x','Submission failed',"We couldn't reach the grader. Nothing was lost."],['lock','Session expired','Sign in again to continue.']].map(e=>`<div class="card">${emptyState(e[0],e[1],e[2],btn('Retry','secondary','sm','refresh'))}</div>`).join('')}
+  </div>
+`}))};
+
+/* ---------- MOBILE ---------- */
+SCREENS['mobile-home'] = {group:'Mobile',title:'Mobile — Home',kind:'mobile',render:()=>phoneFrame('mobile-home',`
+  <div class="mt2 mb4"><div class="t-caption">Monday, September 14</div><div class="t-h2">Good morning, Biswajit</div></div>
+  <div class="card-elevated mb4">
+    <div class="row justify-between items-center mb2"><span class="t-h4">Today's routine</span><span class="t-caption mono">42 / 60 min</span></div>
+    <div class="progress-linear mb3"><div class="fill" style="width:70%;"></div></div>
+    <button class="btn btn-primary btn-block" onclick="go('mobile-coding')">${icon('play',15)} Continue</button>
+  </div>
+  <div class="card-elevated mb3 row justify-between items-center" onclick="go('mobile-learning')">
+    <div class="row g3 items-center"><div style="width:34px;height:34px;border-radius:9px;background:var(--primary-subtle);color:var(--primary);display:flex;align-items:center;justify-content:center;">${icon('cpu',16)}</div><div><div class="t-h4" style="font-size:13px;">Node.js Event Loop</div><div class="t-caption">Continue learning</div></div></div>${icon('chevronRight',16)}
+  </div>
+  <div class="grid grid-2 g3 mb3">
+    <div class="card-elevated p3"><div class="t-caption mb1">Due for review</div><div class="t-h3">3</div><div class="t-caption">concepts</div></div>
+    <div class="card-elevated p3"><div class="t-caption mb1">Weak area</div><div class="t-h4" style="font-size:13px;">Docker Networking</div></div>
+  </div>
+  <button class="btn btn-secondary btn-block" onclick="go('mobile-coding')">${icon('practice',15)} Start Practice</button>
+`)};
+
+SCREENS['mobile-learning'] = {group:'Mobile',title:'Mobile — Learning',kind:'mobile',render:()=>phoneFrame('mobile-learning',`
+  <div class="row items-center g2 mt2 mb3"><button class="icon-btn" onclick="go('mobile-home')">${icon('chevronLeft',18)}</button><span class="t-h4">Node.js Event Loop</span></div>
+  <div class="progress-linear mb4"><div class="fill" style="width:62%;"></div></div>
+  <div class="t-h3 mb2">Why Node.js doesn't block</div>
+  <div class="t-body mb4">Node runs your JS on one thread, but I/O — file, network, database — is handed off to the system or a thread pool. Your code keeps running while that work happens elsewhere.</div>
+  <svg viewBox="0 0 300 90" width="100%" height="90" class="mb4"><rect x="6" y="10" width="80" height="24" rx="5" fill="none" stroke="var(--border-strong)"/><text x="46" y="26" fill="var(--text-secondary)" font-size="9" text-anchor="middle">Call stack</text><rect x="200" y="34" width="90" height="24" rx="12" fill="var(--primary-subtle)" stroke="var(--primary)"/><text x="245" y="50" fill="var(--primary)" font-size="9" text-anchor="middle">Event loop</text><rect x="6" y="58" width="80" height="24" rx="5" fill="none" stroke="var(--border-strong)"/><text x="46" y="74" fill="var(--text-secondary)" font-size="9" text-anchor="middle">Callbacks</text></svg>
+  <div class="code-block mb4"><pre style="font-size:11.5px;">fs.readFile(<span class="cb-str">'a.txt'</span>, cb);
+<span class="cb-com">// keeps running here</span></pre></div>
+  <div class="card-elevated mb4">${aiTag()}<div class="t-small mt2" style="color:var(--text-primary);">Quick check — is <span class="mono">JSON.parse()</span> blocking or non-blocking?</div>
+    <div class="row g2 mt3"><button class="btn btn-secondary btn-sm flex-1">Blocking</button><button class="btn btn-secondary btn-sm flex-1">Non-blocking</button></div>
+  </div>
+  <button class="btn btn-primary btn-block">Continue</button>
+`)};
+
+SCREENS['mobile-coding'] = {group:'Mobile',title:'Mobile — Coding',kind:'mobile',render:()=>phoneFrame('mobile-coding',`
+  <div class="row items-center justify-between mt2 mb3"><button class="icon-btn" onclick="go('mobile-home')">${icon('chevronLeft',18)}</button><span class="t-code" style="color:var(--text-secondary);">${icon('clock',13)} 03:20</span></div>
+  <div class="t-h4 mb1">Syntax drill</div>
+  <div class="t-small mb3">Write the array method that removes duplicate primitive values using a Set.</div>
+  <div class="editor-shell" style="height:170px;">
+    <div class="editor-body"><div class="editor-code" style="padding:12px;font-size:12px;">
+<span class="cb-kw">const</span> unique = arr =>
+  [...<span class="cb-kw">new</span> <span class="cb-type">Set</span>(arr)];</div></div>
+  </div>
+  <div class="row g2 mt3 mb4"><button class="btn btn-secondary btn-sm flex-1">${icon('play',13)} Run</button><button class="btn btn-primary btn-sm flex-1">Submit</button></div>
+  <div class="card-elevated">
+    <div class="t-caption mb2">Larger exercise? </div>
+    <div class="row justify-between items-center"><span class="t-small" style="color:var(--text-primary);">Build a rate limiter</span><span class="badge badge-neutral">${icon('monitor',11)} Continue on desktop</span></div>
+  </div>
+`)};
+
+SCREENS['mobile-interview'] = {group:'Mobile',title:'Mobile — Interview',kind:'mobile',render:()=>phoneFrame('mobile-interview',`
+  <div class="row items-center justify-between mt2 mb5"><button class="icon-btn" onclick="go('mobile-home')">${icon('chevronLeft',18)}</button><span class="t-caption">Question 4 of 8</span></div>
+  <div class="progress-linear mb6"><div class="fill" style="width:50%;"></div></div>
+  <div class="t-h2 mb6" style="text-align:center;">Explain how Node.js handles concurrent I/O.</div>
+  <div class="col items-center g3 mb6">
+    <button class="icon-btn" style="width:84px;height:84px;border-radius:99px;background:var(--primary);color:var(--on-primary);">${icon('mic',34)}</button>
+    <span class="t-caption">Tap to answer</span>
+  </div>
+  <div class="card-elevated"><div class="t-caption mb2">Good answer.</div><div class="t-small" style="color:var(--text-primary);">Follow-up: What happens when CPU-heavy work blocks the event loop?</div></div>
+`)};
+
+SCREENS['mobile-review'] = {group:'Mobile',title:'Mobile — Review',kind:'mobile',render:()=>phoneFrame('mobile-progress',`
+  <div class="row items-center justify-between mt2 mb5"><button class="icon-btn" onclick="go('mobile-home')">${icon('x',18)}</button><span class="t-caption">4 / 8 due today</span></div>
+  <div style="min-height:340px;display:flex;align-items:center;justify-content:center;">
+    <div class="card-elevated" style="width:100%;text-align:center;padding:32px 22px;">
+      <div class="t-h3 mb6">What is the difference between Promise.all() and Promise.allSettled()?</div>
+      <div class="col g2">
+        <button class="btn btn-secondary btn-block">Show answer</button>
+      </div>
+    </div>
+  </div>
+  <div class="row g3 mt5">
+    <button class="btn btn-secondary flex-1">${icon('x',15)} Didn't know</button>
+    <button class="btn btn-primary flex-1">${icon('check',15)} Knew it</button>
+  </div>
+`)};
+
+SCREENS['mobile-progress'] = {group:'Mobile',title:'Mobile — Progress',kind:'mobile',render:()=>phoneFrame('mobile-progress',`
+  <div class="t-h2 mt2 mb4">Progress</div>
+  <div class="grid grid-2 g3 mb4">
+    <div class="card-elevated p3" style="text-align:center;">${circularProgress(78,64,6,'var(--success)')}<div class="t-caption mt2">Coding</div></div>
+    <div class="card-elevated p3" style="text-align:center;">${circularProgress(71,64,6,'var(--warning)')}<div class="t-caption mt2">Interview ready</div></div>
+  </div>
+  <div class="card-elevated mb3">
+    <div class="row justify-between items-center mb2"><span class="t-h4" style="font-size:13px;">Daily consistency</span><span class="row g1 items-center">${icon('flame',14)} 12</span></div>
+    <div class="row g1">${[1,1,1,1,0,1,1].map(d=>`<div style="flex:1;height:22px;border-radius:5px;background:${d?'var(--primary)':'var(--surface-2)'};"></div>`).join('')}</div>
+  </div>
+  <div class="card-elevated">
+    <div class="t-h4 mb3" style="font-size:13px;">Weak skills</div>
+    ${statRow('Linux',31)}${statRow('Docker networking',34)}
+  </div>
+`)};
+
+SCREENS['mobile-notifications'] = {group:'Mobile',title:'Mobile — Notifications',kind:'mobile',render:()=>phoneFrame('mobile-home',`
+  <div class="t-h2 mt2 mb4">Notifications</div>
+  <div class="col g2">
+  ${NOTIFS.slice(0,5).map(n=>`<div class="card-elevated p3 row g3" style="align-items:flex-start;">
+    <div class="notif-icon" style="width:30px;height:30px;background:var(--${n.color}-subtle);color:var(--${n.color});">${icon(n.icon,15)}</div>
+    <div class="flex-1"><div class="t-h4" style="font-size:12.5px;">${n.title}</div><div class="t-caption mt1">${n.desc}</div></div>
+  </div>`).join('')}
+  </div>
+`,{noPad:false})};
+
+/* ============================================================
+   ROUTER, NAV, COMMAND PALETTE, THEME, DEVICE
+   ============================================================ */
+let currentScreen = 'cover';
+let currentDevice = 'dev-desktop';
+
+function buildGroups(){
+  const groups = {};
+  const order = [];
+  Object.entries(SCREENS).forEach(([id,s])=>{
+    if(!groups[s.group]){ groups[s.group]=[]; order.push(s.group); }
+    groups[s.group].push({id, title:s.title});
+  });
+  return {groups, order};
+}
+function renderNav(filter=''){
+  const {groups, order} = buildGroups();
+  const f = filter.trim().toLowerCase();
+  let html = '';
+  order.forEach(g=>{
+    const items = groups[g].filter(it=>!f || it.title.toLowerCase().includes(f) || g.toLowerCase().includes(f));
+    if(!items.length) return;
+    html += `<div class="meta-group-label">${g}</div>`;
+    items.forEach(it=>{
+      html += `<div class="meta-nav-item ${it.id===currentScreen?'active':''}" onclick="go('${it.id}')"><span class="dot"></span>${it.title}</div>`;
+    });
+  });
+  document.getElementById('meta-nav-scroll').innerHTML = html || `<div class="t-caption" style="padding:20px 10px;">No screens match "${filter}"</div>`;
+}
+function filterNav(v){ renderNav(v); }
+
+function go(id){
+  if(!SCREENS[id]) return;
+  currentScreen = id;
+  closeCmdk();
+  renderScreen();
+  renderNav(document.getElementById('meta-search-input').value);
+  document.getElementById('canvas-outer').scrollTop = 0;
+  document.getElementById('meta-nav').classList.remove('open');
+}
+function renderScreen(){
+  const s = SCREENS[currentScreen];
+  if(!s) return;
+  document.getElementById('tb-group').textContent = s.group;
+  document.getElementById('tb-title').textContent = s.title.replace(/&amp;/g,'&');
+  const canvas = document.getElementById('canvas');
+  const dt = document.getElementById('device-toggle');
+
+  if(s.kind==='mobile'){
+    canvas.className = '';
+    canvas.style.width='auto';
+    dt.style.visibility='hidden';
+    canvas.innerHTML = `<div style="display:flex;justify-content:center;">${s.render()}</div>`;
+  } else if(s.kind==='doc'){
+    canvas.className = 'dev-desktop';
+    canvas.style.width='';
+    dt.style.visibility='hidden';
+    canvas.innerHTML = s.render();
+  } else {
+    dt.style.visibility='visible';
+    canvas.className = currentDevice;
+    canvas.style.width='';
+    canvas.innerHTML = `<div class="canvas-web-inner">${s.render()}</div>`;
+  }
+}
+function setDevice(d){
+  currentDevice = d;
+  document.querySelectorAll('.device-btn').forEach(b=>b.classList.toggle('active', b.dataset.dev===d));
+  renderScreen();
+}
+
+/* Theme */
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('theme-icon').innerHTML = icon(t==='dark'?'moon':'sun',17);
+  window._theme = t;
+  renderScreen();
+}
+function toggleTheme(){ setTheme(window._theme==='dark'?'light':'dark'); }
+
+/* Command palette */
+const CMDK_COMMANDS = [
+  {label:"Start Today's Routine", ic:'play', go:'dashboard'},
+  {label:'Practice Node.js', ic:'practice', go:'coding-practice'},
+  {label:'Start blind coding', ic:'code', go:'blind-coding'},
+  {label:'Start an interview', ic:'interview', go:'live-interview'},
+  {label:'Review weak skills', ic:'brain', go:'review-center'},
+  {label:'Add technology', ic:'plus', go:'add-technology'},
+  {label:'Open Technologies', ic:'tech', go:'tech-library'},
+  {label:'Open Skill Tree', ic:'skills', go:'skill-tree'},
+  {label:'Open Progress', ic:'progress', go:'progress-dashboard'},
+  {label:'Open Settings', ic:'settings', go:'settings'},
+  {label:'Keyboard shortcuts', ic:'keyboard', go:'keyboard-shortcuts'},
+];
+let cmdkSel = 0, cmdkFiltered = CMDK_COMMANDS;
+function openCmdk(){
+  cmdkSel=0; cmdkFiltered = CMDK_COMMANDS;
+  document.getElementById('cmdk-root').innerHTML = `
+  <div class="cmdk-overlay" onclick="if(event.target===this) closeCmdk()">
+    <div class="cmdk">
+      <div class="cmdk-input">${icon('search',17)}<input id="cmdk-input" placeholder="Search ForgeRoutine…" oninput="cmdkFilter(this.value)" autofocus></div>
+      <div class="cmdk-list" id="cmdk-list"></div>
+    </div>
+  </div>`;
+  renderCmdkList();
+  setTimeout(()=>document.getElementById('cmdk-input') && document.getElementById('cmdk-input').focus(),10);
+}
+function renderCmdkList(){
+  document.getElementById('cmdk-list').innerHTML = cmdkFiltered.map((c,i)=>`<div class="cmdk-item ${i===cmdkSel?'sel':''}" onclick="go('${c.go}')">${icon(c.ic,16)}<span>${c.label}</span></div>`).join('') || `<div class="t-caption p3">No matches</div>`;
+}
+function cmdkFilter(v){
+  const f = v.toLowerCase();
+  cmdkFiltered = CMDK_COMMANDS.filter(c=>c.label.toLowerCase().includes(f));
+  cmdkSel = 0;
+  renderCmdkList();
+}
+function closeCmdk(){ document.getElementById('cmdk-root').innerHTML=''; }
+document.addEventListener('keydown', e=>{
+  if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); openCmdk(); }
+  else if(e.key==='Escape'){ closeCmdk(); }
+  else if(document.getElementById('cmdk-input')){
+    if(e.key==='ArrowDown'){ e.preventDefault(); cmdkSel=Math.min(cmdkFiltered.length-1,cmdkSel+1); renderCmdkList(); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); cmdkSel=Math.max(0,cmdkSel-1); renderCmdkList(); }
+    else if(e.key==='Enter' && cmdkFiltered[cmdkSel]){ go(cmdkFiltered[cmdkSel].go); }
+  }
+});
+
+/* Init */
+function init(){
+  window._theme='dark';
+  document.getElementById('theme-icon').innerHTML = icon('moon',17);
+  document.getElementById('meta-search-icon').innerHTML = icon('search',15);
+  document.getElementById('cmdk-nav-icon').innerHTML = icon('search',14);
+  document.getElementById('crumb-icon').innerHTML = icon('chevronRight',12);
+  document.getElementById('mnav-toggle').innerHTML = icon('more',18);
+  renderNav();
+  renderScreen();
+}
+init();
+</script>
+</body>
+</html>

@@ -6,6 +6,8 @@ import { RouterProvider } from 'react-router-dom';
 
 import { ApiError } from '~/lib/api';
 
+import './styles/design-system.css';
+
 import { router } from './app/router';
 import { theme } from './theme';
 
@@ -29,7 +31,10 @@ if (!container) throw new Error('Root element missing from index.html');
 createRoot(container).render(
   <StrictMode>
     <ColorModeScript initialColorMode={theme.config.initialColorMode} />
-    <ChakraProvider theme={theme}>
+    {/* resetCSS off: the design system owns the base styles, and Chakra's
+        reset overrides them. Chakra stays only for the screens not yet
+        converted. */}
+    <ChakraProvider theme={theme} resetCSS={false}>
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
       </QueryClientProvider>

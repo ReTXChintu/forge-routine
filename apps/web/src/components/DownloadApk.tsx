@@ -1,5 +1,4 @@
-import { Box, Button, HStack, Text, VStack } from '@chakra-ui/react';
-import { FiDownload, FiSmartphone } from 'react-icons/fi';
+import { Icon } from './Icon';
 
 /**
  * The Android build, offered as a direct download.
@@ -9,85 +8,52 @@ import { FiDownload, FiSmartphone } from 'react-icons/fi';
  * on the sign-in screen where there is no token to send.
  *
  * `download` on a cross-origin URL is ignored by browsers, so the file is
- * referenced by an absolute path on this origin. If the APK is ever moved to
- * a CDN this will start opening the file instead of saving it, and the
- * attribute will need replacing with a Content-Disposition header at the
- * other end.
+ * referenced by an absolute path on this origin. If the APK ever moves to a
+ * CDN this will start opening the file instead of saving it, and the
+ * attribute will need replacing with a Content-Disposition header.
  */
 export const APK_URL = '/Forgeroutine.apk';
 
-export function DownloadApkButton({
-  variant = 'ghost',
-  size = 'xs',
-}: {
-  variant?: string;
-  size?: string;
-}) {
+export function DownloadApkButton() {
   return (
-    <Button
-      as="a"
-      href={APK_URL}
-      download
-      variant={variant}
-      size={size}
-      color="ink.400"
-      _hover={{ color: 'forge.400' }}
-      leftIcon={<Box as={FiDownload} />}
-    >
-      Android app
-    </Button>
+    <a className="btn btn-ghost btn-sm" href={APK_URL} download title="Download the Android app">
+      <Icon name="download" size={14} />
+      Android
+    </a>
   );
 }
 
 /**
  * The same download with an explanation, for the sign-in screen.
  *
- * Placed below the form and reachable without an account: someone deciding
- * whether this product is worth their evening should be able to look at it
- * on their phone first, and making them register to find out is the wrong
- * order.
+ * Reachable without an account: someone deciding whether this is worth their
+ * evening should be able to look at it on their phone first, and making them
+ * register to find out is the wrong order.
  */
 export function DownloadApkCard() {
   return (
-    <VStack
-      align="stretch"
-      spacing={2}
-      borderWidth="1px"
-      borderColor="surface.300"
-      borderRadius="md"
-      p={4}
-      mt={6}
-    >
-      <HStack spacing={2}>
-        <Box as={FiSmartphone} color="ink.400" fontSize="sm" />
-        <Text fontSize="sm" color="ink.200" fontWeight={500}>
-          Prefer your phone?
-        </Text>
-      </HStack>
+    <div className="card mt6">
+      <div className="row items-center g2 mb2">
+        <Icon name="smartphone" size={15} />
+        <span className="t-h4">Prefer your phone?</span>
+      </div>
 
-      <Text fontSize="xs" color="ink.500" lineHeight="1.6">
+      <div className="t-small mb3">
         The Android app covers today&apos;s work, reviews and interviews — including answering an
         interview out loud. Writing code stays at a desk.
-      </Text>
+      </div>
 
-      <Button
-        as="a"
-        href={APK_URL}
-        download
-        size="sm"
-        variant="outline"
-        mt={1}
-        leftIcon={<Box as={FiDownload} />}
-      >
+      <a className="btn btn-secondary btn-block" href={APK_URL} download>
+        <Icon name="download" size={15} />
         Download the APK
-      </Button>
+      </a>
 
-      {/* Said plainly. A browser will warn about this file and a user who was
-          not expecting the warning will assume something is wrong. */}
-      <Text fontSize="xs" color="ink.500">
+      {/* Said plainly. A browser will warn about this file, and a user who
+          was not expecting the warning assumes something is wrong. */}
+      <div className="field-hint mt3">
         Installing outside the Play Store means allowing your browser to install unknown apps. Your
         phone will ask.
-      </Text>
-    </VStack>
+      </div>
+    </div>
   );
 }

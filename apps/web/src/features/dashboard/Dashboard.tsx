@@ -1,283 +1,334 @@
-import {
-  Box,
-  Button,
-  Grid,
-  GridItem,
-  HStack,
-  Heading,
-  Progress,
-  Spinner,
-  Text,
-  VStack,
-} from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
 
-import type { IndependentCodingScore, WeakSkill } from '@forgeroutine/shared-types';
+import type { IndependentCodingScore } from '@forgeroutine/shared-types';
 
-import { useOverview } from '~/lib/queries';
-
-import { GenerationBanner } from '../roadmap/GenerationBanner';
+import { Icon } from '~/components/Icon';
+import {
+  Badge,
+  Button,
+  Card,
+  SectionHead,
+  SkillMeter,
+  Spinner,
+  StatRow,
+  StateBlock,
+  metricColor,
+} from '~/components/ui';
+import { useOverview, useRecallDue, useTodayRoutine } from '~/lib/queries';
 
 /**
- * The dashboard (§23): information-dense, no decorative charts.
+ * The dashboard, per design.html.
  *
- * Every number here is either actionable or diagnostic. The Independent Coding
- * Score is the headline because it is the one thing this product is for.
+ * Full width: a four-metric strip, then routine and skills side by side,
+ * then recent activity. Nothing is centred and nothing is capped — density
+ * comes from the grid.
+ *
+ * Every number here can be absent, and absent renders as a dash with a
+ * reason rather than as zero. A score the user has not earned is a lie they
+ * will act on.
  */
+
+const KIND_ICON: Record<string, string> = {
+  LEARN: 'learn',
+  RECALL: 'brain',
+  CODE: 'practice',
+  BLIND_CODE: 'eye',
+  DEBUG: 'bug',
+  EXPLAIN: 'interview',
+  PROJECT: 'layers',
+  CHECKPOINT: 'target',
+  REVIEW: 'refresh',
+  INTERVIEW: 'interview',
+};
+
 export function Dashboard() {
-  const { data, isLoading } = useOverview();
+  const { data, isLoading, error } = useOverview();
+  const { data: routine } = useTodayRoutine();
+  const { data: due } = useRecallDue();
   const navigate = useNavigate();
 
-  if (isLoading) {
+  if (isLoading) return <Spinner label="Loading your dashboard" />;
+
+  if (error || !data) {
     return (
-      <HStack justify="center" py={20}>
-        <Spinner color="forge.500" />
-      </HStack>
+      <StateBlock
+        icon="alert"
+        title="Could not load your dashboard"
+        body={error instanceof Error ? error.message : 'Something went wrong.'}
+      />
     );
   }
 
-  if (!data) return null;
+  const today = new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  const items = routine?.items ?? [];
 
   return (
-    <Box maxW="1200px" mx="auto" px={6} py={8}>
-      <Heading size="lg" mb={6} fontWeight={650}>
-        {data.greeting}
-      </Heading>
+    <>
+      <SectionHead
+        eyebrow={today}
+        title={data.greeting}
+        description={
+          data.nextAction
+            ? data.nextAction.rationale
+            : 'Nothing scheduled yet. Plan today to get started.'
+        }
+        right={
+          <Button
+            size="lg"
+            icon="play"
+            onClick={() => navigate(items.length > 0 ? '/today' : '/today')}
+          >
+            {items.length > 0 ? "Start Today's Routine" : 'Plan today'}
+          </Button>
+        }
+      />
 
-      <GenerationBanner />
+      <div className="grid grid-4 g4 mb6 cq-grid-4">
+        <Card>
+          <div className="t-caption mb2">Today&apos;s progress</div>
+          <div className="row items-end g2 mb2">
+            <span className="t-metric">{data.todayMinutesDone}</span>
+            <span className="t-caption" style={{ paddingBottom: 4 }}>
+              / {data.todayMinutesTarget} min
+            </span>
+          </div>
+          <SkillMeter
+            pct={
+              data.todayMinutesTarget > 0
+                ? (data.todayMinutesDone / data.todayMinutesTarget) * 100
+                : 0
+            }
+          />
+        </Card>
 
-      <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={4} mb={6}>
-        <Metric
-          label="Today"
-          value={`${data.todayMinutesDone} / ${data.todayMinutesTarget}`}
-          unit="min"
-          progress={
-            data.todayMinutesTarget > 0 ? data.todayMinutesDone / data.todayMinutesTarget : 0
-          }
-        />
         <IndependenceCard score={data.independence} />
-        <Metric
-          label="Interview readiness"
-          value={
-            data.interviewReadiness === null ? '—' : `${Math.round(data.interviewReadiness * 100)}%`
-          }
-          progress={data.interviewReadiness ?? 0}
-          muted={data.interviewReadiness === null}
-          note={data.interviewReadiness === null ? 'Not enough evidence yet' : undefined}
-        />
-      </Grid>
 
-      <Grid templateColumns={{ base: '1fr', lg: '2fr 1fr' }} gap={4}>
-        <GridItem>
-          <Panel title="Next">
-            {data.nextAction ? (
-              <VStack align="stretch" spacing={3}>
-                <Box>
-                  <Text fontSize="lg" fontWeight={600} color="ink.100">
-                    {data.nextAction.title}
-                  </Text>
-                  {/* The rationale is shown deliberately: an opaque recommendation
-                      is not a trusted one. */}
-                  <Text fontSize="sm" color="ink.400" mt={1}>
-                    {data.nextAction.rationale}
-                  </Text>
-                </Box>
-                <HStack>
-                  <Button
-                    isDisabled={!data.nextAction.exerciseId}
-                    onClick={() =>
-                      data.nextAction?.exerciseId &&
-                      navigate(`/exercise/${data.nextAction.exerciseId}`)
-                    }
-                  >
-                    Start · {data.nextAction.estimatedMinutes} min
-                  </Button>
-                  {data.nextAction.conceptId && (
-                    <Button
-                      variant="ghost"
-                      onClick={() => navigate(`/concept/${data.nextAction?.conceptId}`)}
-                    >
-                      Read first
-                    </Button>
-                  )}
-                </HStack>
-              </VStack>
-            ) : (
-              <VStack align="stretch" spacing={3}>
-                <Text fontSize="sm" color="ink.400">
-                  Nothing queued. Add a technology to start building a routine.
-                </Text>
-                <Button alignSelf="flex-start" onClick={() => navigate('/technologies')}>
-                  Add a technology
-                </Button>
-              </VStack>
-            )}
-          </Panel>
-        </GridItem>
-
-        <GridItem>
-          <Panel title="Weakest">
-            {data.weakestSkills.length === 0 ? (
-              <Text fontSize="sm" color="ink.500">
-                Practise something and this will fill in.
-              </Text>
-            ) : (
-              <VStack align="stretch" spacing={2}>
-                {data.weakestSkills.map((skill, index) => (
-                  <WeakSkillRow key={skill.conceptId} rank={index + 1} skill={skill} />
-                ))}
-              </VStack>
-            )}
-          </Panel>
-
-          {data.currentFocus.length > 0 && (
-            <Box mt={4}>
-              <Panel title="Current focus">
-                <Text fontSize="sm" color="ink.200">
-                  {data.currentFocus.join(' · ')}
-                </Text>
-              </Panel>
-            </Box>
+        <Card>
+          <div className="t-caption mb2">Interview readiness</div>
+          {data.interviewReadiness === null ? (
+            <>
+              <div className="t-metric" style={{ color: 'var(--text-muted)' }}>
+                —
+              </div>
+              <div className="t-caption mt1">Not enough practice yet</div>
+            </>
+          ) : (
+            <>
+              <div
+                className="t-metric"
+                style={{ color: metricColor(data.interviewReadiness * 100) }}
+              >
+                {Math.round(data.interviewReadiness * 100)}%
+              </div>
+              <div className="t-caption mt1">Across your active technologies</div>
+            </>
           )}
-        </GridItem>
-      </Grid>
-    </Box>
+        </Card>
+
+        <Card>
+          <div className="t-caption mb2">Due for review</div>
+          <div className="row items-center g2">
+            <span
+              className="t-metric"
+              style={{ color: (due?.length ?? 0) > 0 ? 'var(--warning)' : 'var(--text-primary)' }}
+            >
+              {due?.length ?? 0}
+            </span>
+            <Icon name="refresh" size={20} />
+          </div>
+          <div className="t-caption mt1">
+            {(due?.length ?? 0) === 0 ? 'Nothing fading today' : 'concepts starting to fade'}
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid grid-2 g5 mb6 cq-stack">
+        <Card>
+          <div className="row justify-between items-center mb4">
+            <span className="t-h3">Today&apos;s routine</span>
+            <a
+              className="t-caption text-primary-c"
+              style={{ cursor: 'pointer' }}
+              onClick={() => navigate('/today')}
+            >
+              View the full day
+            </a>
+          </div>
+
+          {items.length === 0 ? (
+            <div className="t-small">
+              Nothing planned yet. Today&apos;s work is a slice of your roadmap, weighted towards
+              anything due for review.
+            </div>
+          ) : (
+            <div className="col g1">
+              {items.map((item) => {
+                const done = item.status === 'DONE';
+                const active = item.status === 'IN_PROGRESS';
+
+                return (
+                  <div
+                    key={item.id}
+                    className="row items-center g3 p3"
+                    style={{
+                      borderRadius: 'var(--r-md)',
+                      cursor: 'pointer',
+                      background: active ? 'var(--primary-subtle)' : undefined,
+                    }}
+                    onClick={() => navigate('/today')}
+                  >
+                    <div
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 8,
+                        flexShrink: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: done ? 'var(--success-subtle)' : 'var(--surface-2)',
+                        color: done ? 'var(--success)' : 'var(--text-secondary)',
+                      }}
+                    >
+                      <Icon
+                        name={done ? 'check' : (KIND_ICON[item.kind] ?? 'practice')}
+                        size={15}
+                      />
+                    </div>
+
+                    <div className="flex-1">
+                      <div className="t-h4" style={{ fontSize: 13.5 }}>
+                        {item.title}
+                      </div>
+                      <div className="t-caption">
+                        {item.kind} · {item.minutes} min
+                      </div>
+                    </div>
+
+                    {active && <Badge variant="primary">In progress</Badge>}
+                    {done && <Badge variant="success">Done</Badge>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
+        <div className="col g5">
+          <Card>
+            <div className="t-h3 mb3">Current focus</div>
+            {data.currentFocus.length === 0 ? (
+              <div className="t-small">Nothing in progress yet.</div>
+            ) : (
+              <div className="row g2 wrap">
+                {data.currentFocus.map((name) => (
+                  <Badge key={name} variant="primary">
+                    {name}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <div className="t-h3 mb3">Weakest skills</div>
+            {data.weakestSkills.length === 0 ? (
+              <div className="t-small">
+                Not enough evidence yet. This fills in once you have practised a few concepts.
+              </div>
+            ) : (
+              <div className="col g3">
+                {data.weakestSkills.map((skill) => (
+                  <StatRow
+                    key={skill.conceptId}
+                    label={`${skill.conceptName} · ${skill.technologyName}`}
+                    pct={skill.value * 100}
+                  />
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
+
+      {data.nextAction && (
+        <Card>
+          <div className="t-h3 mb3">Recommended next</div>
+          <div className="row items-center justify-between g4 wrap">
+            <div>
+              <div className="t-h4">{data.nextAction.title}</div>
+              {/* The reason is always shown. An opaque recommendation is not
+                  a trusted one. */}
+              <div className="t-small mt1">{data.nextAction.rationale}</div>
+            </div>
+            <div className="row items-center g3">
+              <span className="t-caption">~{data.nextAction.estimatedMinutes} min</span>
+              <Button
+                variant="secondary"
+                icon="arrowRight"
+                onClick={() => {
+                  const action = data.nextAction!;
+                  if (action.exerciseId) navigate(`/exercise/${action.exerciseId}`);
+                  else if (action.conceptId) navigate(`/concept/${action.conceptId}`);
+                  else navigate('/today');
+                }}
+              >
+                Open
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+    </>
   );
 }
 
+/**
+ * `INSUFFICIENT_DATA` renders as a dash and a reason, never as 0%.
+ *
+ * The oldest rule in this product: a score we have not earned the right to
+ * show is a number the user will act on.
+ */
 function IndependenceCard({ score }: { score: IndependentCodingScore }) {
-  const insufficient = score.status === 'INSUFFICIENT_DATA';
+  const ready = score.status === 'OK' && score.score !== null;
+  const delta = score.deltaFromPreviousWindow;
 
   return (
-    <Box bg="surface.100" borderWidth="1px" borderColor="surface.300" borderRadius="lg" p={4}>
-      <Text fontSize="xs" color="ink.400" letterSpacing="0.06em" mb={2}>
-        INDEPENDENT CODING
-      </Text>
+    <Card>
+      <div className="t-caption mb2">Independent coding score</div>
 
-      {insufficient ? (
+      {ready ? (
         <>
-          <Text fontSize="2xl" fontWeight={650} color="ink.500" fontFamily="mono">
-            —
-          </Text>
-          {/* Showing a new user "12%" would be both wrong and demoralising. */}
-          <Text fontSize="xs" color="ink.500" mt={1}>
-            {score.attemptsConsidered} of 5 attempts needed
-          </Text>
+          <div className="t-metric" style={{ color: metricColor(score.score! * 100) }}>
+            {Math.round(score.score! * 100)}%
+          </div>
+          {delta !== null && delta !== undefined ? (
+            <div
+              className="t-caption mt1"
+              style={{ color: delta >= 0 ? 'var(--success)' : 'var(--warning)' }}
+            >
+              <Icon name="trend" size={11} /> {delta >= 0 ? '+' : ''}
+              {Math.round(delta * 100)}% this window
+            </div>
+          ) : (
+            <div className="t-caption mt1">From {score.attemptsConsidered} attempts</div>
+          )}
         </>
       ) : (
         <>
-          <HStack align="baseline" spacing={2}>
-            <Text fontSize="3xl" fontWeight={700} color="forge.500" fontFamily="mono">
-              {Math.round((score.score ?? 0) * 100)}%
-            </Text>
-            {score.deltaFromPreviousWindow !== null && score.deltaFromPreviousWindow !== 0 && (
-              <Text
-                fontSize="sm"
-                fontFamily="mono"
-                color={score.deltaFromPreviousWindow > 0 ? 'pass' : 'fail'}
-              >
-                {score.deltaFromPreviousWindow > 0 ? '+' : ''}
-                {score.deltaFromPreviousWindow.toFixed(1)}
-              </Text>
-            )}
-          </HStack>
-          <Progress
-            value={(score.score ?? 0) * 100}
-            size="xs"
-            mt={2}
-            borderRadius="sm"
-            sx={{ '& > div': { bg: 'forge.500' } }}
-          />
-          <Text fontSize="xs" color="ink.500" mt={1}>
-            Last {score.windowDays} days · {score.attemptsConsidered} attempts
-          </Text>
+          <div className="t-metric" style={{ color: 'var(--text-muted)' }}>
+            —
+          </div>
+          <div className="t-caption mt1">
+            {score.attemptsConsidered} attempts so far — too few to mean anything
+          </div>
         </>
       )}
-    </Box>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  unit,
-  progress,
-  muted,
-  note,
-}: {
-  label: string;
-  value: string;
-  unit?: string;
-  progress: number;
-  muted?: boolean;
-  note?: string;
-}) {
-  return (
-    <Box bg="surface.100" borderWidth="1px" borderColor="surface.300" borderRadius="lg" p={4}>
-      <Text fontSize="xs" color="ink.400" letterSpacing="0.06em" mb={2}>
-        {label.toUpperCase()}
-      </Text>
-      <HStack align="baseline" spacing={1}>
-        <Text
-          fontSize="2xl"
-          fontWeight={650}
-          color={muted ? 'ink.500' : 'ink.100'}
-          fontFamily="mono"
-        >
-          {value}
-        </Text>
-        {unit && (
-          <Text fontSize="sm" color="ink.500">
-            {unit}
-          </Text>
-        )}
-      </HStack>
-      {!muted && (
-        <Progress
-          value={Math.min(100, progress * 100)}
-          size="xs"
-          mt={2}
-          borderRadius="sm"
-          sx={{ '& > div': { bg: 'ink.300' } }}
-        />
-      )}
-      {note && (
-        <Text fontSize="xs" color="ink.500" mt={1}>
-          {note}
-        </Text>
-      )}
-    </Box>
-  );
-}
-
-function WeakSkillRow({ rank, skill }: { rank: number; skill: WeakSkill }) {
-  return (
-    <HStack spacing={3} align="flex-start">
-      <Text fontSize="sm" color="ink.500" fontFamily="mono" w="16px">
-        {rank}
-      </Text>
-      <Box flex="1" minW={0}>
-        <Text fontSize="sm" color="ink.200" noOfLines={1}>
-          {skill.conceptName}
-        </Text>
-        <Text fontSize="xs" color="ink.500">
-          {skill.technologyName}
-        </Text>
-      </Box>
-      <Text fontSize="sm" color="fail" fontFamily="mono">
-        {Math.round(skill.value * 100)}%
-      </Text>
-    </HStack>
-  );
-}
-
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <Box bg="surface.100" borderWidth="1px" borderColor="surface.300" borderRadius="lg" p={4}>
-      <Text fontSize="xs" color="ink.400" letterSpacing="0.06em" mb={3}>
-        {title.toUpperCase()}
-      </Text>
-      {children}
-    </Box>
+    </Card>
   );
 }

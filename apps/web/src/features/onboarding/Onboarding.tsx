@@ -106,214 +106,234 @@ export function Onboarding() {
   const canContinue = step === 0 ? selected.length > 0 : true;
 
   return (
-    <Box minH="100vh" bg="surface.0" py={10} px={4}>
-      <Box maxW="720px" mx="auto">
-        <Image src={fullLogo} alt="ForgeRoutine" maxW="200px" mx="auto" mb={8} />
+    <Box minH="100vh" bg="surface.0" display="flex" flexDirection="column">
+      {/* Full-bleed header and progress bar, per the prototype's setup
+          shell. The form inside stays readable at 560px — a question with
+          four options does not get better at 1600px wide — but the chrome
+          around it uses the whole screen. */}
+      <Box
+        px={10}
+        py={5}
+        borderBottomWidth="1px"
+        borderColor="surface.300"
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+      >
+        <Image src={fullLogo} alt="ForgeRoutine" maxW="150px" />
+        <Text fontSize="xs" color="ink.500">
+          Step {step + 1} of 4
+        </Text>
+      </Box>
 
-        <Progress
-          value={((step + 1) / 4) * 100}
-          size="xs"
-          mb={8}
-          borderRadius="sm"
-          sx={{ '& > div': { bg: 'forge.500' } }}
-        />
+      <Progress
+        value={((step + 1) / 4) * 100}
+        size="xs"
+        borderRadius={0}
+        sx={{ '& > div': { bg: 'forge.500' } }}
+      />
 
-        {step === 0 && (
-          <StepShell
-            title="What do you want to get better at?"
-            subtitle="Pick as many as you like. You can add more at any time."
-          >
-            <Input
-              placeholder="Search technologies…"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              mb={4}
-            />
+      <Box flex="1" overflowY="auto" px={10} py={12} display="flex" justifyContent="center">
+        <Box maxW="560px" w="100%">
+          {step === 0 && (
+            <StepShell
+              title="What do you want to get better at?"
+              subtitle="Pick as many as you like. You can add more at any time."
+            >
+              <Input
+                placeholder="Search technologies…"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                mb={4}
+              />
 
-            <Grid templateColumns={{ base: '1fr', sm: 'repeat(2, 1fr)' }} gap={2}>
-              {(catalogue ?? []).map((technology) => {
-                const isSelected = selectedIds.has(technology.id);
-                return (
+              <Grid templateColumns={{ base: '1fr', sm: 'repeat(2, 1fr)' }} gap={2}>
+                {(catalogue ?? []).map((technology) => {
+                  const isSelected = selectedIds.has(technology.id);
+                  return (
+                    <Button
+                      key={technology.id}
+                      variant="outline"
+                      justifyContent="flex-start"
+                      h="auto"
+                      py={3}
+                      px={3}
+                      borderColor={isSelected ? 'forge.500' : 'surface.400'}
+                      bg={isSelected ? 'surface.200' : 'transparent'}
+                      onClick={() => toggle(technology.id, technology.name)}
+                    >
+                      <HStack w="100%" spacing={3}>
+                        <Box
+                          w="16px"
+                          h="16px"
+                          borderRadius="sm"
+                          borderWidth="1px"
+                          borderColor={isSelected ? 'forge.500' : 'surface.400'}
+                          bg={isSelected ? 'forge.500' : 'transparent'}
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          flexShrink={0}
+                        >
+                          {isSelected && <FiCheck size={11} color="#0B0C0E" />}
+                        </Box>
+                        <Box textAlign="left" minW={0}>
+                          <Text fontSize="sm" color="ink.100" noOfLines={1}>
+                            {technology.name}
+                          </Text>
+                          <Text fontSize="xs" color="ink.500" fontWeight={400}>
+                            {technology.category}
+                          </Text>
+                        </Box>
+                      </HStack>
+                    </Button>
+                  );
+                })}
+              </Grid>
+            </StepShell>
+          )}
+
+          {step === 1 && (
+            <StepShell
+              title="Where are you now?"
+              subtitle="Roughly is fine. This stops you being taught things you already know."
+            >
+              <VStack align="stretch" spacing={5}>
+                {selected.map((technology) => (
+                  <Box key={technology.technologyId}>
+                    <Text fontSize="sm" color="ink.100" mb={2} fontWeight={600}>
+                      {technology.name}
+                    </Text>
+                    <Grid templateColumns={{ base: '1fr 1fr', md: 'repeat(4, 1fr)' }} gap={2}>
+                      {KNOWLEDGE_LEVELS.map((level) => (
+                        <Button
+                          key={level.value}
+                          size="sm"
+                          variant="outline"
+                          h="auto"
+                          py={2}
+                          borderColor={
+                            technology.existingKnowledge === level.value
+                              ? 'forge.500'
+                              : 'surface.400'
+                          }
+                          onClick={() => setKnowledge(technology.technologyId, level.value)}
+                        >
+                          <Box textAlign="left" w="100%">
+                            <Text fontSize="xs" color="ink.200">
+                              {level.label}
+                            </Text>
+                            <Text fontSize="xs" color="ink.500" fontWeight={400}>
+                              {level.hint}
+                            </Text>
+                          </Box>
+                        </Button>
+                      ))}
+                    </Grid>
+                  </Box>
+                ))}
+              </VStack>
+            </StepShell>
+          )}
+
+          {step === 2 && (
+            <StepShell
+              title="How much time per day?"
+              subtitle="Be honest rather than ambitious. A plan you skip is worse than a small one you keep."
+            >
+              <Grid templateColumns={{ base: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' }} gap={2}>
+                {TIMES.map((minutes) => (
                   <Button
-                    key={technology.id}
+                    key={minutes}
+                    variant="outline"
+                    h="auto"
+                    py={4}
+                    borderColor={dailyMinutes === minutes ? 'forge.500' : 'surface.400'}
+                    onClick={() => setDailyMinutes(minutes)}
+                  >
+                    <Box>
+                      <Text fontSize="lg" color="ink.100" fontFamily="mono">
+                        {minutes}
+                      </Text>
+                      <Text fontSize="xs" color="ink.500" fontWeight={400}>
+                        min
+                      </Text>
+                    </Box>
+                  </Button>
+                ))}
+              </Grid>
+            </StepShell>
+          )}
+
+          {step === 3 && (
+            <StepShell title="What is this for?" subtitle="This changes the order of everything.">
+              <VStack align="stretch" spacing={2}>
+                {GOALS.map((goal) => (
+                  <Button
+                    key={goal.value}
                     variant="outline"
                     justifyContent="flex-start"
                     h="auto"
                     py={3}
-                    px={3}
-                    borderColor={isSelected ? 'forge.500' : 'surface.400'}
-                    bg={isSelected ? 'surface.200' : 'transparent'}
-                    onClick={() => toggle(technology.id, technology.name)}
+                    borderColor={primaryGoal === goal.value ? 'forge.500' : 'surface.400'}
+                    onClick={() => setPrimaryGoal(goal.value)}
                   >
-                    <HStack w="100%" spacing={3}>
-                      <Box
-                        w="16px"
-                        h="16px"
-                        borderRadius="sm"
-                        borderWidth="1px"
-                        borderColor={isSelected ? 'forge.500' : 'surface.400'}
-                        bg={isSelected ? 'forge.500' : 'transparent'}
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        flexShrink={0}
-                      >
-                        {isSelected && <FiCheck size={11} color="#0B0C0E" />}
-                      </Box>
-                      <Box textAlign="left" minW={0}>
-                        <Text fontSize="sm" color="ink.100" noOfLines={1}>
-                          {technology.name}
-                        </Text>
-                        <Text fontSize="xs" color="ink.500" fontWeight={400}>
-                          {technology.category}
-                        </Text>
-                      </Box>
-                    </HStack>
+                    <Box textAlign="left">
+                      <Text fontSize="sm" color="ink.100">
+                        {goal.label}
+                      </Text>
+                      <Text fontSize="xs" color="ink.500" fontWeight={400}>
+                        {goal.hint}
+                      </Text>
+                    </Box>
                   </Button>
-                );
-              })}
-            </Grid>
-          </StepShell>
-        )}
+                ))}
 
-        {step === 1 && (
-          <StepShell
-            title="Where are you now?"
-            subtitle="Roughly is fine. This stops you being taught things you already know."
-          >
-            <VStack align="stretch" spacing={5}>
-              {selected.map((technology) => (
-                <Box key={technology.technologyId}>
-                  <Text fontSize="sm" color="ink.100" mb={2} fontWeight={600}>
-                    {technology.name}
-                  </Text>
-                  <Grid templateColumns={{ base: '1fr 1fr', md: 'repeat(4, 1fr)' }} gap={2}>
-                    {KNOWLEDGE_LEVELS.map((level) => (
-                      <Button
-                        key={level.value}
-                        size="sm"
-                        variant="outline"
-                        h="auto"
-                        py={2}
-                        borderColor={
-                          technology.existingKnowledge === level.value ? 'forge.500' : 'surface.400'
-                        }
-                        onClick={() => setKnowledge(technology.technologyId, level.value)}
-                      >
-                        <Box textAlign="left" w="100%">
-                          <Text fontSize="xs" color="ink.200">
-                            {level.label}
-                          </Text>
-                          <Text fontSize="xs" color="ink.500" fontWeight={400}>
-                            {level.hint}
-                          </Text>
-                        </Box>
-                      </Button>
-                    ))}
-                  </Grid>
-                </Box>
-              ))}
-            </VStack>
-          </StepShell>
-        )}
-
-        {step === 2 && (
-          <StepShell
-            title="How much time per day?"
-            subtitle="Be honest rather than ambitious. A plan you skip is worse than a small one you keep."
-          >
-            <Grid templateColumns={{ base: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' }} gap={2}>
-              {TIMES.map((minutes) => (
-                <Button
-                  key={minutes}
-                  variant="outline"
-                  h="auto"
-                  py={4}
-                  borderColor={dailyMinutes === minutes ? 'forge.500' : 'surface.400'}
-                  onClick={() => setDailyMinutes(minutes)}
-                >
-                  <Box>
-                    <Text fontSize="lg" color="ink.100" fontFamily="mono">
-                      {minutes}
+                {(primaryGoal === 'INTERVIEW' || primaryGoal === 'JOB_PREPARATION') && (
+                  <Box pt={3}>
+                    <Text fontSize="xs" color="ink.400" mb={1}>
+                      Interview date, if you have one
                     </Text>
-                    <Text fontSize="xs" color="ink.500" fontWeight={400}>
-                      min
-                    </Text>
+                    <Input
+                      type="date"
+                      value={interviewDate}
+                      onChange={(event) => setInterviewDate(event.target.value)}
+                      maxW="200px"
+                    />
                   </Box>
-                </Button>
-              ))}
-            </Grid>
-          </StepShell>
-        )}
+                )}
+              </VStack>
+            </StepShell>
+          )}
 
-        {step === 3 && (
-          <StepShell title="What is this for?" subtitle="This changes the order of everything.">
-            <VStack align="stretch" spacing={2}>
-              {GOALS.map((goal) => (
+          <HStack justify="space-between" mt={8}>
+            <Button
+              variant="ghost"
+              onClick={() => setStep((s) => Math.max(0, s - 1) as Step)}
+              isDisabled={step === 0}
+            >
+              Back
+            </Button>
+
+            <HStack spacing={2}>
+              <Text fontSize="xs" color="ink.500">
+                {step + 1} of 4
+              </Text>
+              {step < 3 ? (
                 <Button
-                  key={goal.value}
-                  variant="outline"
-                  justifyContent="flex-start"
-                  h="auto"
-                  py={3}
-                  borderColor={primaryGoal === goal.value ? 'forge.500' : 'surface.400'}
-                  onClick={() => setPrimaryGoal(goal.value)}
+                  onClick={() => setStep((s) => Math.min(3, s + 1) as Step)}
+                  isDisabled={!canContinue}
                 >
-                  <Box textAlign="left">
-                    <Text fontSize="sm" color="ink.100">
-                      {goal.label}
-                    </Text>
-                    <Text fontSize="xs" color="ink.500" fontWeight={400}>
-                      {goal.hint}
-                    </Text>
-                  </Box>
+                  Continue
                 </Button>
-              ))}
-
-              {(primaryGoal === 'INTERVIEW' || primaryGoal === 'JOB_PREPARATION') && (
-                <Box pt={3}>
-                  <Text fontSize="xs" color="ink.400" mb={1}>
-                    Interview date, if you have one
-                  </Text>
-                  <Input
-                    type="date"
-                    value={interviewDate}
-                    onChange={(event) => setInterviewDate(event.target.value)}
-                    maxW="200px"
-                  />
-                </Box>
+              ) : (
+                <Button onClick={() => void finish()} isLoading={completeOnboarding.isPending}>
+                  Build my roadmap
+                </Button>
               )}
-            </VStack>
-          </StepShell>
-        )}
-
-        <HStack justify="space-between" mt={8}>
-          <Button
-            variant="ghost"
-            onClick={() => setStep((s) => Math.max(0, s - 1) as Step)}
-            isDisabled={step === 0}
-          >
-            Back
-          </Button>
-
-          <HStack spacing={2}>
-            <Text fontSize="xs" color="ink.500">
-              {step + 1} of 4
-            </Text>
-            {step < 3 ? (
-              <Button
-                onClick={() => setStep((s) => Math.min(3, s + 1) as Step)}
-                isDisabled={!canContinue}
-              >
-                Continue
-              </Button>
-            ) : (
-              <Button onClick={() => void finish()} isLoading={completeOnboarding.isPending}>
-                Build my roadmap
-              </Button>
-            )}
+            </HStack>
           </HStack>
-        </HStack>
+        </Box>
       </Box>
     </Box>
   );

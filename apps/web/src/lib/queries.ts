@@ -211,6 +211,8 @@ export interface GenerationJobView {
 export interface GenerationStatusView {
   active: boolean;
   partial: boolean;
+  /** In the plan but not started. Costs nothing; never counts as active. */
+  waiting: number;
   jobs: GenerationJobView[];
 }
 

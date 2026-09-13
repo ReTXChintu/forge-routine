@@ -39,7 +39,7 @@ export function ChallengeList() {
   const groups: ChallengeKind[] = ['SYSTEM_DESIGN', 'INCIDENT', 'TERMINAL'];
 
   return (
-    <Box maxW="820px" mx="auto" px={6} py={8}>
+    <Box>
       <Heading size="md" color="ink.100" mb={1}>
         Engineering
       </Heading>

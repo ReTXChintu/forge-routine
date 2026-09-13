@@ -76,7 +76,7 @@ export function InterviewGuide() {
   };
 
   return (
-    <Box maxW="820px" mx="auto" px={6} py={8}>
+    <Box>
       <Heading size="md" color="ink.100" mb={1}>
         Interview readiness
       </Heading>

@@ -64,7 +64,7 @@ export function ProjectWorkspace() {
 
   if (!project) {
     return (
-      <Box maxW="640px" mx="auto" px={6} py={20} textAlign="center">
+      <Box py={20} textAlign="center">
         <Text fontSize="sm" color="ink.400">
           This project could not be loaded.
         </Text>

@@ -1,22 +1,10 @@
-import {
-  Box,
-  Button,
-  Grid,
-  HStack,
-  Heading,
-  IconButton,
-  Input,
-  Spinner,
-  Text,
-  VStack,
-  useToast,
-} from '@chakra-ui/react';
 import { useState } from 'react';
-import { FiPlus, FiX } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 import type { UserTechnology } from '@forgeroutine/shared-types';
 
+import { Icon } from '~/components/Icon';
+import { Badge, Button, Card, SectionHead, Spinner, StateBlock } from '~/components/ui';
 import {
   useAddTechnology,
   useArchiveTechnology,
@@ -27,9 +15,13 @@ import {
 /**
  * Technology management (§25).
  *
- * The user owns their learning universe. Anything in the catalogue can be added,
- * and anything *not* in the catalogue can be created by typing its name — Rust
- * today, Kubernetes next week, with no release in between (§41).
+ * The user owns their learning universe. Anything in the catalogue can be
+ * added, and anything *not* in the catalogue can be created by typing its
+ * name — Rust today, Kubernetes next week, with no release in between
+ * (§41).
+ *
+ * Full width: owned technologies as a grid, the catalogue beneath it as
+ * another. Both scale with the window rather than sitting in a column.
  */
 export function Technologies() {
   const [search, setSearch] = useState('');
@@ -37,7 +29,6 @@ export function Technologies() {
   const { data: catalogue } = useCatalogue(search);
   const addTechnology = useAddTechnology();
   const archive = useArchiveTechnology();
-  const toast = useToast();
   const navigate = useNavigate();
 
   const ownedIds = new Set((mine ?? []).map((t) => t.technologyId));
@@ -47,101 +38,88 @@ export function Technologies() {
   );
   const canCreate = search.trim().length > 1 && !exactMatch;
 
-  const add = async (input: { technologyId?: string; name?: string }, label: string) => {
+  const add = async (input: { technologyId?: string; name?: string }) => {
     await addTechnology.mutateAsync(input);
-    toast({
-      title: `${label} added`,
-      description: 'Curriculum, prerequisites and exercises are ready.',
-      status: 'success',
-      duration: 4000,
-      position: 'bottom-right',
-    });
     setSearch('');
   };
 
-  return (
-    <Box maxW="1000px" mx="auto" px={6} py={8}>
-      <Heading size="lg" mb={1} fontWeight={650}>
-        My technologies
-      </Heading>
-      <Text fontSize="sm" color="ink.400" mb={6}>
-        Add anything. Removing keeps your history.
-      </Text>
+  if (isLoading) return <Spinner label="Loading your technologies" />;
 
-      {isLoading ? (
-        <HStack justify="center" py={12}>
-          <Spinner color="forge.500" />
-        </HStack>
+  return (
+    <>
+      <SectionHead
+        eyebrow="Technologies"
+        title="My technologies"
+        description="Add anything. Removing one keeps your history — skill data is never destroyed."
+      />
+
+      {(mine ?? []).length === 0 ? (
+        <StateBlock
+          icon="tech"
+          title="Nothing added yet"
+          body="Pick from the catalogue below, or type a name to add something that is not there."
+        />
       ) : (
-        <VStack align="stretch" spacing={2} mb={8}>
-          {(mine ?? []).length === 0 && (
-            <Text fontSize="sm" color="ink.500">
-              Nothing yet. Add one below.
-            </Text>
-          )}
+        <div className="grid grid-4 g3 mb7 cq-grid-4">
           {(mine ?? []).map((item) => (
-            <TechnologyRow
+            <OwnedCard
               key={item.id}
               item={item}
               onOpen={() => navigate(`/technology/${item.technologyId}`)}
-              onRemove={() => archive.mutate(item.id)}
+              onRemove={() => archive.mutate(item.technologyId)}
             />
           ))}
-        </VStack>
+        </div>
       )}
 
-      <Box borderTopWidth="1px" borderColor="surface.300" pt={6}>
-        <Text fontSize="xs" color="ink.400" letterSpacing="0.06em" mb={3}>
-          ADD A TECHNOLOGY
-        </Text>
+      <div className="row justify-between items-end mb4 g4 wrap">
+        <div>
+          <div className="t-h3">Add a technology</div>
+          <div className="t-small mt1">
+            Curriculum is generated on demand, one technology at a time, in learning order.
+          </div>
+        </div>
 
-        <Input
-          placeholder="Search, or type anything — Rust, Kubernetes, Terraform…"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          mb={3}
-        />
-
-        {canCreate && (
-          <Button
-            leftIcon={<FiPlus />}
-            mb={3}
-            isLoading={addTechnology.isPending}
-            onClick={() => void add({ name: search.trim() }, search.trim())}
-          >
-            Add “{search.trim()}”
-          </Button>
-        )}
-
-        <Grid templateColumns={{ base: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }} gap={2}>
-          {available.slice(0, 24).map((technology) => (
+        <div className="row g2" style={{ minWidth: 280 }}>
+          <input
+            className="input"
+            placeholder="Search or type a new name…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          {canCreate && (
             <Button
-              key={technology.id}
-              variant="outline"
-              justifyContent="flex-start"
-              h="auto"
-              py={2}
-              px={3}
-              isLoading={addTechnology.isPending}
-              onClick={() => void add({ technologyId: technology.id }, technology.name)}
+              icon="plus"
+              onClick={() => void add({ name: search.trim() })}
+              disabled={addTechnology.isPending}
             >
-              <Box textAlign="left" w="100%" minW={0}>
-                <Text fontSize="sm" color="ink.200" noOfLines={1}>
-                  {technology.name}
-                </Text>
-                <Text fontSize="xs" color="ink.500" fontWeight={400} noOfLines={1}>
-                  {technology.category}
-                </Text>
-              </Box>
+              Add “{search.trim()}”
             </Button>
-          ))}
-        </Grid>
-      </Box>
-    </Box>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-4 g3 cq-grid-4">
+        {available.map((technology) => (
+          <Card key={technology.id} hover onClick={() => void add({ technologyId: technology.id })}>
+            <div className="row items-center justify-between mb2">
+              <Icon name={iconFor(technology.category)} size={17} />
+              <Icon name="plus" size={14} />
+            </div>
+            <div className="t-h4">{technology.name}</div>
+            <div className="t-caption mt1">{technology.category}</div>
+          </Card>
+        ))}
+      </div>
+
+      {available.length === 0 && !canCreate && (
+        <div className="t-small">Everything in the catalogue is already yours.</div>
+      )}
+    </>
   );
 }
 
-function TechnologyRow({
+function OwnedCard({
   item,
   onOpen,
   onRemove,
@@ -150,39 +128,62 @@ function TechnologyRow({
   onOpen: () => void;
   onRemove: () => void;
 }) {
-  return (
-    <HStack
-      bg="surface.100"
-      borderWidth="1px"
-      borderColor="surface.300"
-      borderRadius="md"
-      px={4}
-      py={3}
-      spacing={4}
-      _hover={{ borderColor: 'surface.400' }}
-      cursor="pointer"
-      onClick={onOpen}
-    >
-      <Box flex="1" minW={0}>
-        <Text fontSize="sm" color="ink.100" fontWeight={600}>
-          {item.technology?.name ?? 'Unknown'}
-        </Text>
-        <Text fontSize="xs" color="ink.500">
-          {item.priority.toLowerCase()} priority · target {item.targetProficiency.toLowerCase()}
-          {item.status === 'PAUSED' && ' · paused'}
-        </Text>
-      </Box>
+  const paused = item.status === 'PAUSED';
 
-      <IconButton
-        aria-label={`Remove ${item.technology?.name ?? 'technology'}`}
-        icon={<FiX />}
-        variant="ghost"
-        size="xs"
-        onClick={(event) => {
-          event.stopPropagation();
-          onRemove();
-        }}
-      />
-    </HStack>
+  return (
+    <Card hover style={{ opacity: paused ? 0.6 : 1 }}>
+      <div className="row items-start justify-between mb3">
+        <div className="row items-center g2" style={{ cursor: 'pointer' }} onClick={onOpen}>
+          <Icon name={iconFor(item.technology?.category)} size={17} />
+          <span className="t-h4">{item.technology?.name ?? 'Unknown'}</span>
+        </div>
+
+        <button
+          type="button"
+          className="icon-btn"
+          style={{ width: 24, height: 24 }}
+          onClick={onRemove}
+          title={`Remove ${item.technology?.name ?? 'technology'}`}
+        >
+          <Icon name="x" size={13} />
+        </button>
+      </div>
+
+      <div className="row g2 wrap">
+        <Badge variant={item.priority === 'CRITICAL' ? 'primary' : 'neutral'}>
+          {item.priority.toLowerCase()}
+        </Badge>
+        <Badge variant="neutral">{item.targetProficiency.toLowerCase()}</Badge>
+        {paused && <Badge variant="warning">paused</Badge>}
+      </div>
+
+      <div className="t-caption mt3">Interview weight {item.interviewImportance}/5</div>
+    </Card>
   );
+}
+
+/** Category to icon. Falls back rather than guessing at an unknown category. */
+function iconFor(category: string | undefined): string {
+  switch (category) {
+    case 'language':
+      return 'code';
+    case 'runtime':
+    case 'backend':
+      return 'cpu';
+    case 'frontend':
+      return 'layers';
+    case 'database':
+      return 'database';
+    case 'devops':
+    case 'infrastructure':
+      return 'zap';
+    case 'systems':
+      return 'monitor';
+    case 'tooling':
+      return 'git';
+    case 'architecture':
+      return 'layers';
+    default:
+      return 'tech';
+  }
 }

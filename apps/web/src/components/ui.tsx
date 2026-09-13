@@ -210,3 +210,30 @@ export function Spinner({ label }: { label?: string }) {
     </div>
   );
 }
+
+/**
+ * Marks a number that comes from the prototype rather than from the user.
+ *
+ * Some screens in design.html show data the backend does not produce yet.
+ * Rather than leave a hole or quietly imply the figure is real, the figure
+ * is shown and labelled. The label is not decoration: this product's whole
+ * argument is that it never shows a score it has not earned, and an
+ * unmarked placeholder would break that in the one place it matters most.
+ *
+ * Every one of these is a to-do. When the endpoint lands, the note goes.
+ */
+export function StaticNote({
+  children = 'Static figure — not your data yet',
+}: {
+  children?: string;
+}) {
+  return (
+    <div
+      className="t-caption mt1"
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, opacity: 0.75 }}
+    >
+      <Icon name="info" size={11} />
+      {children}
+    </div>
+  );
+}

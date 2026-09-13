@@ -1,28 +1,30 @@
-import {
-  Badge,
-  Box,
-  Button,
-  HStack,
-  Heading,
-  Icon,
-  Progress,
-  Spinner,
-  Text,
-  VStack,
-} from '@chakra-ui/react';
-import { FiCheck, FiClock, FiPlay } from 'react-icons/fi';
 import { Navigate, useNavigate } from 'react-router-dom';
 
-import { useRegenerateRoadmap, useRoadmap, useUpdateRoadmapItem } from '~/lib/queries';
+import { Icon } from '~/components/Icon';
+import {
+  Badge,
+  Button,
+  Card,
+  ProgressBar,
+  SectionHead,
+  Spinner,
+  type BadgeVariant,
+} from '~/components/ui';
+import {
+  useRegenerateRoadmap,
+  useRoadmap,
+  useUpdateRoadmapItem,
+  type RoadmapItemView,
+} from '~/lib/queries';
 
 import { GenerationBanner } from './GenerationBanner';
 
 /**
  * The whole journey, visible at once (docs/learning-path.md).
  *
- * The design job here is making a long path feel finite. Phases are collapsed
- * to a line each except the one the user is in, so twelve weeks of work reads
- * as a handful of steps rather than a wall.
+ * Full width, phases as cards down the page with their items in a grid. The
+ * design job is making a long path feel finite: twelve weeks of work has to
+ * read as a handful of steps rather than a wall.
  */
 
 const KIND_LABEL: Record<string, string> = {
@@ -37,10 +39,16 @@ const KIND_LABEL: Record<string, string> = {
   INTERVIEW: 'Interview',
 };
 
-const KIND_COLOR: Record<string, string> = {
-  PROJECT: 'forge.500',
-  INTERVIEW: 'info',
-  CHECKPOINT: 'ink.500',
+const KIND_ICON: Record<string, string> = {
+  LEARN: 'learn',
+  RECALL: 'brain',
+  CODE: 'practice',
+  BLIND_CODE: 'eye',
+  DEBUG: 'bug',
+  EXPLAIN: 'interview',
+  PROJECT: 'layers',
+  CHECKPOINT: 'target',
+  INTERVIEW: 'interview',
 };
 
 export function RoadmapPage() {
@@ -49,29 +57,19 @@ export function RoadmapPage() {
   const updateItem = useUpdateRoadmapItem();
   const navigate = useNavigate();
 
-  if (isLoading) {
-    return (
-      <HStack justify="center" py={20}>
-        <Spinner color="forge.500" />
-      </HStack>
-    );
-  }
+  if (isLoading) return <Spinner label="Loading your roadmap" />;
 
   // No roadmap means onboarding was never completed.
   if (!roadmap) return <Navigate to="/onboarding" replace />;
 
   const percent =
-    roadmap.totalMinutes > 0
-      ? Math.round((roadmap.completedMinutes / roadmap.totalMinutes) * 100)
-      : 0;
+    roadmap.totalMinutes > 0 ? (roadmap.completedMinutes / roadmap.totalMinutes) * 100 : 0;
 
-  const currentPhaseIndex = roadmap.phases.findIndex((p) =>
-    p.items.some((i) => i.id === roadmap.currentItemId),
+  const currentPhaseIndex = roadmap.phases.findIndex((phase) =>
+    phase.items.some((item) => item.id === roadmap.currentItemId),
   );
 
-  const open = (item: { kind: string; conceptId: string | null; exerciseId: string | null }) => {
-    // A project is multi-step work with its own workspace; sending it to the
-    // single-file drill editor would hide every step but the first.
+  const open = (item: RoadmapItemView) => {
     if (item.exerciseId) {
       navigate(`${item.kind === 'PROJECT' ? '/project' : '/exercise'}/${item.exerciseId}`);
     } else if (item.conceptId) {
@@ -80,246 +78,173 @@ export function RoadmapPage() {
   };
 
   return (
-    <Box maxW="860px" mx="auto" px={6} py={8}>
-      <HStack justify="space-between" align="flex-start" mb={2}>
-        <Box>
-          <Heading size="lg" fontWeight={650}>
-            Your roadmap
-          </Heading>
-          <Text fontSize="sm" color="ink.400">
-            {roadmap.phases.length} phases · {formatHours(roadmap.totalMinutes)} total
-            {roadmap.generatedBy === 'rules' && ' · planned from your knowledge graph'}
-          </Text>
-        </Box>
-        <Button
-          variant="ghost"
-          size="xs"
-          isLoading={regenerate.isPending}
-          onClick={() => regenerate.mutate()}
-        >
-          Replan
-        </Button>
-      </HStack>
+    <>
+      <SectionHead
+        eyebrow="Learn"
+        title="Your roadmap"
+        description={`${roadmap.phases.length} phases · ${formatHours(roadmap.totalMinutes)} total${
+          roadmap.generatedBy === 'rules' ? ' · planned from your knowledge graph' : ''
+        }`}
+        right={
+          <Button
+            variant="secondary"
+            icon="refresh"
+            onClick={() => regenerate.mutate()}
+            disabled={regenerate.isPending}
+          >
+            {regenerate.isPending ? 'Replanning…' : 'Replan'}
+          </Button>
+        }
+      />
 
-      <HStack spacing={3} mb={8}>
-        <Progress
-          value={percent}
-          size="xs"
-          flex="1"
-          borderRadius="sm"
-          sx={{ '& > div': { bg: 'forge.500' } }}
-        />
-        <Text fontSize="xs" color="ink.400" fontFamily="mono">
-          {percent}%
-        </Text>
-      </HStack>
+      <div className="row items-center g3 mb6">
+        <div style={{ flex: 1 }}>
+          <ProgressBar pct={percent} />
+        </div>
+        <span className="t-code" style={{ fontWeight: 700 }}>
+          {Math.round(percent)}%
+        </span>
+      </div>
 
       <GenerationBanner />
 
-      <VStack align="stretch" spacing={3}>
+      <div className="col g4">
         {roadmap.phases.map((phase, index) => {
           const isCurrent = index === currentPhaseIndex;
           const isDone = phase.items.length > 0 && phase.doneCount === phase.items.length;
 
           return (
-            <Box
+            <Card
               key={phase.id}
-              bg="surface.100"
-              borderWidth="1px"
-              borderColor={isCurrent ? 'forge.700' : 'surface.300'}
-              borderRadius="lg"
-              overflow="hidden"
+              style={{ borderColor: isCurrent ? 'var(--primary-border)' : undefined }}
             >
-              <HStack px={4} py={3} spacing={3} align="flex-start">
-                <PhaseMarker index={index} done={isDone} current={isCurrent} />
+              <div className="row justify-between items-start mb4 g4 wrap">
+                <div className="row items-start g3" style={{ minWidth: 0 }}>
+                  <PhaseMarker index={index} done={isDone} current={isCurrent} />
+                  <div style={{ minWidth: 0 }}>
+                    <div className="row items-center g2">
+                      <span className="t-h3">{phase.title}</span>
+                      {isCurrent && <Badge variant="primary">Now</Badge>}
+                      {isDone && <Badge variant="success">Done</Badge>}
+                    </div>
+                    <div className="t-small mt1">{phase.goal}</div>
+                  </div>
+                </div>
 
-                <Box flex="1" minW={0}>
-                  <HStack spacing={2}>
-                    <Text fontSize="sm" fontWeight={600} color="ink.100">
-                      {phase.title}
-                    </Text>
-                    {isCurrent && (
-                      <Badge bg="forge.500" color="surface.0" fontSize="xs">
-                        NOW
-                      </Badge>
-                    )}
-                  </HStack>
-                  <Text fontSize="xs" color="ink.400" mt={0.5}>
-                    {phase.goal}
-                  </Text>
-                </Box>
+                <div className="t-caption" style={{ flexShrink: 0 }}>
+                  {phase.doneCount}/{phase.items.length} · {formatHours(phase.estimatedMinutes)}
+                </div>
+              </div>
 
-                <Text fontSize="xs" color="ink.500" fontFamily="mono" flexShrink={0}>
-                  {phase.items.length > 0 ? `${phase.doneCount}/${phase.items.length}` : '—'}
-                </Text>
-              </HStack>
-
-              {/* Only the current phase expands. A wall of every item at once
-                  makes a twelve-week plan look unachievable. */}
-              {isCurrent && phase.items.length > 0 && (
-                <VStack align="stretch" spacing={0} borderTopWidth="1px" borderColor="surface.300">
-                  {phase.items.map((item) => (
-                    <ItemRow
-                      key={item.id}
-                      item={item}
-                      isCurrent={item.id === roadmap.currentItemId}
-                      onOpen={() => open(item)}
-                      onToggleDone={() =>
-                        updateItem.mutate({
-                          id: item.id,
-                          status: item.status === 'DONE' ? 'PENDING' : 'DONE',
-                        })
-                      }
-                    />
-                  ))}
-                </VStack>
-              )}
-            </Box>
+              <div className="grid grid-3 g3 cq-grid-3">
+                {phase.items.map((item) => (
+                  <RoadmapItem
+                    key={item.id}
+                    item={item}
+                    onOpen={() => open(item)}
+                    onToggle={() =>
+                      updateItem.mutate({
+                        id: item.id,
+                        status: item.status === 'DONE' ? 'PENDING' : 'DONE',
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            </Card>
           );
         })}
-      </VStack>
-    </Box>
+      </div>
+    </>
   );
 }
 
-function ItemRow({
+function RoadmapItem({
   item,
-  isCurrent,
   onOpen,
-  onToggleDone,
+  onToggle,
 }: {
-  item: {
-    id: string;
-    kind: string;
-    status: string;
-    title: string;
-    rationale: string;
-    estimatedMinutes: number;
-    conceptId: string | null;
-    exerciseId: string | null;
-  };
-  isCurrent: boolean;
+  item: RoadmapItemView;
   onOpen: () => void;
-  onToggleDone: () => void;
+  onToggle: () => void;
 }) {
   const done = item.status === 'DONE';
-  const awaiting = item.status === 'AWAITING_CONTENT';
-  const openable = Boolean(item.exerciseId ?? item.conceptId);
+  const openable = Boolean(item.exerciseId || item.conceptId);
+
+  const variant: BadgeVariant =
+    item.kind === 'PROJECT' ? 'primary' : item.kind === 'INTERVIEW' ? 'info' : 'neutral';
 
   return (
-    <HStack
-      px={4}
-      py={3}
-      spacing={3}
-      align="flex-start"
-      borderTopWidth="1px"
-      borderColor="surface.200"
-      bg={isCurrent ? 'surface.200' : 'transparent'}
-      _first={{ borderTopWidth: 0 }}
+    <div
+      className="card p3"
+      style={{
+        background: 'var(--surface-2)',
+        opacity: done ? 0.6 : 1,
+        cursor: openable ? 'pointer' : 'default',
+      }}
+      onClick={openable ? onOpen : undefined}
     >
-      <Box
-        as="button"
-        aria-label={done ? `Mark ${item.title} not done` : `Mark ${item.title} done`}
-        onClick={onToggleDone}
-        mt="2px"
-        w="16px"
-        h="16px"
-        flexShrink={0}
-        borderRadius="sm"
-        borderWidth="1px"
-        borderColor={done ? 'pass' : 'surface.400'}
-        bg={done ? 'pass' : 'transparent'}
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        _hover={{ borderColor: done ? 'pass' : 'ink.400' }}
+      <div className="row justify-between items-center mb2">
+        <Badge variant={variant} icon={KIND_ICON[item.kind] ?? 'practice'}>
+          {KIND_LABEL[item.kind] ?? item.kind}
+        </Badge>
+        <button
+          type="button"
+          className="icon-btn"
+          style={{ width: 24, height: 24, color: done ? 'var(--success)' : 'var(--text-muted)' }}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggle();
+          }}
+          title={done ? 'Mark as not done' : 'Mark as done'}
+        >
+          <Icon name="check" size={14} />
+        </button>
+      </div>
+
+      <div
+        className="t-h4"
+        style={{ fontSize: 13, textDecoration: done ? 'line-through' : undefined }}
       >
-        {done && <FiCheck size={11} color="#0B0C0E" />}
-      </Box>
+        {item.title}
+      </div>
 
-      <Box flex="1" minW={0}>
-        <HStack spacing={2}>
-          <Badge
-            bg="surface.300"
-            color={KIND_COLOR[item.kind] ?? 'ink.300'}
-            fontSize="xs"
-            flexShrink={0}
-          >
-            {KIND_LABEL[item.kind] ?? item.kind}
-          </Badge>
-          <Text
-            fontSize="sm"
-            color={done ? 'ink.500' : 'ink.100'}
-            textDecoration={done ? 'line-through' : 'none'}
-            noOfLines={1}
-          >
-            {item.title}
-          </Text>
-        </HStack>
-        {/* The rationale is always shown. An opaque path is not a trusted path. */}
-        <Text fontSize="xs" color="ink.500" mt={1}>
-          {item.rationale}
-        </Text>
-      </Box>
-
-      <HStack spacing={2} flexShrink={0}>
-        <HStack spacing={1}>
-          <Icon as={FiClock} color="ink.500" boxSize="10px" />
-          <Text fontSize="xs" color="ink.500" fontFamily="mono">
-            {item.estimatedMinutes}
-          </Text>
-        </HStack>
-
-        {awaiting ? (
-          <Badge bg="surface.300" color="warn" fontSize="xs">
-            preparing
-          </Badge>
-        ) : (
-          openable && (
-            <Button size="xs" variant={isCurrent ? 'solid' : 'ghost'} onClick={onOpen}>
-              {isCurrent ? (
-                <HStack spacing={1}>
-                  <Icon as={FiPlay} boxSize="10px" />
-                  <Text>Start</Text>
-                </HStack>
-              ) : (
-                'Open'
-              )}
-            </Button>
-          )
-        )}
-      </HStack>
-    </HStack>
+      {/* Always shown. A plan you cannot interrogate is a plan you follow on
+          faith, and this one is generated. */}
+      <div className="t-caption mt1">{item.rationale}</div>
+      <div className="t-caption mt2">{item.estimatedMinutes} min</div>
+    </div>
   );
 }
 
 function PhaseMarker({ index, done, current }: { index: number; done: boolean; current: boolean }) {
   return (
-    <Box
-      w="24px"
-      h="24px"
-      borderRadius="full"
-      flexShrink={0}
-      display="flex"
-      alignItems="center"
-      justifyContent="center"
-      borderWidth="1px"
-      borderColor={done ? 'pass' : current ? 'forge.500' : 'surface.400'}
-      bg={done ? 'pass' : 'transparent'}
+    <div
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: 99,
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 700,
+        fontSize: 13,
+        background: done
+          ? 'var(--success-subtle)'
+          : current
+            ? 'var(--primary-subtle)'
+            : 'var(--surface-2)',
+        color: done ? 'var(--success)' : current ? 'var(--primary)' : 'var(--text-muted)',
+        border: current ? '2px solid var(--primary)' : '1px solid var(--border)',
+      }}
     >
-      {done ? (
-        <FiCheck size={12} color="#0B0C0E" />
-      ) : (
-        <Text fontSize="xs" fontFamily="mono" color={current ? 'forge.500' : 'ink.500'}>
-          {index + 1}
-        </Text>
-      )}
-    </Box>
+      {done ? <Icon name="check" size={15} /> : index + 1}
+    </div>
   );
 }
 
 function formatHours(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
-  const hours = Math.round(minutes / 60);
-  return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  return `${Math.round(minutes / 60)} h`;
 }

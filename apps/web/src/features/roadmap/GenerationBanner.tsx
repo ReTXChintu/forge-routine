@@ -1,124 +1,107 @@
-import { Box, Button, HStack, Progress, Spinner, Text, VStack } from '@chakra-ui/react';
-import { FiAlertTriangle, FiCheck } from 'react-icons/fi';
-
+import { Icon } from '~/components/Icon';
+import { Button, Card, ProgressBar } from '~/components/ui';
 import { useGenerationStatus, useRetryGeneration } from '~/lib/queries';
 
 /**
- * Shows what is still being prepared (docs/learning-path.md).
+ * What is still being built, and what is already usable.
  *
- * Deliberately a banner rather than a blocking screen. Four of six
- * technologies generated is usable, and gating the whole roadmap behind the
- * slowest one would be both a lie and a worse product — the user can start
- * phase one while the last technology is still being written.
+ * Curriculum is generated one technology at a time, on demand. This says
+ * which one is running and what is waiting — PENDING is the plan, not the
+ * work, and costs nothing, so it is reported as waiting rather than as
+ * activity.
  */
-export function GenerationBanner({ enabled = true }: { enabled?: boolean }) {
-  const { data } = useGenerationStatus(enabled);
+export function GenerationBanner() {
+  const { data } = useGenerationStatus();
   const retry = useRetryGeneration();
 
   if (!data) return null;
 
-  const running = data.jobs.filter((j) => j.status === 'RUNNING' || j.status === 'QUEUED');
-  const failed = data.jobs.filter((j) => j.status === 'FAILED');
+  const running = data.jobs.filter((job) => job.status === 'RUNNING' || job.status === 'QUEUED');
+  const waiting = data.jobs.filter((job) => job.status === 'PENDING');
+  const failed = data.jobs.filter((job) => job.status === 'FAILED');
 
-  if (running.length === 0 && failed.length === 0) return null;
+  if (running.length === 0 && failed.length === 0 && waiting.length === 0) return null;
 
   return (
-    <VStack align="stretch" spacing={2} mb={6}>
+    <div className="col g2 mb6">
       {running.length > 0 && (
-        <Box
-          bg="surface.100"
-          borderWidth="1px"
-          borderColor="forge.700"
-          borderRadius="lg"
-          px={4}
-          py={3}
-        >
-          <HStack spacing={3} align="flex-start">
-            <Spinner size="sm" color="forge.500" mt="2px" />
+        <Card style={{ borderColor: 'var(--primary-border)' }}>
+          <div className="row items-center g2 mb2">
+            <Icon name="zap" size={15} />
+            <span className="t-h4">
+              Preparing {running.length === 1 ? '1 technology' : `${running.length} technologies`}
+            </span>
+          </div>
 
-            <Box flex="1" minW={0}>
-              <Text fontSize="sm" fontWeight={600} color="ink.100">
-                Preparing {running.length === 1 ? '1 technology' : `${running.length} technologies`}
-              </Text>
-              <Text fontSize="xs" color="ink.400" mt={0.5}>
-                {/* Says what is usable now, not just what is missing. */}
-                This runs in the background and takes a few minutes. Anything already prepared is
-                ready to start — come back shortly for the rest.
-              </Text>
+          {/* Says what is usable now, not just what is missing. */}
+          <div className="t-small mb3">
+            This runs in the background and takes a few minutes. Anything already prepared is ready
+            to start — come back shortly for the rest.
+          </div>
 
-              <VStack align="stretch" spacing={2} mt={3}>
-                {running.map((job) => (
-                  <Box key={job.id}>
-                    <HStack justify="space-between" mb={1}>
-                      <Text fontSize="xs" color="ink.300">
-                        {job.technologyName ?? 'Technology'}
-                      </Text>
-                      <Text fontSize="xs" color="ink.500" fontFamily="mono">
-                        {job.status === 'QUEUED' ? 'queued' : `${job.progress}%`}
-                      </Text>
-                    </HStack>
-                    <Progress
-                      value={job.status === 'QUEUED' ? 0 : job.progress}
-                      size="xs"
-                      borderRadius="sm"
-                      sx={{ '& > div': { bg: 'forge.500' } }}
-                    />
-                    {job.step && (
-                      <Text fontSize="xs" color="ink.500" mt={1}>
-                        {job.step}
-                      </Text>
-                    )}
-                  </Box>
-                ))}
-              </VStack>
-            </Box>
-          </HStack>
-        </Box>
+          <div className="col g3">
+            {running.map((job) => (
+              <div key={job.id}>
+                <div className="row justify-between mb1">
+                  <span className="t-caption">{job.technologyName ?? 'Technology'}</span>
+                  <span className="t-code" style={{ fontSize: 11.5 }}>
+                    {job.status === 'QUEUED' ? 'queued' : `${job.progress}%`}
+                  </span>
+                </div>
+                <ProgressBar pct={job.status === 'QUEUED' ? 0 : job.progress} thin />
+                {job.step && <div className="t-caption mt1">{job.step}</div>}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {waiting.length > 0 && (
+        <div className="row items-center g2 px3">
+          <Icon name="clock" size={12} />
+          <span className="t-caption">
+            {waiting.length} more in the plan. Each is built when you are far enough through the
+            last — nothing is generated, or billed, before then.
+          </span>
+        </div>
       )}
 
       {failed.map((job) => (
-        <Box
-          key={job.id}
-          bg="surface.100"
-          borderWidth="1px"
-          borderColor="surface.300"
-          borderLeftWidth="2px"
-          borderLeftColor="warn"
-          borderRadius="lg"
-          px={4}
-          py={3}
-        >
-          <HStack spacing={3} align="flex-start">
-            <Box as={FiAlertTriangle} color="warn" mt="3px" flexShrink={0} />
-            <Box flex="1" minW={0}>
-              <Text fontSize="sm" fontWeight={600} color="ink.100">
-                {job.technologyName ?? 'A technology'} could not be prepared
-              </Text>
-              {/* The real reason, not a generic apology. */}
-              <Text fontSize="xs" color="ink.400" mt={0.5}>
-                {job.error ?? 'Generation failed.'}
-              </Text>
-            </Box>
+        <Card key={job.id} style={{ borderLeft: '2px solid var(--warning)' }}>
+          <div className="row items-start justify-between g4">
+            <div className="row items-start g3" style={{ minWidth: 0 }}>
+              <span style={{ color: 'var(--warning)', marginTop: 2 }}>
+                <Icon name="alert" size={15} />
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <div className="t-h4">
+                  {job.technologyName ?? 'A technology'} could not be prepared
+                </div>
+                {/* The real reason, not a generic apology. */}
+                <div className="t-small mt1">{job.error ?? 'Generation failed.'}</div>
+              </div>
+            </div>
+
             <Button
-              size="xs"
-              variant="outline"
-              isLoading={retry.isPending}
+              variant="secondary"
+              size="sm"
               onClick={() => retry.mutate()}
+              disabled={retry.isPending}
             >
               Try again
             </Button>
-          </HStack>
-        </Box>
+          </div>
+        </Card>
       ))}
 
       {data.partial && (
-        <HStack spacing={2} px={1}>
-          <Box as={FiCheck} color="pass" boxSize="12px" />
-          <Text fontSize="xs" color="ink.500">
-            Some technologies are ready — you can start those now.
-          </Text>
-        </HStack>
+        <div className="row items-center g2 px3">
+          <span style={{ color: 'var(--success)' }}>
+            <Icon name="check" size={12} />
+          </span>
+          <span className="t-caption">Some technologies are ready — you can start those now.</span>
+        </div>
       )}
-    </VStack>
+    </div>
   );
 }

@@ -50,7 +50,7 @@ export function ChallengeWorkspace() {
 
   if (!challenge) {
     return (
-      <Box maxW="640px" mx="auto" px={6} py={20} textAlign="center">
+      <Box py={20} textAlign="center">
         <Text fontSize="sm" color="ink.400">
           This challenge could not be loaded.
         </Text>

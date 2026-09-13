@@ -1,18 +1,17 @@
-import {
-  Badge,
-  Box,
-  Button,
-  HStack,
-  Heading,
-  Progress,
-  Spinner,
-  Text,
-  VStack,
-} from '@chakra-ui/react';
 import { useState } from 'react';
-import { FiCheck, FiChevronRight, FiSkipForward } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
+import { Icon } from '~/components/Icon';
+import {
+  Badge,
+  Button,
+  Card,
+  ProgressBar,
+  SectionHead,
+  Spinner,
+  StateBlock,
+  StaticNote,
+} from '~/components/ui';
 import { RecallPrompt } from '~/features/recall/RecallPrompt';
 import {
   useGenerateRoutine,
@@ -23,29 +22,30 @@ import {
 } from '~/lib/queries';
 
 /**
- * Today (§20).
+ * Today (§20), in the prototype's routine layout.
  *
- * The roadmap answers "where am I going". This answers "what do I do now",
- * and it is deliberately short: a list that fits the user's stated daily
- * budget and stops. Padding it to fill the screen produces busywork, and a
- * routine the user cannot finish is one they stop opening.
+ * Full width: the week strip, then today's items, then progress. Reviews
+ * come first because a concept that decays takes the work that built it
+ * with it.
  *
- * Recall prompts appear **between** items, never inside one — the boundary is
- * the only safe moment (docs/learning-path.md).
+ * Recall prompts appear **between** items, never inside one — the boundary
+ * is the only safe moment (docs/learning-path.md).
  */
 
-const KIND_LABEL: Record<string, string> = {
-  LEARN: 'Read',
-  RECALL: 'Recall',
-  CODE: 'Write',
-  BLIND_CODE: 'Blind',
-  DEBUG: 'Debug',
-  EXPLAIN: 'Explain',
-  PROJECT: 'Project',
-  CHECKPOINT: 'Checkpoint',
-  REVIEW: 'Review',
-  INTERVIEW: 'Interview',
+const KIND_ICON: Record<string, string> = {
+  LEARN: 'learn',
+  RECALL: 'brain',
+  CODE: 'practice',
+  BLIND_CODE: 'eye',
+  DEBUG: 'bug',
+  EXPLAIN: 'interview',
+  PROJECT: 'layers',
+  CHECKPOINT: 'target',
+  REVIEW: 'refresh',
+  INTERVIEW: 'interview',
 };
+
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export function TodayView() {
   const { data: routine, isLoading } = useTodayRoutine();
@@ -53,46 +53,33 @@ export function TodayView() {
   const updateItem = useUpdateRoutineItem();
   const navigate = useNavigate();
 
-  // Fetched up front so the boundary prompt appears without a spinner.
   const { data: duePrompts } = useRecallDue();
   const [promptIndex, setPromptIndex] = useState(0);
   const [showPrompt, setShowPrompt] = useState(false);
 
-  if (isLoading) {
-    return (
-      <HStack justify="center" py={20}>
-        <Spinner color="forge.500" />
-      </HStack>
-    );
-  }
+  if (isLoading) return <Spinner label="Loading today" />;
 
   if (!routine) {
     return (
-      <Box maxW="640px" mx="auto" px={6} py={20} textAlign="center">
-        <Heading size="md" color="ink.100" mb={2}>
-          Nothing planned yet
-        </Heading>
-        <Text fontSize="sm" color="ink.400" mb={6}>
-          Today&apos;s work is a slice of your roadmap, weighted towards anything due for review.
-        </Text>
-        <Button
-          onClick={() => generate.mutate(false)}
-          isLoading={generate.isPending}
-          loadingText="Planning"
-        >
-          Plan today
-        </Button>
-      </Box>
+      <StateBlock
+        icon="routine"
+        title="Nothing planned yet"
+        body="Today's work is a slice of your roadmap, weighted towards anything due for review."
+        action={
+          <Button icon="plus" onClick={() => generate.mutate(false)} disabled={generate.isPending}>
+            {generate.isPending ? 'Planning…' : 'Plan today'}
+          </Button>
+        }
+      />
     );
   }
 
   const percent =
-    routine.totalMinutes > 0
-      ? Math.round((routine.completedMinutes / routine.totalMinutes) * 100)
-      : 0;
+    routine.totalMinutes > 0 ? (routine.completedMinutes / routine.totalMinutes) * 100 : 0;
 
   const remaining = routine.items.filter((item) => item.status === 'PENDING');
   const finished = routine.items.length > 0 && remaining.length === 0;
+  const todayIndex = (new Date().getDay() + 6) % 7;
 
   const open = (item: RoutineItemView) => {
     if (item.exerciseId) {
@@ -102,10 +89,7 @@ export function TodayView() {
     }
   };
 
-  /**
-   * Completing an item is the boundary. If something is due, it is offered
-   * here — one prompt, then the user moves on.
-   */
+  /** Completing an item is the boundary — the one safe moment to ask. */
   const complete = (item: RoutineItemView) => {
     updateItem.mutate({ id: item.id, status: 'DONE' });
     if (duePrompts && promptIndex < duePrompts.length) setShowPrompt(true);
@@ -114,38 +98,61 @@ export function TodayView() {
   const currentPrompt = showPrompt ? duePrompts?.[promptIndex] : undefined;
 
   return (
-    <Box maxW="720px" mx="auto" px={6} py={8}>
-      <HStack justify="space-between" align="flex-start" mb={1}>
-        <Heading size="md" color="ink.100">
-          Today
-        </Heading>
-        <Button
-          variant="ghost"
-          size="xs"
-          color="ink.500"
-          onClick={() => generate.mutate(true)}
-          isLoading={generate.isPending}
-        >
-          Replan
-        </Button>
-      </HStack>
-
-      <Text fontSize="sm" color="ink.400" mb={5}>
-        {routine.completedMinutes} of {routine.totalMinutes} minutes
-        {routine.recallDue > 0 && ` · ${routine.recallDue} due for review`}
-      </Text>
-
-      <Progress
-        value={percent}
-        size="xs"
-        borderRadius="full"
-        bg="surface.200"
-        sx={{ '& > div': { bg: percent === 100 ? 'pass' : 'forge.500' } }}
-        mb={6}
+    <>
+      <SectionHead
+        eyebrow="My Routine"
+        title="Today"
+        description={`${routine.completedMinutes} of ${routine.totalMinutes} minutes${
+          routine.recallDue > 0 ? ` · ${routine.recallDue} due for review` : ''
+        }`}
+        right={
+          <Button
+            variant="secondary"
+            icon="refresh"
+            onClick={() => generate.mutate(true)}
+            disabled={generate.isPending}
+          >
+            Replan
+          </Button>
+        }
       />
 
+      <Card className="mb6">
+        <div className="row justify-between mb4">
+          {DAYS.map((day, index) => {
+            const isToday = index === todayIndex;
+            const past = index < todayIndex;
+
+            return (
+              <div key={day} className="col items-center g2" style={{ flex: 1 }}>
+                <span className="t-caption">{day}</span>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 99,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700,
+                    fontSize: 12.5,
+                    background: isToday ? 'var(--primary-subtle)' : 'var(--surface-2)',
+                    color: isToday ? 'var(--primary)' : 'var(--text-muted)',
+                    border: isToday ? '2px solid var(--primary)' : '1px solid var(--border)',
+                  }}
+                >
+                  {past ? <Icon name="check" size={15} /> : index + 1}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="t-caption">Week at a glance</div>
+        <StaticNote>Week history is a static figure — only today is tracked so far</StaticNote>
+      </Card>
+
       {currentPrompt && (
-        <Box mb={6}>
+        <div className="mb6" style={{ maxWidth: 620 }}>
           <RecallPrompt
             prompt={currentPrompt}
             onDone={() => {
@@ -154,10 +161,17 @@ export function TodayView() {
             }}
             onSkip={() => setShowPrompt(false)}
           />
-        </Box>
+        </div>
       )}
 
-      <VStack align="stretch" spacing={2}>
+      <div className="row items-center justify-between mb3 g4">
+        <span className="t-h3">Today</span>
+        <div style={{ flex: 1, maxWidth: 320 }}>
+          <ProgressBar pct={percent} thin />
+        </div>
+      </div>
+
+      <div className="col g2 mb6">
         {routine.items.map((item) => (
           <RoutineRow
             key={item.id}
@@ -167,21 +181,19 @@ export function TodayView() {
             onSkip={() => updateItem.mutate({ id: item.id, status: 'SKIPPED' })}
           />
         ))}
-      </VStack>
+      </div>
 
       {finished && (
-        <Box mt={8} textAlign="center">
-          <Text fontSize="sm" color="ink.300">
-            That is today&apos;s work done.
-          </Text>
-          {/* No confetti, no streak counter. Finishing is the reward; a
+        <Card>
+          <div className="t-h4">That is today&apos;s work done.</div>
+          {/* No confetti and no streak counter. Finishing is the reward; a
               celebration loop trains people to chase the animation. */}
-          <Text fontSize="xs" color="ink.500" mt={1}>
+          <div className="t-small mt1">
             Stopping here is the right call — tomorrow&apos;s spacing depends on it.
-          </Text>
-        </Box>
+          </div>
+        </Card>
       )}
-    </Box>
+    </>
   );
 }
 
@@ -198,84 +210,75 @@ function RoutineRow({
 }) {
   const done = item.status === 'DONE';
   const skipped = item.status === 'SKIPPED';
+  const settled = done || skipped;
   const openable = Boolean(item.exerciseId || item.conceptId);
 
+  const desk =
+    item.kind === 'CODE' ||
+    item.kind === 'BLIND_CODE' ||
+    item.kind === 'DEBUG' ||
+    item.kind === 'PROJECT';
+
   return (
-    <HStack
-      borderWidth="1px"
-      borderColor="surface.300"
-      borderRadius="md"
-      bg={done ? 'transparent' : 'surface.50'}
-      px={4}
-      py={3}
-      spacing={4}
-      opacity={done || skipped ? 0.5 : 1}
-      align="flex-start"
-      role="group"
+    <Card
+      hover={!settled}
+      className="row justify-between items-center g4"
+      style={{ opacity: settled ? 0.55 : 1 }}
     >
-      <Badge
-        bg={item.kind === 'REVIEW' ? 'surface.300' : 'surface.200'}
-        color={item.kind === 'REVIEW' ? 'info' : 'ink.300'}
-        fontSize="xs"
-        mt="1px"
-        flexShrink={0}
-      >
-        {KIND_LABEL[item.kind] ?? item.kind}
-      </Badge>
+      <div className="row items-center g3" style={{ minWidth: 0 }}>
+        <div
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 9,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: done ? 'var(--success-subtle)' : 'var(--surface-2)',
+            color: done ? 'var(--success)' : 'var(--text-secondary)',
+          }}
+        >
+          <Icon name={done ? 'check' : (KIND_ICON[item.kind] ?? 'practice')} size={16} />
+        </div>
 
-      <Box flex="1" minW={0}>
-        <HStack spacing={2}>
-          <Text
-            fontSize="sm"
-            fontWeight={500}
-            color="ink.100"
-            textDecoration={done || skipped ? 'line-through' : 'none'}
-            cursor={openable && !done ? 'pointer' : 'default'}
-            onClick={openable && !done ? onOpen : undefined}
-            _hover={openable && !done ? { color: 'forge.400' } : {}}
-          >
+        <div style={{ minWidth: 0 }}>
+          <div className="t-h4" style={{ textDecoration: settled ? 'line-through' : undefined }}>
             {item.title}
-          </Text>
-          {openable && !done && !skipped && (
-            <Box as={FiChevronRight} color="ink.500" fontSize="sm" />
-          )}
-        </HStack>
-        {/* The reason is always shown. An opaque routine is not a trusted one. */}
-        <Text fontSize="xs" color="ink.400" mt={0.5}>
-          {item.rationale}
-        </Text>
-      </Box>
+          </div>
+          {/* The reason is always shown. An opaque routine is not a trusted one. */}
+          <div className="t-caption">
+            {item.kind} · {item.minutes} min · {item.rationale}
+          </div>
+        </div>
+      </div>
 
-      <HStack spacing={1} flexShrink={0}>
-        <Text fontSize="xs" color="ink.500" minW="32px" textAlign="right">
-          {item.minutes}m
-        </Text>
-        {!done && !skipped && (
+      <div className="row items-center g2" style={{ flexShrink: 0 }}>
+        {desk && !settled && (
+          <span className="t-caption row items-center g1">
+            <Icon name="monitor" size={12} /> desk work
+          </span>
+        )}
+
+        {done && <Badge variant="success">Done</Badge>}
+        {skipped && <Badge variant="neutral">Skipped</Badge>}
+
+        {!settled && (
           <>
-            <Button
-              variant="ghost"
-              size="xs"
-              color="ink.500"
-              onClick={onSkip}
-              aria-label="Skip"
-              _hover={{ color: 'ink.300' }}
-            >
-              <Box as={FiSkipForward} />
+            <Button variant="ghost" size="sm" onClick={onSkip}>
+              Skip
             </Button>
-            <Button
-              variant="ghost"
-              size="xs"
-              color="ink.400"
-              onClick={onComplete}
-              aria-label="Mark done"
-              _hover={{ color: 'pass' }}
-            >
-              <Box as={FiCheck} />
+            {openable && (
+              <Button variant="secondary" size="sm" onClick={onOpen}>
+                Open
+              </Button>
+            )}
+            <Button size="sm" onClick={onComplete}>
+              Done
             </Button>
           </>
         )}
-        {done && <Box as={FiCheck} color="pass" fontSize="sm" />}
-      </HStack>
-    </HStack>
+      </div>
+    </Card>
   );
 }

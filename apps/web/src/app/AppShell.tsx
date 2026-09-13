@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { CommandPalette } from '~/components/CommandPalette';
 import { DownloadApkButton } from '~/components/DownloadApk';
@@ -25,9 +25,22 @@ const NAV = [
   { to: '/progress', label: 'Progress', icon: 'progress' },
 ];
 
+/**
+ * Routes that own their whole viewport.
+ *
+ * An editor, a terminal or a live interview is a full-height layout with its
+ * own internal panels and scrolling. Wrapping one in the content area's
+ * padding gives it a border of dead space and breaks `height: 100%`, so
+ * those routes render flush.
+ */
+const FULL_BLEED = [/^\/exercise\//, /^\/project\//, /^\/challenge\//, /^\/interview\/[^/]+$/];
+
 export function AppShell() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { data: overview } = useOverview();
+
+  const fullBleed = FULL_BLEED.some((pattern) => pattern.test(pathname));
 
   const signOut = () => {
     tokenStore.clear();
@@ -67,7 +80,7 @@ export function AppShell() {
 
       <div className="app-main">
         <Topbar overview={overview} />
-        <div className="app-content">
+        <div className={`app-content ${fullBleed ? 'no-pad' : ''}`}>
           <Outlet />
         </div>
       </div>

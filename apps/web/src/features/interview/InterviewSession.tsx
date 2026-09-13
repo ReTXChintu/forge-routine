@@ -47,7 +47,7 @@ export function InterviewSession() {
 
   if (!interview) {
     return (
-      <Box maxW="640px" mx="auto" px={6} py={20} textAlign="center">
+      <Box py={20} textAlign="center">
         <Text fontSize="sm" color="ink.400">
           This interview could not be loaded.
         </Text>
@@ -67,7 +67,7 @@ export function InterviewSession() {
   };
 
   return (
-    <Box maxW="760px" mx="auto" px={6} py={8}>
+    <Box>
       <HStack justify="space-between" mb={6}>
         <Box>
           <Heading size="sm" color="ink.100">

@@ -1,7 +1,7 @@
-import { Box, Button, HStack, Text, VStack } from '@chakra-ui/react';
 import { useEffect, useRef, useState } from 'react';
-import { FiCheck, FiX } from 'react-icons/fi';
 
+import { Icon } from '~/components/Icon';
+import { Button } from '~/components/ui';
 import {
   useRunTerminal,
   useSubmitTerminal,
@@ -46,21 +46,18 @@ export function TerminalPane({ challenge }: { challenge: ChallengeView }) {
     setInput('');
     setHistoryIndex(null);
 
-    const outcome = await run.mutateAsync({
-      exerciseId: challenge.exerciseId,
-      commands: next,
-    });
-    setResult(outcome);
+    setResult(await run.mutateAsync({ exerciseId: challenge.exerciseId, commands: next }));
   };
 
   const check = async () => {
     if (!challenge.attemptId) return;
-    const outcome = await submit.mutateAsync({
-      exerciseId: challenge.exerciseId,
-      attemptId: challenge.attemptId,
-      commands,
-    });
-    setGraded(outcome);
+    setGraded(
+      await submit.mutateAsync({
+        exerciseId: challenge.exerciseId,
+        attemptId: challenge.attemptId,
+        commands,
+      }),
+    );
   };
 
   /** Up and down walk the history, as a real terminal does. */
@@ -97,78 +94,71 @@ export function TerminalPane({ challenge }: { challenge: ChallengeView }) {
   const live = graded ?? result;
 
   return (
-    <VStack align="stretch" spacing={4} h="100%" minH={0}>
-      <Box
-        flex="1"
-        minH="280px"
-        bg="#07080A"
-        borderWidth="1px"
-        borderColor="surface.300"
-        borderRadius="md"
-        p={3}
-        overflowY="auto"
-        fontFamily="mono"
-        fontSize="xs"
-        lineHeight="1.7"
-        cursor="text"
+    <div className="col" style={{ height: '100%', minHeight: 0 }}>
+      <div
+        className="scroll-y mono p3"
+        style={{
+          flex: 1,
+          minHeight: 240,
+          background: '#07080A',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--r-md)',
+          fontSize: 12.5,
+          lineHeight: 1.7,
+          cursor: 'text',
+        }}
         onClick={() => inputRef.current?.focus()}
       >
         {result?.transcript.map((entry, index) => (
-          <Box key={`${entry.command}-${index}`}>
-            <HStack spacing={2} align="baseline">
-              <Text color="forge.500" flexShrink={0}>
-                $
-              </Text>
-              <Text color="ink.100">{entry.command}</Text>
-            </HStack>
+          <div key={`${entry.command}-${index}`}>
+            <div className="row g2" style={{ alignItems: 'baseline' }}>
+              <span style={{ color: 'var(--primary)', flexShrink: 0 }}>$</span>
+              <span style={{ color: 'var(--text-primary)' }}>{entry.command}</span>
+            </div>
             {entry.stdout && (
-              <Text color="ink.300" whiteSpace="pre-wrap">
+              <div style={{ color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
                 {entry.stdout.replace(/\n$/, '')}
-              </Text>
+              </div>
             )}
             {entry.stderr && (
-              <Text color="fail" whiteSpace="pre-wrap">
-                {entry.stderr}
-              </Text>
+              <div style={{ color: 'var(--error)', whiteSpace: 'pre-wrap' }}>{entry.stderr}</div>
             )}
-          </Box>
+          </div>
         ))}
 
-        <HStack spacing={2} align="baseline">
-          <Text color="forge.500" flexShrink={0}>
-            $
-          </Text>
-          <Box
-            as="input"
+        <div className="row g2" style={{ alignItems: 'baseline' }}>
+          <span style={{ color: 'var(--primary)', flexShrink: 0 }}>$</span>
+          <input
             ref={inputRef}
             value={input}
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) => setInput(event.target.value)}
+            onChange={(event) => setInput(event.target.value)}
             onKeyDown={onKeyDown}
-            bg="transparent"
-            border="none"
-            outline="none"
-            color="ink.100"
-            fontFamily="mono"
-            fontSize="xs"
-            flex="1"
             spellCheck={false}
             autoComplete="off"
             aria-label="Terminal input"
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: 'var(--text-primary)',
+              font: 'inherit',
+            }}
           />
-        </HStack>
+        </div>
 
-        <Box ref={bottomRef} />
-      </Box>
+        <div ref={bottomRef} />
+      </div>
 
-      <HStack justify="space-between">
-        <Text fontSize="xs" color="ink.500">
+      <div className="row items-center justify-between g3 mt3 wrap">
+        {/* Said plainly, because a graded terminal is one nobody explores. */}
+        <span className="t-caption">
           Running is free — nothing is recorded until you check your work.
-        </Text>
-        <HStack spacing={2}>
+        </span>
+        <div className="row g2">
           <Button
             variant="ghost"
-            size="xs"
-            color="ink.500"
+            size="sm"
             onClick={() => {
               setCommands([]);
               setResult(null);
@@ -180,51 +170,55 @@ export function TerminalPane({ challenge }: { challenge: ChallengeView }) {
           <Button
             size="sm"
             onClick={() => void check()}
-            isLoading={submit.isPending}
-            isDisabled={!challenge.attemptId || commands.length === 0}
+            disabled={submit.isPending || !challenge.attemptId || commands.length === 0}
           >
-            Check my work
+            {submit.isPending ? 'Checking…' : 'Check my work'}
           </Button>
-        </HStack>
-      </HStack>
+        </div>
+      </div>
 
       {live && (
-        <Box borderTopWidth="1px" borderColor="surface.300" pt={4}>
-          <HStack justify="space-between" mb={2}>
-            <Text
-              fontSize="xs"
-              textTransform="uppercase"
-              letterSpacing="0.06em"
-              color="ink.500"
-              fontWeight={600}
-            >
-              {graded ? 'Graded' : 'Progress'}
-            </Text>
+        <>
+          <div className="divider mt4 mb3" />
+          <div className="row items-center justify-between mb2">
+            <span className="t-caption">{graded ? 'GRADED' : 'PROGRESS'}</span>
             {graded && (
-              <Text fontSize="sm" fontWeight={600} color={graded.passed ? 'pass' : 'fail'}>
+              <span
+                className="t-code"
+                style={{
+                  fontWeight: 700,
+                  color: graded.passed ? 'var(--success)' : 'var(--error)',
+                }}
+              >
                 {graded.passed ? 'Solved' : 'Not yet'}
-              </Text>
+              </span>
             )}
-          </HStack>
+          </div>
 
-          <VStack align="stretch" spacing={1}>
+          <div className="col g1">
             {live.checks.map((item) => (
-              <HStack key={item.description} spacing={2} align="flex-start">
-                <Box
-                  as={item.passed ? FiCheck : FiX}
-                  color={item.passed ? 'pass' : 'ink.500'}
-                  fontSize="sm"
-                  flexShrink={0}
-                  mt="2px"
-                />
-                <Text fontSize="xs" color={item.passed ? 'ink.200' : 'ink.400'}>
+              <div key={item.description} className="row items-start g2">
+                <span
+                  style={{
+                    color: item.passed ? 'var(--success)' : 'var(--text-muted)',
+                    marginTop: 2,
+                    lineHeight: 0,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon name={item.passed ? 'check' : 'x'} size={13} />
+                </span>
+                <span
+                  className="t-small"
+                  style={{ color: item.passed ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                >
                   {item.description}
-                </Text>
-              </HStack>
+                </span>
+              </div>
             ))}
-          </VStack>
-        </Box>
+          </div>
+        </>
       )}
-    </VStack>
+    </div>
   );
 }

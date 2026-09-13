@@ -1,19 +1,8 @@
-import {
-  Badge,
-  Box,
-  Button,
-  Grid,
-  GridItem,
-  HStack,
-  Heading,
-  Spinner,
-  Text,
-  Textarea,
-  VStack,
-} from '@chakra-ui/react';
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
+import { Icon } from '~/components/Icon';
+import { Badge, Button, SkillMeter, Spinner, StateBlock } from '~/components/ui';
 import {
   useChallenge,
   useStartChallenge,
@@ -24,7 +13,7 @@ import {
 import { TerminalPane } from './TerminalPane';
 
 /**
- * One engineering challenge (§18-19).
+ * One engineering challenge (§18-19), in the prototype's workspace layout.
  *
  * The brief on the left, the work on the right. What the brief does *not*
  * contain is the point: an incident's root cause and a design's expected
@@ -36,203 +25,173 @@ export function ChallengeWorkspace() {
   const { data: challenge, isLoading } = useChallenge(exerciseId);
   const start = useStartChallenge();
   const submit = useSubmitWritten();
+  const navigate = useNavigate();
 
   const [text, setText] = useState('');
   const [review, setReview] = useState<WrittenReviewResult | null>(null);
 
-  if (isLoading) {
-    return (
-      <HStack justify="center" py={20}>
-        <Spinner color="forge.500" />
-      </HStack>
-    );
-  }
-
-  if (!challenge) {
-    return (
-      <Box py={20} textAlign="center">
-        <Text fontSize="sm" color="ink.400">
-          This challenge could not be loaded.
-        </Text>
-      </Box>
-    );
-  }
+  if (isLoading) return <Spinner label="Loading challenge" />;
+  if (!challenge) return <StateBlock icon="alert" title="This challenge could not be loaded" />;
 
   const started = Boolean(challenge.attemptId);
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
 
   const send = async () => {
     if (!challenge.attemptId || text.trim().length === 0) return;
-    const outcome = await submit.mutateAsync({
-      exerciseId: challenge.exerciseId,
-      attemptId: challenge.attemptId,
-      text,
-    });
-    setReview(outcome);
+    setReview(
+      await submit.mutateAsync({
+        exerciseId: challenge.exerciseId,
+        attemptId: challenge.attemptId,
+        text,
+      }),
+    );
   };
 
   return (
-    <Grid templateColumns={{ base: '1fr', lg: '460px 1fr' }} h="100%" minH={0}>
-      {/* Brief */}
-      <GridItem
-        borderRightWidth="1px"
-        borderColor="surface.300"
-        bg="surface.50"
-        overflowY="auto"
-        p={6}
-        minW={0}
+    <div className="col" style={{ height: '100%' }}>
+      <div
+        className="row items-center justify-between"
+        style={{
+          height: 52,
+          padding: '0 18px',
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--surface)',
+          flexShrink: 0,
+        }}
       >
-        <HStack spacing={2} mb={3}>
-          <Badge bg="forge.500" color="surface.0" fontSize="xs">
-            {challenge.kind.replace('_', ' ')}
-          </Badge>
-          <Text fontSize="xs" color="ink.500">
-            {challenge.technologyName} · {challenge.estimatedMinutes} min
-          </Text>
-        </HStack>
+        <div className="row items-center g3" style={{ minWidth: 0 }}>
+          <button type="button" className="icon-btn" onClick={() => navigate(-1)} title="Close">
+            <Icon name="x" size={16} />
+          </button>
+          <div style={{ minWidth: 0 }}>
+            <div className="t-h4" style={{ fontSize: 13.5 }}>
+              {challenge.title}
+            </div>
+            <div className="t-caption">
+              {challenge.technologyName} · {challenge.estimatedMinutes} min
+            </div>
+          </div>
+        </div>
 
-        <Heading size="sm" color="ink.100" mb={3} lineHeight="1.4">
-          {challenge.title}
-        </Heading>
+        <Badge variant="primary">{challenge.kind.replace('_', ' ').toLowerCase()}</Badge>
+      </div>
 
-        <Text fontSize="sm" color="ink.200" whiteSpace="pre-wrap" lineHeight="1.7" mb={5}>
-          {challenge.brief.body}
-        </Text>
+      <div className="row flex-1" style={{ minHeight: 0 }}>
+        <div
+          className="col scroll-y p5"
+          style={{
+            width: 460,
+            borderRight: '1px solid var(--border)',
+            background: 'var(--surface)',
+            flexShrink: 0,
+          }}
+        >
+          <div className="t-body mb5" style={{ whiteSpace: 'pre-wrap' }}>
+            {challenge.brief.body}
+          </div>
 
-        {challenge.brief.constraints.length > 0 && (
-          <Box mb={5}>
-            <Label>Constraints</Label>
-            <VStack align="stretch" spacing={1}>
-              {challenge.brief.constraints.map((constraint) => (
-                <Text key={constraint} fontSize="sm" color="ink.300">
-                  · {constraint}
-                </Text>
-              ))}
-            </VStack>
-          </Box>
-        )}
+          {challenge.brief.constraints.length > 0 && (
+            <Bullets label="CONSTRAINTS" items={challenge.brief.constraints} />
+          )}
 
-        {challenge.brief.telemetry && (
-          <Box mb={5}>
-            <Label>Telemetry</Label>
-            {/* Shown in full. In a real incident the signal was always
-                there — hiding some of it would test luck, not diagnosis. */}
-            <Box
-              bg="#07080A"
-              borderWidth="1px"
-              borderColor="surface.300"
-              borderRadius="md"
-              p={3}
-              overflowX="auto"
-            >
-              <Text
-                fontFamily="mono"
-                fontSize="xs"
-                color="ink.300"
-                whiteSpace="pre"
-                lineHeight="1.6"
-              >
-                {challenge.brief.telemetry}
-              </Text>
-            </Box>
-          </Box>
-        )}
+          {challenge.brief.telemetry && (
+            <div className="mb5">
+              <div className="t-caption mb2">TELEMETRY</div>
+              {/* Shown in full. In a real incident the signal was always
+                  there — hiding some of it would test luck, not diagnosis. */}
+              <div className="code-block">
+                <pre style={{ fontSize: 11.5 }}>{challenge.brief.telemetry}</pre>
+              </div>
+            </div>
+          )}
 
-        {challenge.brief.sections.length > 0 && (
-          <Box mb={5}>
-            <Label>Cover these</Label>
-            <VStack align="stretch" spacing={1}>
-              {challenge.brief.sections.map((section) => (
-                <Text key={section} fontSize="sm" color="ink.300">
-                  · {section}
-                </Text>
-              ))}
-            </VStack>
-          </Box>
-        )}
+          {challenge.brief.sections.length > 0 && (
+            <Bullets label="COVER THESE" items={challenge.brief.sections} />
+          )}
 
-        {challenge.brief.terminal && (
-          <Box>
-            <Label>Done when</Label>
-            <VStack align="stretch" spacing={1}>
-              {challenge.brief.terminal.goals.map((goal) => (
-                <Text key={goal} fontSize="sm" color="ink.300">
-                  · {goal}
-                </Text>
-              ))}
-            </VStack>
-          </Box>
-        )}
-      </GridItem>
+          {challenge.brief.terminal && (
+            <Bullets label="DONE WHEN" items={challenge.brief.terminal.goals} />
+          )}
+        </div>
 
-      {/* Work */}
-      <GridItem overflowY="auto" p={6} minW={0} display="flex" flexDirection="column">
-        {!started ? (
-          <Box textAlign="center" py={16}>
-            <Text fontSize="sm" color="ink.400" mb={5}>
-              {challenge.kind === 'TERMINAL'
-                ? 'A simulated shell. Explore freely — nothing is graded until you ask.'
-                : 'Read the brief, then write your answer. You get one review per submission.'}
-            </Text>
-            <Button
-              onClick={() => exerciseId && start.mutate(exerciseId)}
-              isLoading={start.isPending}
-            >
-              Start
-            </Button>
-          </Box>
-        ) : challenge.kind === 'TERMINAL' ? (
-          <TerminalPane challenge={challenge} />
-        ) : (
-          <>
-            <Textarea
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              placeholder={
-                challenge.kind === 'INCIDENT'
-                  ? 'What is your diagnosis, and what in the telemetry tells you?'
-                  : 'Your design. Prose is fine — this is judged as an interview answer, not a document.'
+        <div className="col flex-1 scroll-y p5" style={{ minWidth: 0 }}>
+          {!started ? (
+            <StateBlock
+              icon={challenge.kind === 'TERMINAL' ? 'monitor' : 'brain'}
+              title="Ready when you are"
+              body={
+                challenge.kind === 'TERMINAL'
+                  ? 'A simulated shell. Explore freely — nothing is graded until you ask.'
+                  : 'Read the brief, then write your answer. You get one review per submission.'
               }
-              minH="320px"
-              bg="surface.50"
-              borderColor="surface.400"
-              fontSize="sm"
-              fontFamily="mono"
-              lineHeight="1.7"
-              resize="vertical"
-              _focusVisible={{ borderColor: 'forge.500', boxShadow: 'none' }}
+              action={
+                <Button
+                  icon="play"
+                  onClick={() => exerciseId && start.mutate(exerciseId)}
+                  disabled={start.isPending}
+                >
+                  {start.isPending ? 'Starting…' : 'Start'}
+                </Button>
+              }
             />
+          ) : challenge.kind === 'TERMINAL' ? (
+            <TerminalPane challenge={challenge} />
+          ) : (
+            <>
+              <textarea
+                className="textarea mono"
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                placeholder={
+                  challenge.kind === 'INCIDENT'
+                    ? 'What is your diagnosis, and what in the telemetry tells you?'
+                    : 'Your design. Prose is fine — this is judged as an interview answer, not a document.'
+                }
+                style={{ minHeight: 320, lineHeight: 1.7 }}
+              />
 
-            <HStack justify="space-between" mt={3}>
-              <Text fontSize="xs" color="ink.500">
-                {text.trim().split(/\s+/).filter(Boolean).length} words
-              </Text>
-              <Button
-                size="sm"
-                onClick={() => void send()}
-                isLoading={submit.isPending}
-                loadingText="Reviewing"
-                isDisabled={text.trim().length < 40}
-              >
-                Submit for review
-              </Button>
-            </HStack>
+              <div className="row items-center justify-between g3 mt3">
+                <span className="t-caption">
+                  {words} {words === 1 ? 'word' : 'words'}
+                  {text.trim().length < 40 && ' · a paragraph at least'}
+                </span>
+                <Button
+                  size="sm"
+                  onClick={() => void send()}
+                  disabled={submit.isPending || text.trim().length < 40}
+                >
+                  {submit.isPending ? 'Reviewing…' : 'Submit for review'}
+                </Button>
+              </div>
 
-            {review && (
-              <Box mt={8}>
-                <WrittenReview review={review} />
-              </Box>
-            )}
-          </>
-        )}
-      </GridItem>
-    </Grid>
+              {review && <WrittenReview review={review} />}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Bullets({ label, items }: { label: string; items: readonly string[] }) {
+  return (
+    <div className="mb5">
+      <div className="t-caption mb2">{label}</div>
+      <div className="col g1">
+        {items.map((item) => (
+          <div key={item} className="t-small">
+            · {item}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
 const SEVERITY_COLOUR: Record<string, string> = {
-  critical: 'fail',
-  major: 'warn',
-  minor: 'ink.300',
+  critical: 'var(--error)',
+  major: 'var(--warning)',
+  minor: 'var(--text-secondary)',
 };
 
 function WrittenReview({ review }: { review: WrittenReviewResult }) {
@@ -242,147 +201,103 @@ function WrittenReview({ review }: { review: WrittenReviewResult }) {
   ][];
 
   return (
-    <Box borderTopWidth="1px" borderColor="surface.300" pt={6}>
-      <HStack justify="space-between" mb={5}>
-        <Heading size="sm" color="ink.100">
-          Review
-        </Heading>
-        <Text fontSize="sm" fontWeight={600} color={review.passed ? 'pass' : 'warn'}>
-          {review.passed ? 'Holds up' : 'Needs work'}
-        </Text>
-      </HStack>
+    <>
+      <div className="divider mt7 mb5" />
 
-      <Text fontSize="sm" color="ink.200" lineHeight="1.7" mb={6}>
-        {review.summary}
-      </Text>
+      <div className="row items-center justify-between mb4">
+        <span className="t-h3">Review</span>
+        <span
+          className="t-code"
+          style={{
+            fontWeight: 700,
+            color: review.passed ? 'var(--success)' : 'var(--warning)',
+          }}
+        >
+          {review.passed ? 'Holds up' : 'Needs work'}
+        </span>
+      </div>
+
+      <div className="t-body mb6">{review.summary}</div>
 
       {scored.length > 0 && (
-        <Box mb={6}>
-          <Label>Scored</Label>
-          <VStack align="stretch" spacing={2}>
+        <div className="mb6">
+          <div className="t-caption mb2">SCORED</div>
+          <div className="col g3">
             {scored.map(([dimension, value]) => (
-              <HStack key={dimension} spacing={3}>
-                <Text fontSize="xs" color="ink.400" minW="180px">
+              <div key={dimension} className="row items-center g3">
+                <span className="t-small" style={{ width: 180, flexShrink: 0 }}>
                   {humanise(dimension)}
-                </Text>
-                <Box flex="1" h="4px" bg="surface.300" borderRadius="full" overflow="hidden">
-                  <Box
-                    h="100%"
-                    w={`${Math.round(value * 100)}%`}
-                    bg={value >= 0.7 ? 'pass' : value >= 0.45 ? 'warn' : 'fail'}
-                  />
-                </Box>
-                <Text fontSize="xs" color="ink.400" minW="28px" textAlign="right">
+                </span>
+                <div style={{ flex: 1 }}>
+                  <SkillMeter pct={value * 100} />
+                </div>
+                <span className="t-code" style={{ width: 32, textAlign: 'right', flexShrink: 0 }}>
                   {Math.round(value * 100)}
-                </Text>
-              </HStack>
+                </span>
+              </div>
             ))}
-          </VStack>
-          <Text fontSize="xs" color="ink.500" mt={3}>
+          </div>
+          {/* Silence is not a wrong answer — it is an absent one. */}
+          <div className="t-caption mt3">
             Anything you did not address is left out, not scored zero.
-          </Text>
-        </Box>
+          </div>
+        </div>
       )}
 
-      {review.strengths.length > 0 && (
-        <Box mb={5}>
-          <Label>Holds up</Label>
-          <VStack align="stretch" spacing={1}>
-            {review.strengths.map((strength) => (
-              <Text key={strength} fontSize="sm" color="ink.200">
-                · {strength}
-              </Text>
-            ))}
-          </VStack>
-        </Box>
-      )}
+      {review.strengths.length > 0 && <Bullets label="HOLDS UP" items={review.strengths} />}
 
       {review.issues.length > 0 && (
-        <Box mb={5}>
-          <Label>Gaps</Label>
-          <VStack align="stretch" spacing={3}>
+        <div className="mb5">
+          <div className="t-caption mb2">GAPS</div>
+          <div className="col g4">
             {review.issues.map((issue) => (
-              <Box
+              <div
                 key={issue.title}
-                borderLeftWidth="2px"
-                borderColor={SEVERITY_COLOUR[issue.severity] ?? 'ink.500'}
-                pl={3}
+                style={{
+                  borderLeft: `2px solid ${SEVERITY_COLOUR[issue.severity] ?? 'var(--text-muted)'}`,
+                  paddingLeft: 12,
+                }}
               >
-                <HStack spacing={2} mb={1}>
-                  <Text
-                    fontSize="xs"
-                    textTransform="uppercase"
-                    letterSpacing="0.04em"
-                    color={SEVERITY_COLOUR[issue.severity] ?? 'ink.500'}
-                    fontWeight={600}
-                  >
-                    {issue.severity}
-                  </Text>
-                </HStack>
-                <Text fontSize="sm" color="ink.100" fontWeight={500} mb={1}>
+                <div
+                  className="t-caption mb1"
+                  style={{
+                    color: SEVERITY_COLOUR[issue.severity] ?? 'var(--text-muted)',
+                    fontWeight: 700,
+                  }}
+                >
+                  {issue.severity.toUpperCase()}
+                </div>
+                <div className="t-h4" style={{ fontSize: 13 }}>
                   {issue.title}
-                </Text>
-                <Text fontSize="xs" color="ink.300" lineHeight="1.6">
+                </div>
+                <div className="t-caption mt1" style={{ lineHeight: 1.6 }}>
                   {issue.explanation}
-                </Text>
-              </Box>
+                </div>
+              </div>
             ))}
-          </VStack>
-        </Box>
+          </div>
+        </div>
       )}
 
       {review.missedSignals && review.missedSignals.length > 0 && (
-        <Box mb={5}>
-          <Label>Evidence you walked past</Label>
-          <VStack align="stretch" spacing={1}>
-            {review.missedSignals.map((signal) => (
-              <Text key={signal} fontSize="sm" color="ink.200">
-                · {signal}
-              </Text>
-            ))}
-          </VStack>
-        </Box>
+        <Bullets label="EVIDENCE YOU WALKED PAST" items={review.missedSignals} />
       )}
 
       {review.rootCause && (
-        <Box mb={5}>
+        <div className="mb5">
           {/* Released only now. Showing it beside the brief would have made
               this a reading exercise. */}
-          <Label>What it actually was</Label>
-          <Text fontSize="sm" color="ink.200" whiteSpace="pre-wrap" lineHeight="1.7">
+          <div className="t-caption mb2">WHAT IT ACTUALLY WAS</div>
+          <div className="t-body" style={{ whiteSpace: 'pre-wrap' }}>
             {review.rootCause}
-          </Text>
-        </Box>
+          </div>
+        </div>
       )}
 
       {review.followUpQuestions.length > 0 && (
-        <Box>
-          <Label>What you would be asked next</Label>
-          <VStack align="stretch" spacing={1}>
-            {review.followUpQuestions.map((question) => (
-              <Text key={question} fontSize="sm" color="ink.300">
-                · {question}
-              </Text>
-            ))}
-          </VStack>
-        </Box>
+        <Bullets label="WHAT YOU WOULD BE ASKED NEXT" items={review.followUpQuestions} />
       )}
-    </Box>
-  );
-}
-
-function Label({ children }: { children: React.ReactNode }) {
-  return (
-    <Text
-      fontSize="xs"
-      textTransform="uppercase"
-      letterSpacing="0.06em"
-      color="ink.500"
-      fontWeight={600}
-      mb={2}
-    >
-      {children}
-    </Text>
+    </>
   );
 }
 

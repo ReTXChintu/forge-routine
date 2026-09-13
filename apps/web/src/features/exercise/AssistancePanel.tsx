@@ -1,31 +1,24 @@
-import {
-  Alert,
-  AlertIcon,
-  Badge,
-  Box,
-  Button,
-  Divider,
-  HStack,
-  Text,
-  VStack,
-} from '@chakra-ui/react';
-import { useState } from 'react';
-
 import type { HintKind } from '@forgeroutine/shared-types';
 
+import { Icon } from '~/components/Icon';
+import { AiTag, Badge, Button } from '~/components/ui';
+
 /**
- * The assistance ladder (§9).
+ * The assistance ladder (§8), as the prototype draws it.
  *
- * The rungs are presented plainly and in order, with `Show solution` visually
- * de-emphasised and gated. The point is not to make help hard to get — it is to
- * make the cheap step the obvious one, and to make choosing the expensive step a
- * decision rather than a reflex.
+ * Rungs are listed cheapest first. The ones that preserve the challenge are
+ * plain; the ones that reduce or end it are marked `danger` and say so in
+ * their badge. The point is not to make help hard to get — it is to make
+ * the cheap step the obvious one, and taking the expensive step a decision
+ * rather than a reflex.
  */
 
 interface Rung {
   kind: HintKind;
   label: string;
   description: string;
+  /** How much of the exercise survives asking. */
+  cost: 'preserves' | 'reduces' | 'ends';
 }
 
 const RUNGS: Rung[] = [
@@ -33,25 +26,40 @@ const RUNGS: Rung[] = [
     kind: 'CONCEPT_REMINDER',
     label: 'Concept reminder',
     description: 'The underlying idea, without looking at your code',
+    cost: 'preserves',
   },
   {
     kind: 'SMALL_HINT',
     label: 'Small hint',
     description: 'One question to narrow things down',
+    cost: 'preserves',
   },
   {
     kind: 'DEBUGGING_QUESTION',
     label: 'Debugging question',
     description: 'What did you expect, and what happened?',
+    cost: 'preserves',
   },
   {
     kind: 'EXPLAIN_ERROR',
     label: 'Explain this error',
     description: 'What the error means in general',
+    cost: 'preserves',
   },
-  { kind: 'HINT', label: 'Hint', description: 'Where the problem is' },
-  { kind: 'SHOW_APPROACH', label: 'Show approach', description: 'The algorithm, in prose' },
+  { kind: 'HINT', label: 'Hint', description: 'Where the problem is', cost: 'reduces' },
+  {
+    kind: 'SHOW_APPROACH',
+    label: 'Show approach',
+    description: 'The algorithm, in prose',
+    cost: 'reduces',
+  },
 ];
+
+const COST_BADGE = {
+  preserves: { variant: 'success' as const, text: 'Preserves challenge' },
+  reduces: { variant: 'warning' as const, text: 'Reduces challenge' },
+  ends: { variant: 'error' as const, text: 'Ends challenge' },
+};
 
 export interface HintEntry {
   kind: HintKind;
@@ -76,135 +84,107 @@ export function AssistancePanel({
   gateMessage,
   onRequest,
 }: AssistancePanelProps) {
-  const [confirmingSolution, setConfirmingSolution] = useState(false);
-
   if (blindMode) {
     return (
-      <Box p={4}>
-        <Alert status="info" variant="left-accent" bg="surface.200" fontSize="sm">
-          <AlertIcon color="info" />
-          <Box>
-            <Text fontWeight={600}>Blind Coding</Text>
-            <Text color="ink.300">
-              No assistance, no solution. Everything is evaluated after you submit.
-            </Text>
-          </Box>
-        </Alert>
-      </Box>
-    );
-  }
-
-  if (!enabled) {
-    return (
-      <Box p={4}>
-        <Alert status="info" variant="left-accent" bg="surface.200" fontSize="sm">
-          <AlertIcon color="info" />
-          <Box>
-            <Text fontWeight={600}>Interview conditions</Text>
-            <Text color="ink.300">
-              Assistance is off at this level, as it would be in a real interview.
-            </Text>
-          </Box>
-        </Alert>
-      </Box>
+      <div className="p4">
+        <Badge variant="neutral" icon="circleSlash">
+          Hints disabled in this mode
+        </Badge>
+        {/* Blind coding is the point of the mode, not a limitation of it. */}
+        <div className="t-caption mt3">
+          Blind coding measures what you can write unaided. Assistance would measure something else.
+        </div>
+      </div>
     );
   }
 
   return (
-    <VStack align="stretch" spacing={3} p={4} overflowY="auto" h="100%">
-      <HStack justify="space-between">
-        <Text fontSize="xs" fontWeight={700} color="ink.400" letterSpacing="0.06em">
-          ASSISTANCE
-        </Text>
-        {hints.length > 0 && (
-          <Badge bg="surface.300" color="ink.300" fontSize="xs">
-            {hints.length} used
-          </Badge>
+    <>
+      <div className="p4" style={{ borderBottom: '1px solid var(--border)' }}>
+        <AiTag>AI Assistance</AiTag>
+        <div className="t-caption mt2">Hints preserve the challenge. Solutions end it.</div>
+      </div>
+
+      <div className="col g2 p3 scroll-y" style={{ flex: 1, minHeight: 0 }}>
+        {!enabled && (
+          <div className="t-caption mb2">
+            AI is not configured. The static hints on the problem still apply.
+          </div>
         )}
-      </HStack>
 
-      <VStack align="stretch" spacing={1}>
-        {RUNGS.map((rung) => (
-          <Button
-            key={rung.kind}
-            variant="ghost"
-            justifyContent="flex-start"
-            h="auto"
-            py={2}
-            px={3}
-            isLoading={pending === rung.kind}
-            onClick={() => onRequest(rung.kind)}
-          >
-            <Box textAlign="left">
-              <Text fontSize="sm" color="ink.200">
-                {rung.label}
-              </Text>
-              <Text fontSize="xs" color="ink.400" fontWeight={400}>
-                {rung.description}
-              </Text>
-            </Box>
-          </Button>
-        ))}
-      </VStack>
+        {RUNGS.map((rung) => {
+          const badge = COST_BADGE[rung.cost];
+          const busy = pending === rung.kind;
 
-      <Divider borderColor="surface.300" />
-
-      {/* Deliberately separated and quiet: available, never the default. */}
-      {confirmingSolution ? (
-        <VStack align="stretch" spacing={2}>
-          <Text fontSize="xs" color="ink.300">
-            {gateMessage ?? 'This ends the independent run for this attempt.'}
-          </Text>
-          <HStack>
-            <Button
-              size="xs"
-              variant="outline"
-              onClick={() => {
-                setConfirmingSolution(false);
-                onRequest('SHOW_SOLUTION', true);
-              }}
+          return (
+            <div
+              key={rung.kind}
+              className={`hint-level ${rung.cost === 'reduces' ? 'danger' : ''}`}
+              onClick={() => enabled && !pending && onRequest(rung.kind)}
+              style={{ opacity: enabled ? 1 : 0.45, cursor: enabled ? 'pointer' : 'not-allowed' }}
             >
-              Show it anyway
-            </Button>
-            <Button size="xs" variant="ghost" onClick={() => setConfirmingSolution(false)}>
-              Keep trying
-            </Button>
-          </HStack>
-        </VStack>
-      ) : (
-        <Button
-          variant="ghost"
-          size="xs"
-          color="ink.500"
-          justifyContent="flex-start"
-          isLoading={pending === 'SHOW_SOLUTION'}
-          onClick={() => setConfirmingSolution(true)}
+              <div className="row justify-between items-center g2">
+                <span className="t-h4" style={{ fontSize: 13 }}>
+                  {rung.label}
+                </span>
+                <Badge variant={badge.variant}>{busy ? 'Thinking…' : badge.text}</Badge>
+              </div>
+              <div className="t-caption mt1">{rung.description}</div>
+            </div>
+          );
+        })}
+
+        <div
+          className="hint-level danger"
+          onClick={() => enabled && !pending && onRequest('SHOW_SOLUTION')}
+          style={{ opacity: enabled ? 1 : 0.45, cursor: enabled ? 'pointer' : 'not-allowed' }}
         >
-          Show solution
-        </Button>
-      )}
+          <div className="row justify-between items-center g2">
+            <span className="t-h4" style={{ fontSize: 13 }}>
+              Show solution
+            </span>
+            <Badge variant="error">Ends challenge</Badge>
+          </div>
+          <div className="t-caption mt1">The whole answer. Counts against independence.</div>
+        </div>
 
-      {hints.length > 0 && <Divider borderColor="surface.300" />}
+        {gateMessage && (
+          <div className="card p3" style={{ borderColor: 'var(--warning)' }}>
+            <div className="row items-start g2">
+              <span style={{ color: 'var(--warning)', marginTop: 2 }}>
+                <Icon name="clock" size={13} />
+              </span>
+              <div>
+                {/* The gate is explained, never silent. A button that does
+                    nothing reads as a bug. */}
+                <div className="t-small">{gateMessage}</div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt2"
+                  onClick={() => onRequest('SHOW_SOLUTION', true)}
+                >
+                  Show it anyway
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
-      <VStack align="stretch" spacing={3}>
         {hints.map((hint, index) => (
-          <Box
-            key={`${hint.kind}-${index}`}
-            bg="surface.200"
-            borderWidth="1px"
-            borderColor={hint.intervention ? 'forge.700' : 'surface.300'}
-            borderRadius="md"
-            p={3}
-          >
-            <Text fontSize="xs" color="ink.500" mb={1} letterSpacing="0.04em">
-              {hint.kind.replace(/_/g, ' ')}
-            </Text>
-            <Text fontSize="sm" color="ink.200" whiteSpace="pre-wrap">
+          <div key={`${hint.kind}-${index}`} className="card p3">
+            <div className="t-caption mb1">{hint.kind.toLowerCase().replace(/_/g, ' ')}</div>
+            <div className="t-body" style={{ color: 'var(--text-primary)' }}>
               {hint.message}
-            </Text>
-          </Box>
+            </div>
+            {hint.intervention && (
+              <div className="t-caption mt2" style={{ color: 'var(--warning)' }}>
+                {hint.intervention}
+              </div>
+            )}
+          </div>
         ))}
-      </VStack>
-    </VStack>
+      </div>
+    </>
   );
 }

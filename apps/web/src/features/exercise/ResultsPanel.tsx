@@ -1,16 +1,14 @@
-import { Badge, Box, Divider, HStack, Icon, Text, VStack } from '@chakra-ui/react';
-import { FiAlertTriangle, FiCheck, FiX } from 'react-icons/fi';
-
 import type { CodeEvaluation, ExecutionResult } from '@forgeroutine/shared-types';
 
+import { Icon } from '~/components/Icon';
+import { AiTag, Badge, Card, metricColor, type BadgeVariant } from '~/components/ui';
+
 /**
- * Execution results and the AI evaluation.
+ * The console pane: what ran, what passed, and what the evaluator made of it.
  *
- * Two rules from the product spec show up directly here:
- *  - Unscored quality dimensions render as "—", never as 0%. A dash is honest;
- *    a zero is a claim we did not earn.
- *  - The evaluation never offers to apply a fix. It says what is wrong and
- *    leaves the fixing to the user (§31).
+ * An internal failure is never reported as a wrong answer. If the harness
+ * broke, that is our fault, and telling the user their code failed would
+ * send them hunting for a bug that is in our sandbox.
  */
 
 interface ResultsPanelProps {
@@ -20,259 +18,153 @@ interface ResultsPanelProps {
   running: boolean;
 }
 
+const STATUS: Record<string, { variant: BadgeVariant; label: string }> = {
+  PASSED: { variant: 'success', label: 'Passed' },
+  FAILED: { variant: 'error', label: 'Failed' },
+  TIMEOUT: { variant: 'warning', label: 'Timed out' },
+  COMPILE_ERROR: { variant: 'warning', label: 'Would not compile' },
+  MEMORY_EXCEEDED: { variant: 'warning', label: 'Out of memory' },
+  HARNESS_ERROR: { variant: 'neutral', label: 'Our fault' },
+  INTERNAL_ERROR: { variant: 'neutral', label: 'Our fault' },
+};
+
 export function ResultsPanel({ execution, evaluation, hint, running }: ResultsPanelProps) {
   if (running) {
     return (
-      <Box p={4}>
-        <Text fontSize="sm" color="ink.400">
-          Running your code…
-        </Text>
-      </Box>
+      <div className="p3 t-caption row items-center g2">
+        <Icon name="refresh" size={13} /> Running your code…
+      </div>
     );
   }
 
   if (!execution) {
     return (
-      <Box p={4}>
-        <Text fontSize="sm" color="ink.500">
-          Run your code to see results.
-        </Text>
-      </Box>
+      <div className="p3 t-caption">
+        Run your code to see the tests. Nothing is recorded until you submit.
+      </div>
     );
   }
 
-  const isInfrastructureFailure =
-    execution.status === 'HARNESS_ERROR' || execution.status === 'INTERNAL_ERROR';
+  const ourFault = execution.status === 'HARNESS_ERROR' || execution.status === 'INTERNAL_ERROR';
+  const status = STATUS[execution.status] ?? {
+    variant: 'neutral' as const,
+    label: execution.status,
+  };
 
   return (
-    <VStack align="stretch" spacing={3} p={4} overflowY="auto" h="100%">
-      <HStack justify="space-between">
-        <HStack spacing={2}>
-          <StatusBadge status={execution.status} />
+    <div className="p3 scroll-y" style={{ flex: 1, minHeight: 0 }}>
+      <div className="row items-center justify-between mb3 g3">
+        <div className="row items-center g2">
+          <Badge variant={status.variant}>{status.label}</Badge>
           {execution.testsTotal > 0 && (
-            <Text fontSize="sm" color="ink.300" fontFamily="mono">
+            <span className="t-code" style={{ fontWeight: 700 }}>
               {execution.testsPassed}/{execution.testsTotal}
-            </Text>
+            </span>
           )}
-        </HStack>
-        <Text fontSize="xs" color="ink.500" fontFamily="mono">
-          {execution.durationMs}ms
-        </Text>
-      </HStack>
+        </div>
+        <span className="t-caption">{execution.durationMs}ms</span>
+      </div>
 
-      {isInfrastructureFailure && (
-        <Box bg="surface.200" borderLeftWidth="2px" borderColor="warn" p={3} borderRadius="md">
-          <HStack spacing={2} mb={1}>
-            <Icon as={FiAlertTriangle} color="warn" />
-            <Text fontSize="sm" fontWeight={600}>
-              This one is on us
-            </Text>
-          </HStack>
-          <Text fontSize="xs" color="ink.300">
-            The runner failed, not your code. This does not count against your progress.
-          </Text>
-        </Box>
-      )}
-
-      {execution.stderr && (
-        <Box
-          bg="surface.0"
-          borderWidth="1px"
-          borderColor="surface.300"
-          borderRadius="md"
-          p={3}
-          fontFamily="mono"
-          fontSize="xs"
-          color="fail"
-          whiteSpace="pre-wrap"
-          maxH="160px"
-          overflowY="auto"
-        >
-          {execution.stderr}
-        </Box>
+      {ourFault && (
+        <Card className="mb3" style={{ borderColor: 'var(--warning)' }}>
+          {/* Never reported as a wrong answer. The user would go looking for
+              a bug that is in our sandbox. */}
+          <div className="t-small">
+            Something broke on our side while running this. Your code was not judged.
+          </div>
+        </Card>
       )}
 
       {execution.cases.length > 0 && (
-        <VStack align="stretch" spacing={1}>
+        <div className="col g2 mb3">
           {execution.cases.map((testCase, index) => (
-            <HStack
-              key={`${testCase.name}-${index}`}
-              spacing={2}
-              align="flex-start"
-              bg="surface.200"
-              borderRadius="md"
-              px={3}
-              py={2}
-            >
-              <Icon
-                as={testCase.passed ? FiCheck : FiX}
-                color={testCase.passed ? 'pass' : 'fail'}
-                mt="2px"
-                flexShrink={0}
-              />
-              <Box flex="1" minW={0}>
-                <Text fontSize="sm" color={testCase.passed ? 'ink.300' : 'ink.100'}>
+            <div key={`${testCase.name}-${index}`}>
+              <div className="row justify-between items-center g2 mono" style={{ fontSize: 12.5 }}>
+                <span className="row items-center g2">
+                  <span style={{ color: testCase.passed ? 'var(--success)' : 'var(--error)' }}>
+                    <Icon name={testCase.passed ? 'check' : 'x'} size={13} />
+                  </span>
                   {testCase.name}
-                </Text>
-                {!testCase.passed && testCase.error && (
-                  <Text fontSize="xs" color="ink.400" fontFamily="mono" mt={1}>
-                    {testCase.error}
-                  </Text>
-                )}
-              </Box>
-            </HStack>
+                </span>
+                <span className={testCase.passed ? 'text-success' : 'text-error'}>
+                  {testCase.passed ? 'passed' : 'failed'}
+                </span>
+              </div>
+              {testCase.error && (
+                <div
+                  className="mono t-caption mt1"
+                  style={{ color: 'var(--error)', paddingLeft: 21, whiteSpace: 'pre-wrap' }}
+                >
+                  {testCase.error}
+                </div>
+              )}
+            </div>
           ))}
-        </VStack>
+        </div>
       )}
 
-      {execution.stdout && (
-        <Box>
-          <Text fontSize="xs" color="ink.500" mb={1} letterSpacing="0.06em">
-            OUTPUT
-          </Text>
-          <Box
-            bg="surface.0"
-            borderWidth="1px"
-            borderColor="surface.300"
-            borderRadius="md"
-            p={3}
-            fontFamily="mono"
-            fontSize="xs"
-            color="ink.300"
-            whiteSpace="pre-wrap"
-            maxH="140px"
-            overflowY="auto"
-          >
-            {execution.stdout}
-            {execution.truncated && (
-              <Text as="span" color="warn">
-                {'\n'}…truncated
-              </Text>
-            )}
-          </Box>
-        </Box>
+      {execution.stderr && !ourFault && (
+        <div className="code-block mb3">
+          <pre style={{ fontSize: 11.5, color: 'var(--error)' }}>{execution.stderr}</pre>
+        </div>
+      )}
+
+      {evaluation && (
+        <>
+          <div className="divider mb3" />
+          <div className="grid grid-4 g2 mb3">
+            {Object.entries(evaluation.quality)
+              .filter(([, value]) => value !== null)
+              .slice(0, 4)
+              .map(([key, value]) => (
+                <div key={key} className="card p3" style={{ textAlign: 'center' }}>
+                  <div
+                    className="t-metric"
+                    style={{ fontSize: 18, color: metricColor(Number(value) * 100) }}
+                  >
+                    {Math.round(Number(value) * 100)}%
+                  </div>
+                  <div className="t-caption mt1">{humanise(key)}</div>
+                </div>
+              ))}
+          </div>
+
+          {evaluation.strengths.length > 0 && (
+            <Card className="mb2">
+              <div className="t-h4 mb1" style={{ color: 'var(--success)' }}>
+                <Icon name="check" size={14} /> What you did well
+              </div>
+              <div className="t-small">{evaluation.strengths.join(' ')}</div>
+            </Card>
+          )}
+
+          {evaluation.weaknesses.length > 0 && (
+            <Card className="mb2">
+              <div className="t-h4 mb1" style={{ color: 'var(--error)' }}>
+                <Icon name="alert" size={14} /> What went wrong
+              </div>
+              <div className="t-small">{evaluation.weaknesses.join(' ')}</div>
+            </Card>
+          )}
+        </>
       )}
 
       {hint && (
-        <Box bg="surface.200" borderLeftWidth="2px" borderColor="forge.500" p={3} borderRadius="md">
-          <Text fontSize="sm" color="ink.200">
+        <Card style={{ borderColor: 'var(--primary-border)' }}>
+          <AiTag>Think about this</AiTag>
+          {/* A question, not an answer — the whole point of the ladder. */}
+          <div className="t-body mt2" style={{ color: 'var(--text-primary)' }}>
             {hint}
-          </Text>
-        </Box>
+          </div>
+        </Card>
       )}
-
-      {evaluation && <Evaluation evaluation={evaluation} />}
-    </VStack>
+    </div>
   );
 }
 
-function Evaluation({ evaluation }: { evaluation: CodeEvaluation }) {
-  const dimensions = [
-    ['Correctness', evaluation.quality.correctness],
-    ['Readability', evaluation.quality.readability],
-    ['Architecture', evaluation.quality.architecture],
-    ['Error handling', evaluation.quality.errorHandling],
-    ['Edge cases', evaluation.quality.edgeCases],
-    ['Performance', evaluation.quality.performance],
-    ['Security', evaluation.quality.security],
-    ['Idiomatic', evaluation.quality.idiomatic],
-  ] as const;
-
-  return (
-    <>
-      <Divider borderColor="surface.300" />
-
-      <HStack justify="space-between">
-        <Text fontSize="xs" fontWeight={700} color="ink.400" letterSpacing="0.06em">
-          REVIEW
-        </Text>
-        {evaluation.degraded && (
-          <Badge bg="surface.300" color="ink.400" fontSize="xs">
-            tests only
-          </Badge>
-        )}
-      </HStack>
-
-      <Box>
-        {dimensions.map(([label, value]) => (
-          <HStack key={label} justify="space-between" py="3px">
-            <Text fontSize="xs" color="ink.400">
-              {label}
-            </Text>
-            {value === null ? (
-              // Unscored. A dash, never a zero.
-              <Text fontSize="xs" color="ink.500" fontFamily="mono">
-                —
-              </Text>
-            ) : (
-              <HStack spacing={2}>
-                <Box w="64px" h="4px" bg="surface.300" borderRadius="full" overflow="hidden">
-                  <Box
-                    h="100%"
-                    w={`${Math.round(value * 100)}%`}
-                    bg={value >= 0.7 ? 'pass' : value >= 0.4 ? 'warn' : 'fail'}
-                  />
-                </Box>
-                <Text fontSize="xs" color="ink.300" fontFamily="mono" w="32px" textAlign="right">
-                  {Math.round(value * 100)}%
-                </Text>
-              </HStack>
-            )}
-          </HStack>
-        ))}
-      </Box>
-
-      {evaluation.strengths.length > 0 && (
-        <Box>
-          <Text fontSize="xs" color="pass" mb={1} letterSpacing="0.04em">
-            WORKING WELL
-          </Text>
-          {evaluation.strengths.map((item) => (
-            <Text key={item} fontSize="sm" color="ink.300">
-              • {item}
-            </Text>
-          ))}
-        </Box>
-      )}
-
-      {evaluation.weaknesses.length > 0 && (
-        <Box>
-          <Text fontSize="xs" color="warn" mb={1} letterSpacing="0.04em">
-            {evaluation.weaknesses.length} ISSUE{evaluation.weaknesses.length === 1 ? '' : 'S'}
-          </Text>
-          {evaluation.weaknesses.map((item) => (
-            <Text key={item} fontSize="sm" color="ink.300">
-              • {item}
-            </Text>
-          ))}
-          {/* No "apply fix" button, by design. */}
-          <Text fontSize="xs" color="ink.500" mt={2} fontStyle="italic">
-            Fix these yourself — that is the part that sticks.
-          </Text>
-        </Box>
-      )}
-    </>
-  );
-}
-
-function StatusBadge({ status }: { status: ExecutionResult['status'] }) {
-  const palette: Record<string, { bg: string; label: string }> = {
-    PASSED: { bg: 'pass', label: 'PASSED' },
-    FAILED: { bg: 'fail', label: 'FAILED' },
-    COMPILE_ERROR: { bg: 'warn', label: 'WILL NOT LOAD' },
-    RUNTIME_ERROR: { bg: 'fail', label: 'CRASHED' },
-    TIMEOUT: { bg: 'warn', label: 'TIMED OUT' },
-    MEMORY_EXCEEDED: { bg: 'warn', label: 'OUT OF MEMORY' },
-    OUTPUT_EXCEEDED: { bg: 'warn', label: 'TOO MUCH OUTPUT' },
-    HARNESS_ERROR: { bg: 'ink.500', label: 'RUNNER ERROR' },
-    INTERNAL_ERROR: { bg: 'ink.500', label: 'RUNNER ERROR' },
-  };
-
-  const entry = palette[status] ?? { bg: 'ink.500', label: status };
-
-  return (
-    <Badge bg={entry.bg} color="surface.0" fontSize="xs" px={2} letterSpacing="0.04em">
-      {entry.label}
-    </Badge>
-  );
+function humanise(key: string): string {
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (character) => character.toUpperCase())
+    .trim();
 }

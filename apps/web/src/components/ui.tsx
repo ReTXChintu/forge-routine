@@ -38,6 +38,7 @@ export function Button({
   size,
   icon,
   block,
+  className = '',
   ...rest
 }: {
   children: ReactNode;
@@ -46,7 +47,15 @@ export function Button({
   icon?: string;
   block?: boolean;
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  const classes = ['btn', `btn-${variant}`, size ? `btn-${size}` : '', block ? 'btn-block' : '']
+  // Merged, not spread over: `className` arrives in `rest` otherwise and
+  // silently replaces every button class, leaving an unstyled element.
+  const classes = [
+    'btn',
+    `btn-${variant}`,
+    size ? `btn-${size}` : '',
+    block ? 'btn-block' : '',
+    className,
+  ]
     .filter(Boolean)
     .join(' ');
 
@@ -234,6 +243,103 @@ export function StaticNote({
     >
       <Icon name="info" size={11} />
       {children}
+    </div>
+  );
+}
+
+/** The prototype's ring gauge, used where one number is the whole answer. */
+export function CircularProgress({
+  pct,
+  size = 64,
+  stroke = 6,
+  color,
+  label,
+}: {
+  pct: number;
+  size?: number;
+  stroke?: number;
+  color?: string;
+  label?: string;
+}) {
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (Math.max(0, Math.min(100, pct)) / 100) * circumference;
+
+  return (
+    <div className="circ" style={{ width: size, height: size }}>
+      <svg width={size} height={size}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="var(--surface-2)"
+          strokeWidth={stroke}
+          fill="none"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color ?? metricColor(pct)}
+          strokeWidth={stroke}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          style={{ transition: 'stroke-dashoffset .6s var(--ease)' }}
+        />
+      </svg>
+      <div className="circ-label">
+        <span style={{ fontSize: size * 0.26, fontWeight: 800 }}>{Math.round(pct)}%</span>
+        {label && (
+          <span className="t-caption" style={{ marginTop: 1 }}>
+            {label}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Marks output that came from a model.
+ *
+ * Never decorative. The product's whole claim is that AI assists rather than
+ * substitutes, and the user is entitled to know which sentences it wrote.
+ */
+export function AiTag({ children = 'AI Mentor' }: { children?: string }) {
+  return (
+    <div className="ai-tag">
+      <span className="ai-mark">
+        <Icon name="zap" size={10} />
+      </span>
+      {children}
+    </div>
+  );
+}
+
+export function Tabs({
+  tabs,
+  active,
+  onChange,
+  className = '',
+}: {
+  tabs: readonly string[];
+  active: string;
+  onChange: (tab: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className={`tabs ${className}`}>
+      {tabs.map((tab) => (
+        <div
+          key={tab}
+          className={`tab ${tab === active ? 'active' : ''}`}
+          onClick={() => onChange(tab)}
+        >
+          {tab}
+        </div>
+      ))}
     </div>
   );
 }

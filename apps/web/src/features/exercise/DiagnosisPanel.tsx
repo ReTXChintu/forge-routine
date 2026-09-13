@@ -1,17 +1,16 @@
-import { Box, Button, HStack, Text, Textarea, VStack } from '@chakra-ui/react';
-
 import type { DiagnosisResult } from '@forgeroutine/shared-types';
 
+import { Badge, Button, Card, metricColor } from '~/components/ui';
+
 /**
- * Diagnose-before-fix, for DEBUGGING exercises (§13).
+ * Diagnosis before repair (§13).
  *
- * The user must commit to a written explanation before submitting. It is not
- * busywork: repairing code by shuffling it until the tests pass is exactly the
- * habit this product exists to break, and a diagnosis makes that impossible to
- * do accidentally.
+ * A debugging exercise asks what is wrong before it accepts a fix. Changing
+ * lines until the tests go green is the habit this product exists to break,
+ * and writing the diagnosis first makes that impossible to do by accident.
  *
- * Grading is separate from the fix, so a correct patch with a wrong diagnosis
- * still says something true about the user's debugging ability.
+ * Grading is separate from the fix, so a correct patch with a wrong
+ * diagnosis still says something true about the user's debugging ability.
  */
 
 interface DiagnosisPanelProps {
@@ -37,87 +36,66 @@ export function DiagnosisPanel({
   const longEnough = wordCount >= 5;
 
   return (
-    <VStack align="stretch" spacing={3} p={4} overflowY="auto" h="100%">
-      <Box>
-        <Text fontSize="xs" fontWeight={700} color="ink.400" letterSpacing="0.06em">
-          DIAGNOSIS
-        </Text>
-        <Text fontSize="xs" color="ink.500" mt={1}>
+    <div className="col g3 p4 scroll-y" style={{ height: '100%' }}>
+      <div>
+        <div className="t-caption">DIAGNOSIS</div>
+        <div className="t-caption mt1">
           What is wrong, and why does it produce this behaviour? Write it before you fix anything.
-        </Text>
-      </Box>
+        </div>
+      </div>
 
-      <Textarea
+      <textarea
+        className="textarea"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder="The loop variable is declared with…"
         rows={6}
-        bg="surface.200"
-        borderColor="surface.300"
-        fontSize="sm"
-        resize="vertical"
-        isDisabled={submitted}
-        _hover={{ borderColor: 'surface.400' }}
-        _focusVisible={{ borderColor: 'forge.500' }}
+        disabled={submitted}
       />
 
-      <HStack justify="space-between">
-        <Text fontSize="xs" color={longEnough ? 'ink.500' : 'warn'}>
-          {longEnough ? `${wordCount} words` : 'Describe the cause, not the symptom'}
-        </Text>
-        {!submitted && (
-          <Button
-            size="xs"
-            onClick={onSubmit}
-            isDisabled={!longEnough || !canSubmit}
-            isLoading={submitting}
-          >
-            Submit diagnosis and fix
+      {!submitted && (
+        <div className="row justify-between items-center">
+          <span className="t-caption">
+            {wordCount} {wordCount === 1 ? 'word' : 'words'}
+            {!longEnough && ' · a sentence at least'}
+          </span>
+          <Button size="sm" onClick={onSubmit} disabled={!canSubmit || !longEnough || submitting}>
+            {submitting ? 'Submitting…' : 'Submit diagnosis and fix'}
           </Button>
-        )}
-      </HStack>
+        </div>
+      )}
 
       {result && (
-        <Box
-          bg="surface.200"
-          borderLeftWidth="2px"
-          borderColor={accentFor(result.accuracy)}
-          borderRadius="md"
-          p={3}
-        >
-          <HStack justify="space-between" mb={2}>
-            <Text fontSize="xs" color="ink.400" letterSpacing="0.04em">
-              DIAGNOSIS
-            </Text>
-            <Text fontSize="xs" fontFamily="mono" color={accentFor(result.accuracy)}>
-              {/* Unscored renders as a dash. We genuinely could not tell. */}
-              {result.accuracy === null ? '—' : `${Math.round(result.accuracy * 100)}%`}
-            </Text>
-          </HStack>
+        <Card>
+          <div className="row justify-between items-center mb2">
+            <span className="t-h4">Diagnosis</span>
+            {result.accuracy === null ? (
+              // Recorded but unscored without an AI key. Saying "0%" would
+              // be a judgement nobody made.
+              <Badge variant="neutral">recorded, unscored</Badge>
+            ) : (
+              <span
+                className="t-code"
+                style={{ fontWeight: 700, color: metricColor(result.accuracy * 100) }}
+              >
+                {Math.round(result.accuracy * 100)}%
+              </span>
+            )}
+          </div>
 
-          <Text fontSize="sm" color="ink.200" whiteSpace="pre-wrap">
-            {result.feedback}
-          </Text>
+          <div className="t-body">{result.feedback}</div>
 
           {result.actualCause && (
-            <Box mt={3} pt={3} borderTopWidth="1px" borderColor="surface.300">
-              <Text fontSize="xs" color="ink.500" letterSpacing="0.04em" mb={1}>
-                WHAT WAS ACTUALLY WRONG
-              </Text>
-              <Text fontSize="sm" color="ink.300">
-                {result.actualCause}
-              </Text>
-            </Box>
+            <>
+              <div className="divider mt3 mb3" />
+              {/* Released only now. Shown beside the brief it would have
+                  been the answer to a question nobody had to think about. */}
+              <div className="t-caption mb1">What it actually was</div>
+              <div className="t-small">{result.actualCause}</div>
+            </>
           )}
-        </Box>
+        </Card>
       )}
-    </VStack>
+    </div>
   );
-}
-
-function accentFor(accuracy: number | null): string {
-  if (accuracy === null) return 'ink.500';
-  if (accuracy >= 0.7) return 'pass';
-  if (accuracy >= 0.4) return 'warn';
-  return 'fail';
 }

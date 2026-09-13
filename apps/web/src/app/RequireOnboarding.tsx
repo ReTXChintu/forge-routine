@@ -1,6 +1,6 @@
-import { HStack, Spinner } from '@chakra-ui/react';
 import { Navigate, useLocation } from 'react-router-dom';
 
+import { Spinner } from '~/components/ui';
 import { useOnboardingStatus } from '~/lib/queries';
 
 /**
@@ -17,13 +17,7 @@ export function RequireOnboarding({ children }: { children: React.ReactNode }) {
 
   if (location.pathname === '/onboarding') return <>{children}</>;
 
-  if (isLoading) {
-    return (
-      <HStack justify="center" py={20}>
-        <Spinner color="forge.500" />
-      </HStack>
-    );
-  }
+  if (isLoading) return <Spinner />;
 
   if (!isError && data && !data.completed) {
     return <Navigate to="/onboarding" replace />;

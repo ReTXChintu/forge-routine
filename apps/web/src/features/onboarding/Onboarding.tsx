@@ -1,32 +1,26 @@
-import {
-  Box,
-  Button,
-  Grid,
-  HStack,
-  Heading,
-  Image,
-  Input,
-  Progress,
-  Text,
-  VStack,
-} from '@chakra-ui/react';
 import { useMemo, useState } from 'react';
-import { FiCheck } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
+import { Icon } from '~/components/Icon';
+import { Button, Card, ProgressBar } from '~/components/ui';
 import { useCatalogue, useCompleteOnboarding } from '~/lib/queries';
 
 import fullLogo from '../../../../../assets/brand/full-logo-480.png';
 
 /**
- * The first-run flow (docs/learning-path.md).
+ * The first-run flow (docs/learning-path.md), in the prototype's setup shell.
  *
  * Four questions, each narrowing the next. Every one after the first has a
  * sane default and can be skipped: a user who abandons onboarding still gets
  * a usable product, just a generic path.
+ *
+ * Full-bleed chrome, 560px form. That is what the prototype does here and it
+ * is right — a question with four options does not get better at 1600px.
  */
 
 type Step = 0 | 1 | 2 | 3;
+
+const STEP_NAMES = ['Technologies', 'Current level', 'Daily time', 'Goal'] as const;
 
 /**
  * Four buckets, not a slider. Precise self-assessment is exactly the thing
@@ -106,257 +100,222 @@ export function Onboarding() {
   const canContinue = step === 0 ? selected.length > 0 : true;
 
   return (
-    <Box minH="100vh" bg="surface.0" display="flex" flexDirection="column">
-      {/* Full-bleed header and progress bar, per the prototype's setup
-          shell. The form inside stays readable at 560px — a question with
-          four options does not get better at 1600px wide — but the chrome
-          around it uses the whole screen. */}
-      <Box
-        px={10}
-        py={5}
-        borderBottomWidth="1px"
-        borderColor="surface.300"
-        display="flex"
-        alignItems="center"
-        justifyContent="space-between"
+    <div className="col" style={{ height: '100vh', background: 'var(--bg)' }}>
+      <div
+        className="row items-center justify-between"
+        style={{ padding: '20px 40px', borderBottom: '1px solid var(--border)' }}
       >
-        <Image src={fullLogo} alt="ForgeRoutine" maxW="150px" />
-        <Text fontSize="xs" color="ink.500">
-          Step {step + 1} of 4
-        </Text>
-      </Box>
+        <img src={fullLogo} alt="ForgeRoutine" style={{ maxWidth: 150 }} />
+        <span className="t-caption">
+          Step {step + 1} of 4 — {STEP_NAMES[step]}
+        </span>
+      </div>
 
-      <Progress
-        value={((step + 1) / 4) * 100}
-        size="xs"
-        borderRadius={0}
-        sx={{ '& > div': { bg: 'forge.500' } }}
-      />
+      <ProgressBar pct={((step + 1) / 4) * 100} thin />
 
-      <Box flex="1" overflowY="auto" px={10} py={12} display="flex" justifyContent="center">
-        <Box maxW="560px" w="100%">
+      <div
+        className="flex-1 scroll-y"
+        style={{ padding: 48, display: 'flex', justifyContent: 'center' }}
+      >
+        <div style={{ maxWidth: 560, width: '100%' }}>
           {step === 0 && (
-            <StepShell
-              title="What do you want to get better at?"
-              subtitle="Pick as many as you like. You can add more at any time."
-            >
-              <Input
+            <>
+              <div className="t-caption mb2">01 · Technologies</div>
+              <div className="t-h1 mb2">What do you want to get better at?</div>
+              <div className="t-body mb5">
+                Pick as many as you like. You can add more at any time.
+              </div>
+
+              <input
+                className="input mb4"
                 placeholder="Search technologies…"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                mb={4}
               />
 
-              <Grid templateColumns={{ base: '1fr', sm: 'repeat(2, 1fr)' }} gap={2}>
+              <div className="row g2 wrap mb4">
                 {(catalogue ?? []).map((technology) => {
                   const isSelected = selectedIds.has(technology.id);
                   return (
-                    <Button
+                    <span
                       key={technology.id}
-                      variant="outline"
-                      justifyContent="flex-start"
-                      h="auto"
-                      py={3}
-                      px={3}
-                      borderColor={isSelected ? 'forge.500' : 'surface.400'}
-                      bg={isSelected ? 'surface.200' : 'transparent'}
+                      className={`chip ${isSelected ? 'selected' : ''}`}
                       onClick={() => toggle(technology.id, technology.name)}
                     >
-                      <HStack w="100%" spacing={3}>
-                        <Box
-                          w="16px"
-                          h="16px"
-                          borderRadius="sm"
-                          borderWidth="1px"
-                          borderColor={isSelected ? 'forge.500' : 'surface.400'}
-                          bg={isSelected ? 'forge.500' : 'transparent'}
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="center"
-                          flexShrink={0}
-                        >
-                          {isSelected && <FiCheck size={11} color="#0B0C0E" />}
-                        </Box>
-                        <Box textAlign="left" minW={0}>
-                          <Text fontSize="sm" color="ink.100" noOfLines={1}>
-                            {technology.name}
-                          </Text>
-                          <Text fontSize="xs" color="ink.500" fontWeight={400}>
-                            {technology.category}
-                          </Text>
-                        </Box>
-                      </HStack>
-                    </Button>
+                      {isSelected && <Icon name="check" size={12} />}
+                      {technology.name}
+                    </span>
                   );
                 })}
-              </Grid>
-            </StepShell>
+              </div>
+
+              <div className="t-caption">{selected.length} selected</div>
+            </>
           )}
 
           {step === 1 && (
-            <StepShell
-              title="Where are you now?"
-              subtitle="Roughly is fine. This stops you being taught things you already know."
-            >
-              <VStack align="stretch" spacing={5}>
+            <>
+              <div className="t-caption mb2">02 · Current level</div>
+              <div className="t-h1 mb2">Where are you now?</div>
+              <div className="t-body mb5">
+                Roughly is fine. This stops you being taught things you already know.
+              </div>
+
+              <div className="col g5">
                 {selected.map((technology) => (
-                  <Box key={technology.technologyId}>
-                    <Text fontSize="sm" color="ink.100" mb={2} fontWeight={600}>
-                      {technology.name}
-                    </Text>
-                    <Grid templateColumns={{ base: '1fr 1fr', md: 'repeat(4, 1fr)' }} gap={2}>
-                      {KNOWLEDGE_LEVELS.map((level) => (
-                        <Button
-                          key={level.value}
-                          size="sm"
-                          variant="outline"
-                          h="auto"
-                          py={2}
-                          borderColor={
-                            technology.existingKnowledge === level.value
-                              ? 'forge.500'
-                              : 'surface.400'
-                          }
-                          onClick={() => setKnowledge(technology.technologyId, level.value)}
-                        >
-                          <Box textAlign="left" w="100%">
-                            <Text fontSize="xs" color="ink.200">
+                  <div key={technology.technologyId}>
+                    <div className="t-h4 mb2">{technology.name}</div>
+                    <div className="grid grid-4 g2 cq-grid-4">
+                      {KNOWLEDGE_LEVELS.map((level) => {
+                        const active = technology.existingKnowledge === level.value;
+                        return (
+                          <Card
+                            key={level.value}
+                            hover
+                            className="p3"
+                            style={{
+                              borderColor: active ? 'var(--primary)' : undefined,
+                              background: active ? 'var(--primary-subtle)' : undefined,
+                            }}
+                            onClick={() => setKnowledge(technology.technologyId, level.value)}
+                          >
+                            <div
+                              className="t-small"
+                              style={{
+                                color: active ? 'var(--primary)' : 'var(--text-primary)',
+                                fontWeight: 600,
+                              }}
+                            >
                               {level.label}
-                            </Text>
-                            <Text fontSize="xs" color="ink.500" fontWeight={400}>
-                              {level.hint}
-                            </Text>
-                          </Box>
-                        </Button>
-                      ))}
-                    </Grid>
-                  </Box>
+                            </div>
+                            <div className="t-caption mt1">{level.hint}</div>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ))}
-              </VStack>
-            </StepShell>
+              </div>
+            </>
           )}
 
           {step === 2 && (
-            <StepShell
-              title="How much time per day?"
-              subtitle="Be honest rather than ambitious. A plan you skip is worse than a small one you keep."
-            >
-              <Grid templateColumns={{ base: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' }} gap={2}>
-                {TIMES.map((minutes) => (
-                  <Button
-                    key={minutes}
-                    variant="outline"
-                    h="auto"
-                    py={4}
-                    borderColor={dailyMinutes === minutes ? 'forge.500' : 'surface.400'}
-                    onClick={() => setDailyMinutes(minutes)}
-                  >
-                    <Box>
-                      <Text fontSize="lg" color="ink.100" fontFamily="mono">
-                        {minutes}
-                      </Text>
-                      <Text fontSize="xs" color="ink.500" fontWeight={400}>
-                        min
-                      </Text>
-                    </Box>
-                  </Button>
-                ))}
-              </Grid>
-            </StepShell>
+            <>
+              <div className="t-caption mb2">03 · Daily availability</div>
+              <div className="t-h1 mb2">How much time per day?</div>
+              <div className="t-body mb5">
+                Be honest rather than ambitious. A plan you skip is worse than a small one you keep.
+              </div>
+
+              <div className="grid grid-3 g3 cq-grid-3">
+                {TIMES.map((minutes) => {
+                  const active = dailyMinutes === minutes;
+                  return (
+                    <Card
+                      key={minutes}
+                      hover
+                      style={{
+                        textAlign: 'center',
+                        borderColor: active ? 'var(--primary)' : undefined,
+                        background: active ? 'var(--primary-subtle)' : undefined,
+                      }}
+                      onClick={() => setDailyMinutes(minutes)}
+                    >
+                      <div
+                        className="t-h3"
+                        style={{ color: active ? 'var(--primary)' : 'var(--text-primary)' }}
+                      >
+                        {minutes} min
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </>
           )}
 
           {step === 3 && (
-            <StepShell title="What is this for?" subtitle="This changes the order of everything.">
-              <VStack align="stretch" spacing={2}>
-                {GOALS.map((goal) => (
-                  <Button
-                    key={goal.value}
-                    variant="outline"
-                    justifyContent="flex-start"
-                    h="auto"
-                    py={3}
-                    borderColor={primaryGoal === goal.value ? 'forge.500' : 'surface.400'}
-                    onClick={() => setPrimaryGoal(goal.value)}
-                  >
-                    <Box textAlign="left">
-                      <Text fontSize="sm" color="ink.100">
-                        {goal.label}
-                      </Text>
-                      <Text fontSize="xs" color="ink.500" fontWeight={400}>
-                        {goal.hint}
-                      </Text>
-                    </Box>
-                  </Button>
-                ))}
+            <>
+              <div className="t-caption mb2">04 · Goal</div>
+              <div className="t-h1 mb2">What is this for?</div>
+              <div className="t-body mb5">This changes the order of everything.</div>
 
-                {(primaryGoal === 'INTERVIEW' || primaryGoal === 'JOB_PREPARATION') && (
-                  <Box pt={3}>
-                    <Text fontSize="xs" color="ink.400" mb={1}>
-                      Interview date, if you have one
-                    </Text>
-                    <Input
-                      type="date"
-                      value={interviewDate}
-                      onChange={(event) => setInterviewDate(event.target.value)}
-                      maxW="200px"
-                    />
-                  </Box>
-                )}
-              </VStack>
-            </StepShell>
+              <div className="col g3">
+                {GOALS.map((goal) => {
+                  const active = primaryGoal === goal.value;
+                  return (
+                    <Card
+                      key={goal.value}
+                      hover
+                      className="row justify-between items-center"
+                      style={{
+                        borderColor: active ? 'var(--primary)' : undefined,
+                        background: active ? 'var(--primary-subtle)' : undefined,
+                      }}
+                      onClick={() => setPrimaryGoal(goal.value)}
+                    >
+                      <div>
+                        <div
+                          className="t-h4"
+                          style={{ color: active ? 'var(--primary)' : 'var(--text-primary)' }}
+                        >
+                          {goal.label}
+                        </div>
+                        <div className="t-caption mt1">{goal.hint}</div>
+                      </div>
+                      {active && <Icon name="check" size={18} />}
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {(primaryGoal === 'INTERVIEW' || primaryGoal === 'JOB_PREPARATION') && (
+                <div className="mt5">
+                  <label className="field-label">Interview date, if you have one</label>
+                  <input
+                    className="input"
+                    type="date"
+                    value={interviewDate}
+                    onChange={(event) => setInterviewDate(event.target.value)}
+                    style={{ maxWidth: 220 }}
+                  />
+                </div>
+              )}
+            </>
           )}
 
-          <HStack justify="space-between" mt={8}>
-            <Button
-              variant="ghost"
-              onClick={() => setStep((s) => Math.max(0, s - 1) as Step)}
-              isDisabled={step === 0}
-            >
-              Back
-            </Button>
+          <div className="row justify-between items-center mt7">
+            {step > 0 ? (
+              <Button
+                variant="ghost"
+                icon="chevronLeft"
+                onClick={() => setStep((s) => Math.max(0, s - 1) as Step)}
+              >
+                Back
+              </Button>
+            ) : (
+              <span />
+            )}
 
-            <HStack spacing={2}>
-              <Text fontSize="xs" color="ink.500">
-                {step + 1} of 4
-              </Text>
-              {step < 3 ? (
-                <Button
-                  onClick={() => setStep((s) => Math.min(3, s + 1) as Step)}
-                  isDisabled={!canContinue}
-                >
-                  Continue
-                </Button>
-              ) : (
-                <Button onClick={() => void finish()} isLoading={completeOnboarding.isPending}>
-                  Build my roadmap
-                </Button>
-              )}
-            </HStack>
-          </HStack>
-        </Box>
-      </Box>
-    </Box>
-  );
-}
-
-function StepShell({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Box>
-      <Heading size="md" mb={1} fontWeight={650}>
-        {title}
-      </Heading>
-      <Text fontSize="sm" color="ink.400" mb={6}>
-        {subtitle}
-      </Text>
-      {children}
-    </Box>
+            {step < 3 ? (
+              <Button
+                onClick={() => setStep((s) => Math.min(3, s + 1) as Step)}
+                disabled={!canContinue}
+              >
+                Continue
+              </Button>
+            ) : (
+              <Button
+                icon="arrowRight"
+                onClick={() => void finish()}
+                disabled={completeOnboarding.isPending}
+              >
+                {completeOnboarding.isPending ? 'Building…' : 'Build my roadmap'}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,20 +1,9 @@
-import {
-  Badge,
-  Box,
-  Button,
-  Grid,
-  GridItem,
-  HStack,
-  Heading,
-  Spinner,
-  Text,
-  VStack,
-} from '@chakra-ui/react';
 import Editor from '@monaco-editor/react';
 import { useEffect, useState } from 'react';
-import { FiCheck, FiLock, FiX } from 'react-icons/fi';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
+import { Icon } from '~/components/Icon';
+import { Badge, Button, Card, Spinner, StateBlock, metricColor } from '~/components/ui';
 import {
   useProject,
   useStartProject,
@@ -25,22 +14,24 @@ import {
 } from '~/lib/queries';
 
 /**
- * The project workspace (§14).
+ * The project workspace (§14), in the prototype's workspace layout.
  *
- * Steps are shown as a spine on the left with only the current one open. A
- * locked step shows its title and nothing else: seeing step three's
- * requirements while working on step one gives away the shape of the answer,
- * and the server withholds them for the same reason.
+ * Steps as a spine on the left, editor in the middle, requirements and the
+ * tech-lead review on the right. A locked step shows its title and nothing
+ * else: seeing step three's requirements while working on step one gives
+ * away the shape of the answer, and the server withholds them for the same
+ * reason.
  *
- * The review is the other half of the grade. Tests passing is necessary, not
- * sufficient — a finished project carrying critical or major issues sends the
- * user back with a specific list rather than waving them through.
+ * The review is the other half of the grade. Tests passing is necessary,
+ * not sufficient — a finished project carrying critical or major issues
+ * sends the user back with a specific list rather than waving them through.
  */
 export function ProjectWorkspace() {
   const { exerciseId } = useParams<{ exerciseId: string }>();
   const { data: project, isLoading } = useProject(exerciseId);
   const start = useStartProject();
   const submit = useSubmitProjectStep();
+  const navigate = useNavigate();
 
   const [code, setCode] = useState('');
   const [result, setResult] = useState<StepSubmissionResult | null>(null);
@@ -54,343 +45,327 @@ export function ProjectWorkspace() {
     setResult(null);
   }, [currentStep?.index, currentStep?.starterCode]);
 
-  if (isLoading) {
-    return (
-      <HStack justify="center" py={20}>
-        <Spinner color="forge.500" />
-      </HStack>
-    );
-  }
-
-  if (!project) {
-    return (
-      <Box py={20} textAlign="center">
-        <Text fontSize="sm" color="ink.400">
-          This project could not be loaded.
-        </Text>
-      </Box>
-    );
-  }
+  if (isLoading) return <Spinner label="Loading project" />;
+  if (!project) return <StateBlock icon="alert" title="This project could not be loaded" />;
 
   const notStarted = !project.attemptId;
   const complete = project.steps.every((step) => step.status === 'DONE');
 
   const run = async () => {
     if (!project.attemptId || !exerciseId) return;
-    const outcome = await submit.mutateAsync({
-      exerciseId,
-      attemptId: project.attemptId,
-      code,
-    });
-    setResult(outcome);
+    setResult(await submit.mutateAsync({ exerciseId, attemptId: project.attemptId, code }));
   };
 
   return (
-    <Grid templateColumns={{ base: '1fr', lg: '280px 1fr 380px' }} h="100%" minH={0}>
-      {/* Step spine */}
-      <GridItem
-        borderRightWidth="1px"
-        borderColor="surface.300"
-        bg="surface.50"
-        overflowY="auto"
-        p={5}
-        display={{ base: 'none', lg: 'block' }}
+    <div className="col" style={{ height: '100%' }}>
+      <div
+        className="row items-center justify-between"
+        style={{
+          height: 52,
+          padding: '0 18px',
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--surface)',
+          flexShrink: 0,
+        }}
       >
-        <Badge bg="forge.500" color="surface.0" fontSize="xs" mb={2}>
-          Project
-        </Badge>
-        <Heading size="sm" color="ink.100" mb={2} lineHeight="1.4">
-          {project.title}
-        </Heading>
-        <Text fontSize="xs" color="ink.400" mb={6} lineHeight="1.6">
-          {project.objective}
-        </Text>
-
-        <VStack align="stretch" spacing={1}>
-          {project.steps.map((step) => (
-            <StepRow key={step.index} step={step} />
-          ))}
-        </VStack>
-      </GridItem>
-
-      {/* Editor */}
-      <GridItem display="flex" flexDirection="column" minH={0} minW={0}>
-        <HStack
-          justify="space-between"
-          px={5}
-          py={3}
-          borderBottomWidth="1px"
-          borderColor="surface.300"
-          flexShrink={0}
-        >
-          <Box minW={0}>
-            <Text fontSize="sm" fontWeight={600} color="ink.100" noOfLines={1}>
+        <div className="row items-center g3" style={{ minWidth: 0 }}>
+          <button type="button" className="icon-btn" onClick={() => navigate(-1)} title="Close">
+            <Icon name="x" size={16} />
+          </button>
+          <div style={{ minWidth: 0 }}>
+            <div className="t-h4" style={{ fontSize: 13.5 }}>
+              {project.title}
+            </div>
+            <div className="t-caption">
               {complete
                 ? 'Project complete'
-                : `Step ${(currentStep?.index ?? 0) + 1} · ${currentStep?.title ?? ''}`}
-            </Text>
-            {currentStep && !complete && (
-              <Text fontSize="xs" color="ink.500">
-                ~{currentStep.estimatedMinutes} min
-              </Text>
-            )}
-          </Box>
+                : `Step ${(currentStep?.index ?? 0) + 1} of ${project.steps.length} · ${
+                    currentStep?.title ?? ''
+                  } · ~${currentStep?.estimatedMinutes ?? 0} min`}
+            </div>
+          </div>
+        </div>
+
+        <div className="row items-center g3">
+          <Badge variant="primary" icon="layers">
+            Project
+          </Badge>
 
           {notStarted ? (
             <Button
               size="sm"
+              icon="play"
               onClick={() => exerciseId && start.mutate(exerciseId)}
-              isLoading={start.isPending}
+              disabled={start.isPending}
             >
-              Start project
+              {start.isPending ? 'Starting…' : 'Start project'}
             </Button>
           ) : (
             !complete && (
               <Button
                 size="sm"
                 onClick={() => void run()}
-                isLoading={submit.isPending}
-                loadingText="Running"
-                isDisabled={code.trim().length === 0}
+                disabled={submit.isPending || code.trim().length === 0}
               >
-                Submit step
+                {submit.isPending ? 'Running…' : 'Submit step'}
               </Button>
             )
           )}
-        </HStack>
+        </div>
+      </div>
 
-        <Box flex="1" minH={0}>
-          <Editor
-            height="100%"
-            language={project.language}
-            theme="vs-dark"
-            value={code}
-            onChange={(value) => setCode(value ?? '')}
-            options={{
-              fontSize: 13,
-              fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
-              fontLigatures: true,
-              minimap: { enabled: false },
-              scrollBeyondLastLine: false,
-              padding: { top: 16 },
-              readOnly: notStarted || complete,
-              tabSize: 2,
-              renderWhitespace: 'selection',
-            }}
-          />
-        </Box>
-      </GridItem>
+      <div className="row flex-1" style={{ minHeight: 0 }}>
+        <div
+          className="col scroll-y p4"
+          style={{
+            width: 280,
+            borderRight: '1px solid var(--border)',
+            background: 'var(--surface)',
+            flexShrink: 0,
+          }}
+        >
+          <div className="t-caption mb1">OBJECTIVE</div>
+          <div className="t-small mb5">{project.objective}</div>
 
-      {/* Requirements, results and review */}
-      <GridItem
-        borderLeftWidth="1px"
-        borderColor="surface.300"
-        bg="surface.50"
-        overflowY="auto"
-        p={5}
-        minW={0}
-      >
-        {currentStep && !complete && (
-          <Box mb={6}>
-            <SectionLabel>What this step needs</SectionLabel>
-            <Text fontSize="sm" color="ink.200" whiteSpace="pre-wrap" lineHeight="1.7">
-              {currentStep.requirements}
-            </Text>
+          <div className="t-caption mb2">STEPS</div>
+          <div className="col g1">
+            {project.steps.map((step) => (
+              <StepRow key={step.index} step={step} />
+            ))}
+          </div>
+        </div>
 
-            {currentStep.visibleTestNames.length > 0 && (
-              <Box mt={4}>
-                <SectionLabel>Checks</SectionLabel>
-                <VStack align="stretch" spacing={1}>
-                  {currentStep.visibleTestNames.map((name) => (
-                    <Text key={name} fontSize="xs" color="ink.400" fontFamily="mono">
-                      {name}
-                    </Text>
-                  ))}
-                </VStack>
-              </Box>
-            )}
-          </Box>
-        )}
+        <div className="editor-shell flex-1" style={{ minWidth: 0 }}>
+          <div className="editor-tabbar">
+            <div className="editor-tab active">
+              <Icon name="code" size={13} />
+              step{(currentStep?.index ?? 0) + 1}.{project.language === 'typescript' ? 'ts' : 'js'}
+            </div>
+          </div>
 
-        {result && <StepResult result={result} />}
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <Editor
+              height="100%"
+              language={project.language}
+              theme="vs-dark"
+              value={code}
+              onChange={(value) => setCode(value ?? '')}
+              options={{
+                fontSize: 13,
+                fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                fontLigatures: true,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                padding: { top: 14 },
+                readOnly: notStarted || complete,
+                tabSize: 2,
+                renderWhitespace: 'selection',
+              }}
+            />
+          </div>
+        </div>
 
-        {complete && !result && (
-          <Box textAlign="center" py={10}>
-            <Box as={FiCheck} color="pass" fontSize="2xl" mx="auto" mb={2} />
-            <Text fontSize="sm" color="ink.200">
-              Every step passed, review included.
-            </Text>
-          </Box>
-        )}
-      </GridItem>
-    </Grid>
+        <div
+          className="col scroll-y p4"
+          style={{
+            width: 380,
+            borderLeft: '1px solid var(--border)',
+            background: 'var(--surface)',
+            flexShrink: 0,
+          }}
+        >
+          {currentStep && !complete && (
+            <div className="mb6">
+              <div className="t-caption mb2">WHAT THIS STEP NEEDS</div>
+              <div className="t-body" style={{ whiteSpace: 'pre-wrap' }}>
+                {currentStep.requirements}
+              </div>
+
+              {currentStep.visibleTestNames.length > 0 && (
+                <>
+                  <div className="t-caption mt4 mb2">CHECKS</div>
+                  <div className="col g1">
+                    {currentStep.visibleTestNames.map((name) => (
+                      <div key={name} className="t-caption mono">
+                        {name}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {result && <StepResult result={result} />}
+
+          {complete && !result && (
+            <StateBlock
+              icon="check"
+              title="Every step passed"
+              body="Review included. Nothing left to submit here."
+            />
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
 function StepRow({ step }: { step: ProjectStepView }) {
   const colour =
-    step.status === 'DONE' ? 'pass' : step.status === 'CURRENT' ? 'forge.500' : 'ink.500';
+    step.status === 'DONE'
+      ? 'var(--success)'
+      : step.status === 'CURRENT'
+        ? 'var(--primary)'
+        : 'var(--text-muted)';
 
   return (
-    <HStack
-      spacing={3}
-      px={3}
-      py={2.5}
-      borderRadius="md"
-      bg={step.status === 'CURRENT' ? 'surface.200' : 'transparent'}
-      align="flex-start"
+    <div
+      className="row items-start g3 px3 py2"
+      style={{
+        borderRadius: 'var(--r-md)',
+        background: step.status === 'CURRENT' ? 'var(--primary-subtle)' : 'transparent',
+      }}
     >
-      <Box flexShrink={0} mt="2px" color={colour} fontSize="sm">
+      <span style={{ color: colour, marginTop: 2, flexShrink: 0, lineHeight: 0 }}>
         {step.status === 'DONE' ? (
-          <FiCheck />
+          <Icon name="check" size={15} />
         ) : step.status === 'LOCKED' ? (
-          <FiLock />
+          <Icon name="lock" size={15} />
         ) : (
-          <Box w="14px" h="14px" borderRadius="full" borderWidth="2px" borderColor="forge.500" />
+          <span
+            style={{
+              display: 'block',
+              width: 14,
+              height: 14,
+              borderRadius: 99,
+              border: '2px solid var(--primary)',
+            }}
+          />
         )}
-      </Box>
-      <Box minW={0}>
-        <Text
-          fontSize="sm"
-          color={step.status === 'LOCKED' ? 'ink.500' : 'ink.200'}
-          fontWeight={step.status === 'CURRENT' ? 600 : 400}
-        >
-          {step.index + 1}. {step.title}
-        </Text>
-      </Box>
-    </HStack>
-  );
-}
+      </span>
 
-function StepResult({ result }: { result: StepSubmissionResult }) {
-  return (
-    <Box>
-      <SectionLabel>Tests</SectionLabel>
-      <HStack mb={3} spacing={2}>
-        <Text fontSize="sm" fontWeight={600} color={result.passed ? 'pass' : 'fail'}>
-          {result.testsPassed}/{result.testsTotal} passing
-        </Text>
-      </HStack>
-
-      <VStack align="stretch" spacing={1.5} mb={6}>
-        {result.cases.map((testCase) => (
-          <Box key={testCase.name}>
-            <HStack spacing={2} align="flex-start">
-              <Box
-                as={testCase.passed ? FiCheck : FiX}
-                color={testCase.passed ? 'pass' : 'fail'}
-                fontSize="sm"
-                flexShrink={0}
-                mt="2px"
-              />
-              <Text fontSize="xs" color="ink.300" fontFamily="mono">
-                {testCase.name}
-              </Text>
-            </HStack>
-            {testCase.error && (
-              <Text
-                fontSize="xs"
-                color="fail"
-                fontFamily="mono"
-                pl={6}
-                mt={1}
-                whiteSpace="pre-wrap"
-              >
-                {testCase.error}
-              </Text>
-            )}
-          </Box>
-        ))}
-      </VStack>
-
-      {result.checkpointFailed && (
-        <Box borderWidth="1px" borderColor="warn" borderRadius="md" p={3} mb={5} bg="surface.100">
-          <Text fontSize="sm" color="warn" fontWeight={600} mb={1}>
-            Tests pass, but this is not finished
-          </Text>
-          <Text fontSize="xs" color="ink.300" lineHeight="1.6">
-            The review below found problems serious enough that shipping this would be a mistake.
-            Fix them and resubmit.
-          </Text>
-        </Box>
-      )}
-
-      {result.review && (
-        <Box>
-          <SectionLabel>Review</SectionLabel>
-          <Text fontSize="sm" color="ink.200" lineHeight="1.7" mb={4}>
-            {result.review.summary}
-          </Text>
-
-          <VStack align="stretch" spacing={3}>
-            {result.review.issues.map((issue) => (
-              <ReviewIssueCard key={issue.title} issue={issue} />
-            ))}
-          </VStack>
-        </Box>
-      )}
-
-      {result.projectComplete && (
-        <Box mt={6} pt={5} borderTopWidth="1px" borderColor="surface.300">
-          <Text fontSize="sm" color="pass" fontWeight={600}>
-            Project complete.
-          </Text>
-          <Text fontSize="xs" color="ink.400" mt={1} lineHeight="1.6">
-            This is the only work that shows whether you can compose several ideas at once, so it
-            counts for more than the drills did.
-          </Text>
-        </Box>
-      )}
-    </Box>
+      <span
+        className="t-small"
+        style={{
+          color: step.status === 'LOCKED' ? 'var(--text-muted)' : 'var(--text-primary)',
+          fontWeight: step.status === 'CURRENT' ? 600 : 400,
+        }}
+      >
+        {step.index + 1}. {step.title}
+      </span>
+    </div>
   );
 }
 
 const SEVERITY_COLOUR: Record<ReviewIssue['severity'], string> = {
-  critical: 'fail',
-  major: 'warn',
-  minor: 'ink.300',
-  nit: 'ink.500',
+  critical: 'var(--error)',
+  major: 'var(--warning)',
+  minor: 'var(--text-secondary)',
+  nit: 'var(--text-muted)',
 };
 
-function ReviewIssueCard({ issue }: { issue: ReviewIssue }) {
-  return (
-    <Box borderLeftWidth="2px" borderColor={SEVERITY_COLOUR[issue.severity]} pl={3}>
-      <HStack spacing={2} mb={1}>
-        <Text
-          fontSize="xs"
-          textTransform="uppercase"
-          letterSpacing="0.04em"
-          color={SEVERITY_COLOUR[issue.severity]}
-          fontWeight={600}
-        >
-          {issue.severity}
-        </Text>
-        <Text fontSize="xs" color="ink.500">
-          {issue.category}
-          {issue.line !== null && ` · line ${issue.line}`}
-        </Text>
-      </HStack>
-      <Text fontSize="sm" color="ink.100" fontWeight={500} mb={1}>
-        {issue.title}
-      </Text>
-      <Text fontSize="xs" color="ink.300" lineHeight="1.6">
-        {issue.explanation}
-      </Text>
-    </Box>
-  );
-}
+function StepResult({ result }: { result: StepSubmissionResult }) {
+  const pct = result.testsTotal > 0 ? (result.testsPassed / result.testsTotal) * 100 : 0;
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Text
-      fontSize="xs"
-      textTransform="uppercase"
-      letterSpacing="0.06em"
-      color="ink.500"
-      fontWeight={600}
-      mb={2}
-    >
-      {children}
-    </Text>
+    <>
+      <div className="row items-center justify-between mb3">
+        <span className="t-caption">TESTS</span>
+        <span className="t-code" style={{ fontWeight: 700, color: metricColor(pct) }}>
+          {result.testsPassed}/{result.testsTotal} passing
+        </span>
+      </div>
+
+      <div className="col g2 mb6">
+        {result.cases.map((testCase) => (
+          <div key={testCase.name}>
+            <div className="row items-start g2">
+              <span
+                style={{
+                  color: testCase.passed ? 'var(--success)' : 'var(--error)',
+                  marginTop: 2,
+                  lineHeight: 0,
+                }}
+              >
+                <Icon name={testCase.passed ? 'check' : 'x'} size={13} />
+              </span>
+              <span className="t-caption mono">{testCase.name}</span>
+            </div>
+            {testCase.error && (
+              <div
+                className="t-caption mono mt1"
+                style={{ color: 'var(--error)', paddingLeft: 21, whiteSpace: 'pre-wrap' }}
+              >
+                {testCase.error}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {result.checkpointFailed && (
+        <Card className="mb5" style={{ borderColor: 'var(--warning)' }}>
+          {/* A checkpoint that waves everyone through is not a checkpoint. */}
+          <div className="t-h4" style={{ color: 'var(--warning)' }}>
+            Tests pass, but this is not finished
+          </div>
+          <div className="t-small mt1">
+            The review below found problems serious enough that shipping this would be a mistake.
+            Fix them and resubmit.
+          </div>
+        </Card>
+      )}
+
+      {result.review && (
+        <>
+          <div className="t-caption mb2">REVIEW</div>
+          <div className="t-body mb4">{result.review.summary}</div>
+
+          <div className="col g4">
+            {result.review.issues.map((issue) => (
+              <div
+                key={issue.title}
+                style={{
+                  borderLeft: `2px solid ${SEVERITY_COLOUR[issue.severity]}`,
+                  paddingLeft: 12,
+                }}
+              >
+                <div className="row items-center g2 mb1">
+                  <span
+                    className="t-caption"
+                    style={{ color: SEVERITY_COLOUR[issue.severity], fontWeight: 700 }}
+                  >
+                    {issue.severity.toUpperCase()}
+                  </span>
+                  <span className="t-caption">
+                    {issue.category}
+                    {issue.line !== null && ` · line ${issue.line}`}
+                  </span>
+                </div>
+                <div className="t-h4" style={{ fontSize: 13 }}>
+                  {issue.title}
+                </div>
+                <div className="t-caption mt1" style={{ lineHeight: 1.6 }}>
+                  {issue.explanation}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {result.projectComplete && (
+        <Card className="mt6">
+          <div className="t-h4" style={{ color: 'var(--success)' }}>
+            Project complete
+          </div>
+          <div className="t-small mt1">
+            This is the only work that shows whether you can compose several ideas at once, so it
+            counts for more than the drills did.
+          </div>
+        </Card>
+      )}
+    </>
   );
 }

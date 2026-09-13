@@ -1,23 +1,6 @@
-import {
-  Badge,
-  Box,
-  Button,
-  Grid,
-  GridItem,
-  HStack,
-  Spinner,
-  Tab,
-  TabList,
-  TabPanel,
-  TabPanels,
-  Tabs,
-  Text,
-  Tooltip,
-  VStack,
-} from '@chakra-ui/react';
 import Editor, { type OnMount } from '@monaco-editor/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { AssistanceLevelName } from '@forgeroutine/shared-types';
 import type {
@@ -28,6 +11,8 @@ import type {
   HintKind,
 } from '@forgeroutine/shared-types';
 
+import { Icon } from '~/components/Icon';
+import { Badge, Button, Spinner, StateBlock, Tabs } from '~/components/ui';
 import { ApiError } from '~/lib/api';
 import {
   useExercise,
@@ -42,14 +27,15 @@ import { DiagnosisPanel } from './DiagnosisPanel';
 import { ResultsPanel } from './ResultsPanel';
 
 /**
- * The primary coding environment (§3).
+ * The primary coding environment (§3), in the prototype's workspace layout.
  *
- * Layout: problem on the left, editor in the middle, results and assistance on
- * the right. The editor is the largest thing on screen because writing code is
- * the activity this product exists to restore.
+ * A topbar, then three columns — problem, editor, assistance — then the
+ * console. The editor is the largest thing on screen because writing code
+ * is the activity this product exists to restore.
  */
 export function ExerciseWorkspace() {
   const { exerciseId } = useParams<{ exerciseId: string }>();
+  const navigate = useNavigate();
   const { data: exercise, isLoading } = useExercise(exerciseId);
 
   const [attemptId, setAttemptId] = useState<string | null>(null);
@@ -64,6 +50,7 @@ export function ExerciseWorkspace() {
   const [blindMode, setBlindMode] = useState(false);
   const [diagnosis, setDiagnosis] = useState('');
   const [diagnosisResult, setDiagnosisResult] = useState<DiagnosisResult | null>(null);
+  const [consoleTab, setConsoleTab] = useState('Results');
 
   // Advisory signals only. They never reach the Independent Coding Score —
   // the server counts what matters.
@@ -177,276 +164,251 @@ export function ExerciseWorkspace() {
     return () => window.removeEventListener('keydown', onKeyDown);
   });
 
-  if (isLoading) {
-    return (
-      <HStack justify="center" py={20}>
-        <Spinner color="forge.500" />
-      </HStack>
-    );
-  }
+  if (isLoading) return <Spinner label="Loading exercise" />;
 
-  if (!view) {
-    return (
-      <Box p={8}>
-        <Text color="ink.400">Exercise not found.</Text>
-      </Box>
-    );
-  }
+  if (!view) return <StateBlock icon="alert" title="Exercise not found" />;
+
+  const started = Boolean(attemptId);
+  const diagnosisTooShort =
+    view.requiresDiagnosis && diagnosis.trim().split(/\s+/).filter(Boolean).length < 5;
 
   return (
-    <Grid
-      templateColumns={{ base: '1fr', lg: '320px 1fr 380px' }}
-      templateRows={{ base: 'auto', lg: '1fr' }}
-      h="100%"
-      gap={0}
-    >
-      {/* Problem */}
-      <GridItem borderRightWidth="1px" borderColor="surface.300" overflowY="auto">
-        <VStack align="stretch" spacing={4} p={5}>
-          <Box>
-            <HStack spacing={2} mb={2}>
-              <Badge bg="surface.300" color="ink.300" fontSize="xs">
-                Level {view.assistanceLevel} · {AssistanceLevelName[view.assistanceLevel]}
-              </Badge>
-              {blindMode && (
-                <Badge bg="forge.700" color="forge.100" fontSize="xs">
-                  BLIND
-                </Badge>
-              )}
-            </HStack>
-            <Text fontSize="xl" fontWeight={650} letterSpacing="-0.015em">
+    <div className="col" style={{ height: '100%' }}>
+      <div
+        className="row items-center justify-between"
+        style={{
+          height: 52,
+          padding: '0 18px',
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--surface)',
+          flexShrink: 0,
+        }}
+      >
+        <div className="row items-center g3" style={{ minWidth: 0 }}>
+          <button type="button" className="icon-btn" onClick={() => navigate(-1)} title="Close">
+            <Icon name="x" size={16} />
+          </button>
+          <div style={{ minWidth: 0 }}>
+            <div className="t-h4" style={{ fontSize: 13.5 }}>
               {view.title}
-            </Text>
-          </Box>
+            </div>
+            <div className="t-caption">
+              {view.kind.toLowerCase().replace('_', ' ')} · {view.language} · Level{' '}
+              {view.assistanceLevel} {AssistanceLevelName[view.assistanceLevel]}
+            </div>
+          </div>
+        </div>
 
-          <Box bg="surface.100" borderLeftWidth="2px" borderColor="forge.500" p={3}>
-            <Text fontSize="sm" color="ink.100">
-              {view.objective}
-            </Text>
-          </Box>
-
-          {view.requirements && (
-            <Box>
-              <Text fontSize="xs" color="ink.500" mb={1} letterSpacing="0.06em">
-                REQUIREMENTS
-              </Text>
-              <Text fontSize="sm" color="ink.300" whiteSpace="pre-wrap">
-                {view.requirements}
-              </Text>
-            </Box>
+        <div className="row items-center g3">
+          {blindMode && (
+            <Badge variant="primary" icon="eye">
+              Blind
+            </Badge>
           )}
 
-          {view.functionSignature && (
-            <Box>
-              <Text fontSize="xs" color="ink.500" mb={1} letterSpacing="0.06em">
-                SIGNATURE
-              </Text>
-              <Box
-                bg="surface.0"
-                borderWidth="1px"
-                borderColor="surface.300"
-                borderRadius="md"
-                p={2}
-                fontFamily="mono"
-                fontSize="xs"
-                color="ink.200"
+          {!started ? (
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void begin(true)}
+                disabled={startAttempt.isPending}
+                title="No hints, no autocomplete"
               >
-                {view.functionSignature}
-              </Box>
-            </Box>
-          )}
-
-          {view.examples.length > 0 && (
-            <Box>
-              <Text fontSize="xs" color="ink.500" mb={1} letterSpacing="0.06em">
-                EXAMPLES
-              </Text>
-              {view.examples.map((example) => (
-                <Box
-                  key={example}
-                  bg="surface.0"
-                  borderWidth="1px"
-                  borderColor="surface.300"
-                  borderRadius="md"
-                  p={2}
-                  mb={2}
-                  fontFamily="mono"
-                  fontSize="xs"
-                  color="ink.300"
-                  whiteSpace="pre-wrap"
-                >
-                  {example}
-                </Box>
-              ))}
-            </Box>
-          )}
-
-          {view.visibleTestNames.length > 0 && (
-            <Box>
-              <Text fontSize="xs" color="ink.500" mb={1} letterSpacing="0.06em">
-                TESTS
-              </Text>
-              {view.visibleTestNames.map((name) => (
-                <Text key={name} fontSize="sm" color="ink.400">
-                  • {name}
-                </Text>
-              ))}
-            </Box>
-          )}
-
-          {!attemptId && (
-            <VStack align="stretch" spacing={2} pt={2}>
-              <Button onClick={() => void begin(false)} isLoading={startAttempt.isPending}>
+                Blind mode
+              </Button>
+              <Button
+                size="sm"
+                icon="play"
+                onClick={() => void begin(false)}
+                disabled={startAttempt.isPending}
+              >
                 Start
               </Button>
-              <Tooltip
-                label="No AI, no hints, no solution. Evaluated only after you submit."
-                placement="top"
-              >
-                <Button
-                  variant="outline"
-                  onClick={() => void begin(true)}
-                  isLoading={startAttempt.isPending}
-                >
-                  Blind coding
-                </Button>
-              </Tooltip>
-            </VStack>
-          )}
-        </VStack>
-      </GridItem>
-
-      {/* Editor */}
-      <GridItem display="flex" flexDirection="column" minW={0} minH="480px">
-        <HStack
-          justify="space-between"
-          px={4}
-          py={2}
-          borderBottomWidth="1px"
-          borderColor="surface.300"
-          bg="surface.50"
-        >
-          <Text fontSize="xs" color="ink.500" fontFamily="mono">
-            solution.{view.language === 'typescript' ? 'ts' : 'js'}
-          </Text>
-          <HStack spacing={2}>
-            <Text fontSize="xs" color="ink.500">
-              ⌘↵
-            </Text>
+            </>
+          ) : (
             <Button
+              size="sm"
               onClick={() => void handleSubmit()}
-              isDisabled={
-                !attemptId ||
-                code.trim().length === 0 ||
-                // Diagnose before you repair (§13).
-                (view.requiresDiagnosis && diagnosis.trim().split(/\s+/).length < 5)
-              }
-              isLoading={submitCode.isPending}
+              disabled={submitCode.isPending || code.trim().length === 0 || diagnosisTooShort}
+              title="Ctrl/Cmd + Enter"
             >
-              {view.requiresDiagnosis ? 'Submit diagnosis and fix' : 'Run tests'}
+              {submitCode.isPending
+                ? 'Running…'
+                : view.requiresDiagnosis
+                  ? 'Submit diagnosis and fix'
+                  : 'Run tests'}
             </Button>
-          </HStack>
-        </HStack>
+          )}
+        </div>
+      </div>
 
-        <Box flex="1" minH={0}>
-          <Editor
-            height="100%"
-            language={view.language}
-            theme="vs-dark"
-            value={code}
-            onChange={handleChange}
-            onMount={handleEditorMount}
-            options={{
-              fontSize: 13,
-              fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
-              fontLigatures: true,
-              minimap: { enabled: false },
-              scrollBeyondLastLine: false,
-              padding: { top: 16 },
-              readOnly: !attemptId,
-              tabSize: 2,
-              renderWhitespace: 'selection',
-              // Suggestions are suppressed in Blind Coding: autocomplete is
-              // assistance, and §12 says there is none.
-              quickSuggestions: !blindMode,
-              suggestOnTriggerCharacters: !blindMode,
-              wordBasedSuggestions: blindMode ? 'off' : 'currentDocument',
-              parameterHints: { enabled: !blindMode },
-            }}
+      <div className="row flex-1" style={{ minHeight: 0 }}>
+        <div
+          className="col scroll-y"
+          style={{
+            width: 320,
+            borderRight: '1px solid var(--border)',
+            background: 'var(--surface)',
+            flexShrink: 0,
+          }}
+        >
+          <div className="p4">
+            <div
+              className="card p3 mb4"
+              style={{ borderLeft: '2px solid var(--primary)', background: 'var(--surface-2)' }}
+            >
+              {/* The whole prompt at level 4. It has to stand alone. */}
+              <div className="t-body" style={{ color: 'var(--text-primary)' }}>
+                {view.objective}
+              </div>
+            </div>
+
+            {view.requirements && (
+              <>
+                <div className="t-h4 mb2">Requirements</div>
+                <div className="t-small mb4" style={{ whiteSpace: 'pre-wrap' }}>
+                  {view.requirements}
+                </div>
+              </>
+            )}
+
+            {view.functionSignature && (
+              <>
+                <div className="t-h4 mb2">Signature</div>
+                <div className="code-block mb4">
+                  <pre style={{ fontSize: 11.5 }}>{view.functionSignature}</pre>
+                </div>
+              </>
+            )}
+
+            {view.examples.length > 0 && (
+              <>
+                <div className="t-h4 mb2">Examples</div>
+                <div className="code-block mb4">
+                  <pre style={{ fontSize: 11.5 }}>{view.examples.join('\n')}</pre>
+                </div>
+              </>
+            )}
+
+            {view.visibleTestNames.length > 0 && (
+              <>
+                <div className="t-h4 mb2">Checks</div>
+                <div className="col g1">
+                  {view.visibleTestNames.map((name) => (
+                    <div key={name} className="t-caption mono">
+                      {name}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="editor-shell flex-1" style={{ minWidth: 0 }}>
+          <div className="editor-tabbar">
+            <div className="editor-tab active">
+              <Icon name="code" size={13} />
+              solution.{view.language === 'typescript' ? 'ts' : 'js'}
+            </div>
+          </div>
+
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <Editor
+              height="100%"
+              language={view.language}
+              theme="vs-dark"
+              value={code}
+              onChange={handleChange}
+              onMount={handleEditorMount}
+              options={{
+                fontSize: 13,
+                fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                fontLigatures: true,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                padding: { top: 14 },
+                readOnly: !started,
+                tabSize: 2,
+                renderWhitespace: 'selection',
+                // Autocomplete is assistance, and §12 says there is none in
+                // blind mode.
+                quickSuggestions: !blindMode,
+                suggestOnTriggerCharacters: !blindMode,
+                wordBasedSuggestions: blindMode ? 'off' : 'currentDocument',
+                parameterHints: { enabled: !blindMode },
+              }}
+            />
+          </div>
+        </div>
+
+        <div
+          className="col"
+          style={{
+            width: 300,
+            borderLeft: '1px solid var(--border)',
+            background: 'var(--surface)',
+            flexShrink: 0,
+            minHeight: 0,
+          }}
+        >
+          {view.requiresDiagnosis ? (
+            <DiagnosisPanel
+              value={diagnosis}
+              onChange={setDiagnosis}
+              result={diagnosisResult}
+              submitted={Boolean(diagnosisResult)}
+              onSubmit={() => void handleSubmit()}
+              submitting={submitCode.isPending}
+              canSubmit={started && code.trim().length > 0}
+            />
+          ) : (
+            <AssistancePanel
+              enabled={started}
+              blindMode={blindMode}
+              hints={hints}
+              pending={pendingHint}
+              gateMessage={gateMessage}
+              onRequest={(kind, override) => void handleHint(kind, override)}
+            />
+          )}
+        </div>
+      </div>
+
+      <div
+        className="col"
+        style={{
+          height: 190,
+          borderTop: '1px solid var(--border)',
+          background: 'var(--surface)',
+          flexShrink: 0,
+        }}
+      >
+        <Tabs
+          tabs={['Results', 'Console']}
+          active={consoleTab}
+          onChange={setConsoleTab}
+          className="px3"
+        />
+
+        {consoleTab === 'Results' ? (
+          <ResultsPanel
+            execution={execution}
+            evaluation={evaluation}
+            hint={nextHint}
+            running={submitCode.isPending}
           />
-        </Box>
-      </GridItem>
-
-      {/* Results and assistance */}
-      <GridItem borderLeftWidth="1px" borderColor="surface.300" minW={0} display="flex">
-        <Tabs variant="unstyled" display="flex" flexDirection="column" w="100%" isFitted>
-          <TabList borderBottomWidth="1px" borderColor="surface.300" bg="surface.50">
-            <Tab
-              fontSize="xs"
-              py={2}
-              color="ink.400"
-              _selected={{ color: 'forge.500', borderBottomWidth: '2px', borderColor: 'forge.500' }}
-            >
-              RESULTS
-            </Tab>
-            <Tab
-              fontSize="xs"
-              py={2}
-              color="ink.400"
-              _selected={{ color: 'forge.500', borderBottomWidth: '2px', borderColor: 'forge.500' }}
-            >
-              ASSISTANCE
-            </Tab>
-            {view.requiresDiagnosis && (
-              <Tab
-                fontSize="xs"
-                py={2}
-                color="ink.400"
-                _selected={{
-                  color: 'forge.500',
-                  borderBottomWidth: '2px',
-                  borderColor: 'forge.500',
-                }}
-              >
-                DIAGNOSIS
-              </Tab>
+        ) : (
+          <div className="p3 scroll-y mono" style={{ flex: 1, fontSize: 12.5 }}>
+            {execution?.stdout ? (
+              <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{execution.stdout}</pre>
+            ) : (
+              <span className="t-caption">Nothing printed.</span>
             )}
-          </TabList>
-          <TabPanels flex="1" minH={0} overflow="hidden">
-            <TabPanel p={0} h="100%">
-              <ResultsPanel
-                execution={execution}
-                evaluation={evaluation}
-                hint={nextHint}
-                running={submitCode.isPending}
-              />
-            </TabPanel>
-            <TabPanel p={0} h="100%">
-              <AssistancePanel
-                enabled={view.aiAssistanceEnabled && attemptId !== null}
-                blindMode={blindMode}
-                hints={hints}
-                pending={pendingHint}
-                gateMessage={gateMessage}
-                onRequest={(kind, override) => void handleHint(kind, override)}
-              />
-            </TabPanel>
-            {view.requiresDiagnosis && (
-              <TabPanel p={0} h="100%">
-                <DiagnosisPanel
-                  value={diagnosis}
-                  onChange={setDiagnosis}
-                  result={diagnosisResult}
-                  submitted={diagnosisResult !== null}
-                  onSubmit={() => void handleSubmit()}
-                  submitting={submitCode.isPending}
-                  canSubmit={attemptId !== null && code.trim().length > 0}
-                />
-              </TabPanel>
-            )}
-          </TabPanels>
-        </Tabs>
-      </GridItem>
-    </Grid>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

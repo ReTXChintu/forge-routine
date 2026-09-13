@@ -1,4 +1,3 @@
-import { ChakraProvider, ColorModeScript } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -9,7 +8,6 @@ import { ApiError } from '~/lib/api';
 import './styles/design-system.css';
 
 import { router } from './app/router';
-import { theme } from './theme';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,14 +28,8 @@ if (!container) throw new Error('Root element missing from index.html');
 
 createRoot(container).render(
   <StrictMode>
-    <ColorModeScript initialColorMode={theme.config.initialColorMode} />
-    {/* resetCSS off: the design system owns the base styles, and Chakra's
-        reset overrides them. Chakra stays only for the screens not yet
-        converted. */}
-    <ChakraProvider theme={theme} resetCSS={false}>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </ChakraProvider>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   </StrictMode>,
 );

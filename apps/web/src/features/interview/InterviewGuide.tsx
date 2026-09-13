@@ -1,17 +1,17 @@
-import {
-  Badge,
-  Box,
-  Button,
-  HStack,
-  Heading,
-  Select,
-  Spinner,
-  Text,
-  VStack,
-} from '@chakra-ui/react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { Icon } from '~/components/Icon';
+import {
+  Badge,
+  Button,
+  Card,
+  CircularProgress,
+  SectionHead,
+  SkillMeter,
+  Spinner,
+  type BadgeVariant,
+} from '~/components/ui';
 import {
   useInterviewGuide,
   useInterviewHistory,
@@ -39,11 +39,11 @@ const MODES = [
   { value: 'SENIOR', label: 'Senior — 5 areas, deep' },
 ];
 
-const STATUS_COLOUR: Record<GuideTopic['status'], string> = {
-  STRONG: 'pass',
-  SHAKY: 'warn',
-  WEAK: 'fail',
-  UNPRACTISED: 'ink.500',
+const STATUS_VARIANT: Record<GuideTopic['status'], BadgeVariant> = {
+  STRONG: 'success',
+  SHAKY: 'warning',
+  WEAK: 'error',
+  UNPRACTISED: 'neutral',
 };
 
 const STATUS_LABEL: Record<GuideTopic['status'], string> = {
@@ -62,205 +62,178 @@ export function InterviewGuide() {
   const [mode, setMode] = useState('TECHNICAL');
   const [level, setLevel] = useState('MID');
 
-  if (isLoading) {
-    return (
-      <HStack justify="center" py={20}>
-        <Spinner color="forge.500" />
-      </HStack>
-    );
-  }
+  if (isLoading) return <Spinner label="Loading readiness" />;
 
   const begin = async () => {
     const interview = await start.mutateAsync({ mode, targetLevel: level });
     navigate(`/interview/${interview.id}`);
   };
 
+  const readiness = guide?.overallReadiness;
+
   return (
-    <Box>
-      <Heading size="md" color="ink.100" mb={1}>
-        Interview readiness
-      </Heading>
-      <Text fontSize="sm" color="ink.400" mb={7}>
-        Where you would be caught out, ordered by what is worth fixing first.
-      </Text>
+    <>
+      <SectionHead
+        eyebrow="Interview"
+        title="Interview readiness"
+        description="Where you would be caught out, ordered by what is worth fixing first."
+      />
 
-      {/* The headline number, or an honest refusal to give one. */}
-      <HStack
-        borderWidth="1px"
-        borderColor="surface.300"
-        borderRadius="md"
-        bg="surface.50"
-        p={5}
-        mb={7}
-        spacing={6}
-        align="flex-start"
-        flexWrap="wrap"
-      >
-        <Box minW="120px">
-          {guide?.overallReadiness !== null && guide?.overallReadiness !== undefined ? (
-            <>
-              <Text fontSize="3xl" fontWeight={700} color="forge.500" lineHeight="1">
-                {Math.round(guide.overallReadiness * 100)}%
-              </Text>
-              <Text fontSize="xs" color="ink.500" mt={1}>
-                weighted readiness
-              </Text>
-            </>
-          ) : (
-            <>
-              <Text fontSize="lg" fontWeight={600} color="ink.300" lineHeight="1.3">
-                Not enough yet
-              </Text>
-              <Text fontSize="xs" color="ink.500" mt={1}>
-                A number from two practised concepts would be a guess.
-              </Text>
-            </>
-          )}
-        </Box>
+      <Card elevated className="mb7">
+        <div className="row items-center g6 wrap">
+          {/* The headline number, or an honest refusal to give one. */}
+          <div className="row items-center g4" style={{ minWidth: 220 }}>
+            {readiness !== null && readiness !== undefined ? (
+              <>
+                <CircularProgress pct={readiness * 100} size={76} />
+                <div>
+                  <div className="t-h4">Weighted readiness</div>
+                  <div className="t-caption mt1">
+                    Weighted by how much each technology matters to you.
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div>
+                <div className="t-h3">Not enough yet</div>
+                <div className="t-caption mt1">
+                  A number from two practised concepts would be a guess.
+                </div>
+              </div>
+            )}
+          </div>
 
-        <Box flex="1" minW="260px">
-          <Select
-            size="sm"
-            value={mode}
-            onChange={(event) => setMode(event.target.value)}
-            mb={2}
-            bg="surface.100"
-            borderColor="surface.400"
-          >
-            {MODES.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-          <HStack>
-            <Select
-              size="sm"
-              value={level}
-              onChange={(event) => setLevel(event.target.value)}
-              bg="surface.100"
-              borderColor="surface.400"
-              maxW="140px"
+          <div className="vdivider" />
+
+          <div className="col g2 flex-1" style={{ minWidth: 280 }}>
+            <select
+              className="select"
+              value={mode}
+              onChange={(event) => setMode(event.target.value)}
             >
-              <option value="JUNIOR">Junior</option>
-              <option value="MID">Mid</option>
-              <option value="SENIOR">Senior</option>
-            </Select>
-            <Button size="sm" onClick={() => void begin()} isLoading={start.isPending}>
-              Start interview
-            </Button>
-          </HStack>
-          {start.isError && (
-            <Text fontSize="xs" color="fail" mt={2}>
-              Practise something first — an interview on material you have never studied measures
-              nothing.
-            </Text>
-          )}
-        </Box>
-      </HStack>
+              {MODES.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            <div className="row g2">
+              <select
+                className="select"
+                value={level}
+                onChange={(event) => setLevel(event.target.value)}
+                style={{ maxWidth: 150 }}
+              >
+                <option value="JUNIOR">Junior</option>
+                <option value="MID">Mid</option>
+                <option value="SENIOR">Senior</option>
+              </select>
+              <Button icon="mic" onClick={() => void begin()} disabled={start.isPending}>
+                {start.isPending ? 'Starting…' : 'Start interview'}
+              </Button>
+            </div>
+
+            {start.isError && (
+              <div className="t-caption" style={{ color: 'var(--error)' }}>
+                Practise something first — an interview on material you have never studied measures
+                nothing.
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
 
       {guide && guide.priorities.length > 0 && (
-        <Box mb={8}>
-          <SectionLabel>Fix these first</SectionLabel>
-          <VStack align="stretch" spacing={2}>
+        <div className="mb7">
+          <div className="t-caption mb3">FIX THESE FIRST</div>
+          <div className="grid grid-2 g3 cq-grid-2">
             {guide.priorities.map((priority, index) => (
-              <HStack
+              <Card
                 key={priority.title}
-                spacing={3}
-                align="flex-start"
-                borderWidth="1px"
-                borderColor="surface.300"
-                borderRadius="md"
-                px={4}
-                py={3}
+                hover={Boolean(priority.conceptId)}
+                onClick={() => priority.conceptId && navigate(`/concept/${priority.conceptId}`)}
               >
-                <Text fontSize="sm" color="forge.500" fontWeight={700} minW="18px">
-                  {index + 1}
-                </Text>
-                <Box flex="1" minW={0}>
-                  <Text
-                    fontSize="sm"
-                    color="ink.100"
-                    fontWeight={500}
-                    cursor={priority.conceptId ? 'pointer' : 'default'}
-                    _hover={priority.conceptId ? { color: 'forge.400' } : {}}
-                    onClick={() => priority.conceptId && navigate(`/concept/${priority.conceptId}`)}
+                <div className="row items-start g3">
+                  <span
+                    className="t-metric"
+                    style={{ fontSize: 18, color: 'var(--primary)', flexShrink: 0 }}
                   >
-                    {priority.title}
-                  </Text>
-                  <Text fontSize="xs" color="ink.400" mt={0.5}>
-                    {priority.reason}
-                  </Text>
-                </Box>
-              </HStack>
+                    {index + 1}
+                  </span>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="t-h4">{priority.title}</div>
+                    <div className="t-caption mt1">{priority.reason}</div>
+                  </div>
+                </div>
+              </Card>
             ))}
-          </VStack>
-        </Box>
+          </div>
+        </div>
       )}
 
       {guide && guide.recurringWeaknesses.length > 0 && (
-        <Box mb={8}>
-          <SectionLabel>Came up more than once</SectionLabel>
-          <Text fontSize="xs" color="ink.500" mb={2}>
-            Weaknesses two or more past interviews agreed on. One interview is an off day; two is a
-            pattern.
-          </Text>
-          <VStack align="stretch" spacing={1}>
+        <div className="mb7">
+          <div className="t-caption mb1">CAME UP MORE THAN ONCE</div>
+          {/* One interview is an off day; two is a pattern. */}
+          <div className="t-small mb3">Weaknesses two or more past interviews agreed on.</div>
+          <div className="col g1">
             {guide.recurringWeaknesses.map((weakness) => (
-              <Text key={weakness} fontSize="sm" color="ink.200">
+              <div key={weakness} className="t-body">
                 · {weakness}
-              </Text>
+              </div>
             ))}
-          </VStack>
-        </Box>
+          </div>
+        </div>
       )}
 
-      <Box mb={8}>
-        <SectionLabel>By technology</SectionLabel>
-        <VStack align="stretch" spacing={5}>
+      <div className="mb7">
+        <div className="t-caption mb3">BY TECHNOLOGY</div>
+        <div className="grid grid-2 g4 cq-grid-2">
           {guide?.technologies.map((technology) => (
             <TechnologyBlock key={technology.technologyId} technology={technology} />
           ))}
-        </VStack>
-      </Box>
+        </div>
+      </div>
 
       {history && history.length > 0 && (
-        <Box>
-          <SectionLabel>Past interviews</SectionLabel>
-          <VStack align="stretch" spacing={1}>
-            {history.map((interview) => (
-              <HStack
-                key={interview.id}
-                justify="space-between"
-                px={3}
-                py={2}
-                borderRadius="md"
-                _hover={{ bg: 'surface.100' }}
-                cursor="pointer"
-                onClick={() => navigate(`/interview/${interview.id}`)}
-              >
-                <HStack spacing={3}>
-                  <Text fontSize="sm" color="ink.200">
-                    {interview.mode}
-                  </Text>
-                  <Text fontSize="xs" color="ink.500">
-                    {new Date(interview.startedAt).toLocaleDateString()} · {interview.questionCount}{' '}
-                    questions
-                  </Text>
-                </HStack>
-                <Text fontSize="sm" color={interview.overallScore === null ? 'ink.500' : 'ink.200'}>
-                  {interview.overallScore === null
-                    ? interview.status === 'IN_PROGRESS'
-                      ? 'unfinished'
-                      : '—'
-                    : `${Math.round(interview.overallScore * 100)}%`}
-                </Text>
-              </HStack>
-            ))}
-          </VStack>
-        </Box>
+        <div>
+          <div className="t-caption mb3">PAST INTERVIEWS</div>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Mode</th>
+                <th>Date</th>
+                <th>Questions</th>
+                <th style={{ textAlign: 'right' }}>Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((interview) => (
+                <tr
+                  key={interview.id}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => navigate(`/interview/${interview.id}`)}
+                >
+                  <td>{interview.mode}</td>
+                  <td className="t-caption">
+                    {new Date(interview.startedAt).toLocaleDateString()}
+                  </td>
+                  <td className="t-caption">{interview.questionCount}</td>
+                  <td className="t-code" style={{ textAlign: 'right' }}>
+                    {interview.overallScore === null
+                      ? interview.status === 'IN_PROGRESS'
+                        ? 'unfinished'
+                        : '—'
+                      : `${Math.round(interview.overallScore * 100)}%`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-    </Box>
+    </>
   );
 }
 
@@ -269,76 +242,52 @@ function TechnologyBlock({ technology }: { technology: GuideTechnology }) {
   const shown = expanded ? technology.topics : technology.topics.slice(0, 4);
 
   return (
-    <Box>
-      <HStack justify="space-between" mb={2}>
-        <HStack spacing={2}>
-          <Text fontSize="sm" fontWeight={600} color="ink.100">
-            {technology.name}
-          </Text>
-          <Badge bg="surface.300" color="ink.400" fontSize="xs">
-            {technology.interviewImportance}/5 for interviews
-          </Badge>
-        </HStack>
-        <Text fontSize="sm" color="ink.300">
+    <Card>
+      <div className="row items-center justify-between g2 mb3">
+        <div className="row items-center g2" style={{ minWidth: 0 }}>
+          <span className="t-h4">{technology.name}</span>
+          <Badge variant="neutral">{technology.interviewImportance}/5 for interviews</Badge>
+        </div>
+        <span className="t-code" style={{ fontWeight: 700 }}>
           {technology.readiness === null ? '—' : `${Math.round(technology.readiness * 100)}%`}
-        </Text>
-      </HStack>
+        </span>
+      </div>
 
-      <VStack align="stretch" spacing={1}>
+      {technology.readiness !== null && (
+        <div className="mb3">
+          <SkillMeter pct={technology.readiness * 100} />
+        </div>
+      )}
+
+      <div className="col g2">
         {shown.map((topic) => (
-          <HStack key={topic.conceptId} spacing={3} px={3} py={2} align="flex-start">
-            <Badge
-              bg="transparent"
-              color={STATUS_COLOUR[topic.status]}
-              borderWidth="1px"
-              borderColor={STATUS_COLOUR[topic.status]}
-              fontSize="xs"
-              minW="70px"
-              textAlign="center"
-              flexShrink={0}
-            >
-              {STATUS_LABEL[topic.status]}
-            </Badge>
-            <Box flex="1" minW={0}>
-              <Text fontSize="sm" color="ink.200">
+          <div key={topic.conceptId} className="row items-start g3">
+            <span style={{ flexShrink: 0, width: 78 }}>
+              <Badge variant={STATUS_VARIANT[topic.status]}>{STATUS_LABEL[topic.status]}</Badge>
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <div className="t-small" style={{ color: 'var(--text-primary)' }}>
                 {topic.name}
-              </Text>
+              </div>
               {topic.commonMistakes.length > 0 && topic.status !== 'STRONG' && (
-                <Text fontSize="xs" color="ink.500" mt={0.5}>
-                  Watch for: {topic.commonMistakes[0]}
-                </Text>
+                <div className="t-caption mt1">Watch for: {topic.commonMistakes[0]}</div>
               )}
-            </Box>
-          </HStack>
+            </div>
+          </div>
         ))}
-      </VStack>
+      </div>
 
       {technology.topics.length > 4 && (
         <Button
           variant="ghost"
-          size="xs"
-          color="ink.500"
-          mt={1}
+          size="sm"
+          className="mt3"
           onClick={() => setExpanded((value) => !value)}
         >
+          <Icon name={expanded ? 'chevronDown' : 'chevronRight'} size={13} />
           {expanded ? 'Show less' : `${technology.topics.length - 4} more`}
         </Button>
       )}
-    </Box>
-  );
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <Text
-      fontSize="xs"
-      textTransform="uppercase"
-      letterSpacing="0.06em"
-      color="ink.500"
-      fontWeight={600}
-      mb={3}
-    >
-      {children}
-    </Text>
+    </Card>
   );
 }

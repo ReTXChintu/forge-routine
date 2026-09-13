@@ -24,6 +24,9 @@ const {
 
 const prisma = new PrismaClient();
 
+/** Matches GENERATOR_VERSION. A seed-1 curriculum is a starter set, not a course. */
+const CURRENT_GENERATOR = 'ai-1';
+
 async function main() {
   const users = await prisma.user.findMany({ select: { id: true, email: true } });
 
@@ -39,6 +42,11 @@ async function main() {
             dependsOn: true,
             learningOrder: true,
             _count: { select: { concepts: { where: { archivedAt: null } } } },
+            curriculumVersions: {
+              where: { status: 'ACTIVE', generatorVersion: CURRENT_GENERATOR },
+              select: { id: true },
+              take: 1,
+            },
           },
         },
       },
@@ -49,7 +57,10 @@ async function main() {
       slug: row.technology.slug,
       dependsOn: row.technology.dependsOn,
       weight: -row.technology.learningOrder,
-      hasContent: row.technology._count.concepts > 0,
+      // "Built" means a full course, not merely some rows. The seeded
+      // JavaScript and Node.js sets are drills that open at closures; calling
+      // them built is what produced a course starting in the middle.
+      hasContent: row.technology.curriculumVersions.length > 0,
       conceptCount: row.technology._count.concepts,
     }));
 
@@ -63,10 +74,13 @@ async function main() {
     console.log('\n  learning order:');
     for (const [index, id] of order.entries()) {
       const technology = byId.get(id);
-      console.log(
-        `   ${String(index + 1).padStart(2)}. ${technology.slug.padEnd(16)} ` +
-          (technology.hasContent ? `built (${technology.conceptCount} concepts)` : 'not built'),
-      );
+      const state = technology.hasContent
+        ? `built (${technology.conceptCount} concepts)`
+        : technology.conceptCount > 0
+          ? `starter set only (${technology.conceptCount} concepts) — needs the full course`
+          : 'not built';
+
+      console.log(`   ${String(index + 1).padStart(2)}. ${technology.slug.padEnd(22)} ${state}`);
     }
 
     const built = technologies.filter((t) => t.hasContent);
@@ -103,10 +117,11 @@ async function main() {
     }
   }
 
-  const pending = await prisma.generationJob.count({
-    where: { status: { in: ['QUEUED', 'RUNNING'] } },
-  });
-  console.log(`\npending jobs across all users: ${pending}`);
+  const counts = await prisma.generationJob.groupBy({ by: ['status'], _count: true });
+  console.log(
+    `\njobs: ${counts.map((row) => `${row.status}=${row._count}`).join('  ') || 'none'}`,
+  );
+  console.log('PENDING costs nothing — it is the plan, not the work.');
 }
 
 main()

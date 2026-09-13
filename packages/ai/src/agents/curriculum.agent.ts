@@ -33,6 +33,15 @@ export interface OutlineInput {
   /** Technologies the user already has, so prerequisites can point at them. */
   existingTechnologies: readonly string[];
   targetConceptCount?: number;
+  /**
+   * Concepts this technology already has, hand-written and already carrying
+   * verified exercises.
+   *
+   * Passed so the outline can absorb them rather than replace them. Without
+   * this, regenerating a technology to fill in its basics archives the
+   * curated material and the good exercises go with it.
+   */
+  existingConcepts?: readonly { slug: string; name: string }[];
 }
 
 export const outlineAgent = {
@@ -54,9 +63,10 @@ export const outlineAgent = {
           content: `Produce a concept outline for one technology: names, one-line descriptions, and difficulty only. No objectives, no exercises — those come later.
 
 Rules:
-- Order them the way someone should actually learn them: foundations first, each building on what came before.
+- This is a complete course, basics to advanced. Start where a competent programmer new to THIS technology starts, not where an expert would find it interesting. If the first concept is difficulty 3, you have skipped the beginning.
+- Order them the way someone should actually learn them: foundations first, each building on what came before. The order is the curriculum — a learner will be held to it and cannot skip ahead.
 - Around ${count} concepts. Fewer good ones beats more padded ones.
-- Difficulty 1-5 relative to this technology, not to programming in general.
+- Difficulty 1-5 relative to this technology, not to programming in general. A real course opens at 1.
 - Slugs are lowercase and hyphenated.
 - Name the real thing. "Closures" not "Advanced Functions". "The Event Loop" not "Asynchronous Concepts".`,
         },
@@ -67,9 +77,14 @@ Rules:
             input.existingTechnologies.length > 0
               ? `The learner is also studying: ${input.existingTechnologies.join(', ')}. Assume that context exists; do not re-teach it.`
               : '',
+            (input.existingConcepts?.length ?? 0) > 0
+              ? `This technology already has these concepts, which carry hand-written exercises:\n${input
+                  .existingConcepts!.map((concept) => `- ${concept.slug}: ${concept.name}`)
+                  .join('\n')}\n\nInclude every one of them in your outline, reusing its slug EXACTLY, and place it where it belongs in the progression. Add whatever is missing around them — especially anything more basic. A slug you change is a concept whose exercises are lost.`
+              : '',
           ]
             .filter(Boolean)
-            .join('\n'),
+            .join('\n\n'),
         },
       ],
     };

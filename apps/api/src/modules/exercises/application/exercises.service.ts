@@ -138,9 +138,19 @@ export class ExercisesService {
     if (detail.readiness.unlocked) return;
 
     const blockingId = detail.readiness.blockingConceptIds[0];
-    const blocking = detail.prerequisites.find((p) => p.conceptId === blockingId);
 
-    throw Problems.exerciseLocked(blocking?.name ?? 'a prerequisite');
+    // The blocker may be the previous concept in the course rather than a
+    // declared prerequisite, and that one is not in `prerequisites`. Looked
+    // up by id so the message names it either way: "locked until you finish
+    // a prerequisite" is not something a user can act on.
+    const named = blockingId
+      ? ((await this.prisma.concept.findUnique({
+          where: { id: blockingId },
+          select: { name: true },
+        })) ?? null)
+      : null;
+
+    throw Problems.exerciseLocked(named?.name ?? 'an earlier concept');
   }
 }
 

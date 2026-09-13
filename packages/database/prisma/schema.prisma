@@ -1051,6 +1051,13 @@ enum GenerationKind {
 }
 
 enum GenerationStatus {
+  /// In the plan, waiting its turn. Not runnable and costs nothing.
+  ///
+  /// Distinct from QUEUED so the user can see the whole pipeline — "3 of 22
+  /// built, Git is next" — without those rows being something the runner
+  /// will pick up. Only the single technology whose turn it is becomes
+  /// QUEUED.
+  PENDING
   QUEUED
   RUNNING
   /// Usable but incomplete. Four of six technologies is not "not ready".

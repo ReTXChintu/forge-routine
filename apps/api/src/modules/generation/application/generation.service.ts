@@ -1,11 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { nextToGenerate, shouldGenerateAhead } from '@forgeroutine/curriculum';
+import { orderTechnologies, shouldGenerateAhead } from '@forgeroutine/curriculum';
 
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
 import { RoadmapService } from '../../roadmap/application/roadmap.service.js';
 
-import { CurriculumGeneratorService } from './curriculum-generator.service.js';
+import { GENERATOR_VERSION, CurriculumGeneratorService } from './curriculum-generator.service.js';
+
+interface PipelineEntry {
+  job: { id: string; target: string; status: string; step: string; progress: number; error: string | null; kind: string };
+  technology: UserTechnologyRow;
+  status: string;
+}
 
 interface UserTechnologyRow {
   technologyId: string;
@@ -14,6 +20,17 @@ interface UserTechnologyRow {
   dependsOn: string[];
   learningOrder: number;
   conceptCount: number;
+  /**
+   * A full course exists, not just a starter set.
+   *
+   * The seeded JavaScript and Node.js curricula are drills for an engineer
+   * filling gaps: seven concepts opening at closures, with no variables and
+   * no control flow. Counting them as "built" is why asking to start with
+   * JavaScript produced a course that begins in the middle. A technology is
+   * only finished when the current generator has produced a full curriculum
+   * for it.
+   */
+  complete: boolean;
 }
 
 export interface GenerationJobView {
@@ -35,6 +52,8 @@ export interface GenerationStatusView {
    * "not ready", and reporting it as such would be a lie.
    */
   partial: boolean;
+  /** Technologies in the plan that have not been started. Costs nothing. */
+  waiting: number;
   jobs: GenerationJobView[];
 }
 
@@ -79,16 +98,24 @@ export class GenerationService {
   ) {}
 
   /**
-   * Queues the one technology this user needs next, if any.
+   * Keeps the generation pipeline correct, and promotes at most one job.
    *
-   * Called on sign-up and again whenever the roadmap is read, so the next
-   * technology starts building while the user is still working through the
-   * current one. Returns the queued job, or an empty list when there is
-   * nothing to do — which is the common case and costs one query.
+   * Two responsibilities, deliberately together because they must agree:
+   *
+   *   1. Every technology the user has chosen but does not yet have gets a
+   *      PENDING row, in learning order. PENDING is visible and costs
+   *      nothing — it is the plan, not the work.
+   *   2. The single earliest PENDING job becomes QUEUED, but only when the
+   *      user is far enough into what they already have to justify it.
+   *
+   * Called on sign-up, on opening the dashboard, and on planning a routine.
+   * In the common case it promotes nothing and the whole thing is two
+   * queries.
    */
-  async enqueueNext(userId: string, options: { force?: boolean } = {}): Promise<
-    GenerationJobView[]
-  > {
+  async enqueueNext(
+    userId: string,
+    options: { force?: boolean } = {},
+  ): Promise<GenerationJobView[]> {
     if (!this.generator.available) {
       this.logger.warn('AI is not configured; skipping curriculum generation');
       return [];
@@ -97,53 +124,108 @@ export class GenerationService {
     const technologies = await this.userTechnologies(userId);
     if (technologies.length === 0) return [];
 
-    const target = nextToGenerate(
-      technologies.map((technology) => ({
-        technologyId: technology.technologyId,
-        slug: technology.slug,
-        dependsOn: technology.dependsOn,
-        weight: -technology.learningOrder,
-        hasContent: technology.conceptCount > 0,
-      })),
+    const pipeline = await this.syncPipeline(userId, technologies);
+
+    // Something is already building. One at a time is the whole point.
+    const inFlight = pipeline.find(
+      (entry) => entry.status === 'QUEUED' || entry.status === 'RUNNING',
     );
+    if (inFlight) {
+      void this.drain(userId);
+      return [toView(inFlight.job, inFlight.technology.name)];
+    }
 
-    if (!target) return [];
+    const next = pipeline.find((entry) => entry.status === 'PENDING');
+    if (!next) return [];
 
-    // `force` is onboarding: there is nothing built yet, so the first
-    // technology is needed immediately rather than when progress warrants it.
+    // `force` is onboarding, or the user asking outright. Otherwise the
+    // threshold decides, so nobody pays for material they are nowhere near.
     if (!options.force && !(await this.readyForMore(userId, technologies))) return [];
 
-    const technology = technologies.find((t) => t.technologyId === target);
-    if (!technology) return [];
-
-    const existing = await this.prisma.generationJob.findFirst({
-      where: { userId, target, status: { in: ['QUEUED', 'RUNNING'] } },
-    });
-
-    // Already in flight. Re-queuing would build the same technology twice
-    // and pay for it twice.
-    if (existing) return [toView(existing, technology.name)];
-
-    const job = await this.prisma.generationJob.create({
-      data: {
-        userId,
-        kind: 'TECHNOLOGY_CURRICULUM',
-        target,
-        status: 'QUEUED',
-        step: `${technology.name} is queued`,
-      },
+    const promoted = await this.prisma.generationJob.update({
+      where: { id: next.job.id },
+      data: { status: 'QUEUED', step: `${next.technology.name} is queued` },
     });
 
     this.logger.log(
-      `Queued ${technology.slug} for ${userId} ` +
-        `(${technologies.filter((t) => t.conceptCount > 0).length}/${technologies.length} built)`,
+      `Queued ${next.technology.slug} for ${userId} ` +
+        `(${technologies.filter((t) => t.complete).length}/${technologies.length} built)`,
     );
 
     // Kick the runner without awaiting it: the caller is an HTTP request and
     // generation takes minutes.
     void this.drain(userId);
 
-    return [toView(job, technology.name)];
+    return [toView(promoted, next.technology.name)];
+  }
+
+  /**
+   * Reconciles job rows with what the user actually needs, in order.
+   *
+   * Creates a PENDING row for anything unbuilt that has none, and clears
+   * rows for technologies that have since been built or dropped. Reconciling
+   * rather than appending matters because the pipeline is shown to the user:
+   * a stale row saying "Docker is queued" for a Docker that already exists
+   * is worse than no row at all.
+   */
+  private async syncPipeline(
+    userId: string,
+    technologies: readonly UserTechnologyRow[],
+  ): Promise<PipelineEntry[]> {
+    const order = orderTechnologies(
+      technologies.map((technology) => ({
+        technologyId: technology.technologyId,
+        slug: technology.slug,
+        dependsOn: technology.dependsOn,
+        weight: -technology.learningOrder,
+      })),
+    );
+
+    const byId = new Map(technologies.map((technology) => [technology.technologyId, technology]));
+
+    const openJobs = await this.prisma.generationJob.findMany({
+      where: {
+        userId,
+        kind: 'TECHNOLOGY_CURRICULUM',
+        status: { in: ['PENDING', 'QUEUED', 'RUNNING'] },
+      },
+    });
+    const jobByTarget = new Map(openJobs.map((job) => [job.target, job]));
+
+    // A job for something already built, or no longer chosen, is noise.
+    const obsolete = openJobs.filter((job) => byId.get(job.target)?.complete === true);
+    if (obsolete.length > 0) {
+      await this.prisma.generationJob.updateMany({
+        where: { id: { in: obsolete.map((job) => job.id) } },
+        data: { status: 'READY', progress: 100, step: 'Already built', finishedAt: new Date() },
+      });
+      for (const job of obsolete) jobByTarget.delete(job.target);
+    }
+
+    const entries: PipelineEntry[] = [];
+
+    for (const technologyId of order) {
+      const technology = byId.get(technologyId);
+      if (!technology || technology.complete) continue;
+
+      const existing = jobByTarget.get(technologyId);
+
+      const job =
+        existing ??
+        (await this.prisma.generationJob.create({
+          data: {
+            userId,
+            kind: 'TECHNOLOGY_CURRICULUM',
+            target: technologyId,
+            status: 'PENDING',
+            step: `${technology.name} is waiting its turn`,
+          },
+        }));
+
+      entries.push({ job, technology, status: job.status });
+    }
+
+    return entries;
   }
 
   /**
@@ -157,6 +239,8 @@ export class GenerationService {
     userId: string,
     technologies: readonly UserTechnologyRow[],
   ): Promise<boolean> {
+    // Progress is measured against everything with material in it, whether
+    // seeded or generated: the user is working through it either way.
     const built = technologies.filter((technology) => technology.conceptCount > 0);
     if (built.length === 0) return true;
 
@@ -188,6 +272,11 @@ export class GenerationService {
             dependsOn: true,
             learningOrder: true,
             _count: { select: { concepts: { where: { archivedAt: null } } } },
+            curriculumVersions: {
+              where: { status: 'ACTIVE', generatorVersion: GENERATOR_VERSION },
+              select: { id: true },
+              take: 1,
+            },
           },
         },
       },
@@ -200,29 +289,41 @@ export class GenerationService {
       dependsOn: row.technology.dependsOn,
       learningOrder: row.technology.learningOrder,
       conceptCount: row.technology._count.concepts,
+      complete: row.technology.curriculumVersions.length > 0,
     }));
   }
 
   async status(userId: string): Promise<GenerationStatusView> {
+    // Reconcile first, so opening the progress view shows the real pipeline
+    // rather than whatever was true the last time something was generated.
+    const technologies = await this.userTechnologies(userId);
+    if (technologies.length > 0) await this.syncPipeline(userId, technologies);
+
     const jobs = await this.prisma.generationJob.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
+      // Pending work first and in plan order, because that is the queue the
+      // user is being shown; finished work after it, newest first.
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+      take: 40,
     });
 
-    const technologyIds = jobs.map((j) => j.target);
-    const technologies = await this.prisma.technology.findMany({
-      where: { id: { in: technologyIds } },
+    const named = await this.prisma.technology.findMany({
+      where: { id: { in: jobs.map((job) => job.target) } },
       select: { id: true, name: true },
     });
-    const nameById = new Map(technologies.map((t) => [t.id, t.name]));
+    const nameById = new Map(named.map((technology) => [technology.id, technology.name]));
 
     const views = jobs.map((job) => toView(job, nameById.get(job.target) ?? null));
+
+    // PENDING is not active. Nothing is running and nothing is being spent —
+    // reporting it as active would leave the UI spinning forever on work
+    // that is deliberately not started.
     const active = views.some((j) => j.status === 'QUEUED' || j.status === 'RUNNING');
 
     return {
       active,
       partial: active && views.some((j) => j.status === 'READY'),
+      waiting: views.filter((j) => j.status === 'PENDING').length,
       jobs: views,
     };
   }

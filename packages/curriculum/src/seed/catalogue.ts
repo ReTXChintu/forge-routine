@@ -105,7 +105,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     category: 'database',
     // Standalone: nothing here depends on the rest of the stack.
     dependsOn: [],
-    learningOrder: 11,
+    learningOrder: 12,
   },
   {
     slug: 'postgresql',
@@ -136,7 +136,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     category: 'devops',
     // Namespaces, cgroups and the filesystem are the whole idea.
     dependsOn: ['linux'],
-    learningOrder: 13,
+    learningOrder: 14,
   },
   {
     slug: 'linux',
@@ -165,7 +165,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     description: 'Collaboration: pull requests, reviews, and repository configuration.',
     category: 'tooling',
     dependsOn: ['git'],
-    learningOrder: 14,
+    learningOrder: 15,
   },
   {
     slug: 'github-actions',
@@ -174,7 +174,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     description: 'CI/CD: workflows, jobs, caching, and deployment pipelines.',
     category: 'devops',
     dependsOn: ['github', 'docker'],
-    learningOrder: 15,
+    learningOrder: 16,
   },
   {
     slug: 'jenkins',
@@ -183,7 +183,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     description: 'Pipelines, agents, and build orchestration.',
     category: 'devops',
     dependsOn: ['docker'],
-    learningOrder: 16,
+    learningOrder: 17,
   },
   {
     slug: 'redis',
@@ -193,7 +193,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     category: 'database',
     // Standalone: the data structures are the subject.
     dependsOn: [],
-    learningOrder: 12,
+    learningOrder: 13,
   },
   {
     slug: 'nginx',
@@ -202,7 +202,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     description: 'Reverse proxy, TLS termination, static serving, and load balancing.',
     category: 'infrastructure',
     dependsOn: ['linux'],
-    learningOrder: 17,
+    learningOrder: 18,
   },
   {
     slug: 'traefik',
@@ -211,7 +211,7 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     description: 'Dynamic reverse proxy and routing.',
     category: 'infrastructure',
     dependsOn: ['docker', 'nginx'],
-    learningOrder: 18,
+    learningOrder: 19,
   },
   {
     slug: 'system-design',
@@ -222,6 +222,45 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     // No hard prerequisite, but it is ordered last deliberately: designing
     // systems is worth far more once you have built parts of one.
     dependsOn: [],
-    learningOrder: 19,
+    learningOrder: 22,
+  },
+  {
+    slug: 'typeorm',
+    exerciseLanguage: null,
+    name: 'TypeORM',
+    description: 'Entities, relations, migrations, and the query builder.',
+    category: 'database',
+    // Same shape as Prisma: a typed layer over SQL you should already read.
+    dependsOn: ['typescript', 'postgresql'],
+    learningOrder: 11,
+  },
+  {
+    slug: 'rust',
+    exerciseLanguage: null,
+    name: 'Rust',
+    description: 'Ownership, borrowing, lifetimes, traits, and fearless concurrency.',
+    category: 'language',
+    // A separate track, not a step in the JavaScript one. It blocks nothing,
+    // so it sits late: useful, but never the thing standing between you and
+    // the stack you actually ship.
+    dependsOn: [],
+    learningOrder: 20,
+  },
+  {
+    slug: 'software-architecture',
+    exerciseLanguage: null,
+    name: 'Software Architecture',
+    description:
+      'MVC, MVVM, layered, hexagonal and clean architecture — and when each one earns its cost.',
+    category: 'architecture',
+    // One subject rather than four. These patterns are understood by
+    // contrast: clean architecture is a response to layered, hexagonal is a
+    // response to both, and teaching them apart means each course
+    // re-explains the same trade-offs without ever making the comparison.
+    //
+    // No hard prerequisite, but placed after the frameworks deliberately —
+    // the patterns are answers to problems you have to have felt.
+    dependsOn: [],
+    learningOrder: 21,
   },
 ];

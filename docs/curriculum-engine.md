@@ -73,6 +73,40 @@ Prompts are hashed rather than stored. They contain the user's own code and
 their interview answers, and an observability table should not quietly become
 a transcript of everything they have written.
 
+### A seeded curriculum is not a course
+
+`javascript` and `nodejs` ship with hand-written concepts, and those are
+drills for an engineer filling gaps — the JavaScript set opened at closures,
+with no variables and no control flow. Counting them as built is why asking
+to start with JavaScript produced a course beginning in the middle.
+
+A technology counts as finished only when the *current* generator has
+produced a curriculum for it. A `seed-1` version means a starter set and the
+technology still enters the pipeline.
+
+Generation then **extends rather than replaces**: existing concepts are
+passed to the outline agent, which is told to include every one of them
+reusing its slug exactly and to fill in whatever is missing around them. The
+first real run of this produced a ten-concept course opening at Variables
+and Data Types and closing at Async Error Handling, with all seven curated
+concepts absorbed and **nothing archived** — so the hand-written exercises
+survived. A dropped slug is logged as a warning, because orphaning verified
+exercises should never be silent.
+
+### Strict order
+
+A learner cannot skip ahead. The next concept opens when the one before it
+is cleared, where cleared means one passed attempt — a historical fact, not
+a mastery score. Mastery decays and is estimated from several signals, so
+gating on it would re-lock material the user has genuinely finished.
+
+This sits alongside the knowledge graph rather than replacing it. The graph
+asks "do you know enough to attempt this", which leaves most concepts open
+from day one; the sequence asks "have you finished the one before it". Both
+must be open. A concept with no exercises and no questions can never be
+cleared, so it never blocks — otherwise a generation that produced a
+reading-only concept would wall the user in permanently.
+
 ### Sharing
 
 Curriculum is per-technology, not per-user: a `Concept` belongs to a

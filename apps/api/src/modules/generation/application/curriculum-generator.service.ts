@@ -101,15 +101,40 @@ export class CurriculumGeneratorService {
     await onProgress(`Planning the ${technology.name} curriculum`, 5);
 
     const existingTechnologies = await this.otherTechnologyNames(userId, technologyId);
+
+    // Curated concepts are passed in so the outline absorbs them instead of
+    // replacing them. The seeded JavaScript set, for instance, is seven
+    // hand-written concepts with verified exercises that start at closures —
+    // excellent material and not a course. Regenerating without this would
+    // archive all seven and take the exercises with them.
+    const existingConcepts = await this.prisma.concept.findMany({
+      where: { technologyId, archivedAt: null },
+      orderBy: { orderIndex: 'asc' },
+      select: { slug: true, name: true },
+    });
+
     const outline = await outlineAgent.run(
       this.ai,
       {
         technologyName: technology.name,
         technologySlug: technology.slug,
         existingTechnologies,
+        existingConcepts,
       },
       context,
     );
+
+    const dropped = existingConcepts.filter(
+      (concept) => !outline.concepts.some((candidate) => candidate.slug === concept.slug),
+    );
+    if (dropped.length > 0) {
+      // Not fatal — the outline is still usable — but it means exercises are
+      // about to be orphaned, and that should never be silent.
+      this.logger.warn(
+        `${technology.slug}: outline dropped ${dropped.length} existing concept(s): ` +
+          dropped.map((concept) => concept.slug).join(', '),
+      );
+    }
 
     this.logger.log(`${technology.slug}: outlined ${outline.concepts.length} concepts`);
 

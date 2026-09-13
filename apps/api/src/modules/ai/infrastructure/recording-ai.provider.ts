@@ -96,26 +96,52 @@ export class RecordingAIProvider implements AIProvider {
     outcome: string,
     error: unknown,
   ): Promise<void> {
+    const row = {
+      agent: request.context.agent,
+      model: model ?? 'unknown',
+      promptVersion: request.context.promptVersion,
+      inputHash: hashPrompt(request),
+      promptTokens: usage?.promptTokens ?? 0,
+      completionTokens: usage?.completionTokens ?? 0,
+      latencyMs,
+      outcome,
+      error: error instanceof Error ? error.message.slice(0, 500) : null,
+    };
+
     try {
+      // A generation job runs as a user; a maintenance script passes
+      // something that is not one.
       await this.prisma.aIInteraction.create({
-        data: {
-          // A generation job runs as a user, but a script may not.
-          userId: request.context.userId ?? null,
-          agent: request.context.agent,
-          model: model ?? 'unknown',
-          promptVersion: request.context.promptVersion,
-          inputHash: hashPrompt(request),
-          promptTokens: usage?.promptTokens ?? 0,
-          completionTokens: usage?.completionTokens ?? 0,
-          latencyMs,
-          outcome,
-          error: error instanceof Error ? error.message.slice(0, 500) : null,
-        },
+        data: { ...row, userId: request.context.userId ?? null },
       });
     } catch (writeError) {
+      // Unattributable, not unrecordable. A script run still spends money,
+      // and dropping it would make the usage table quietly understate the
+      // bill — which is the one thing it exists to avoid. Retried rather
+      // than pre-checked so the common path stays a single insert.
+      if (isForeignKeyViolation(writeError)) {
+        try {
+          await this.prisma.aIInteraction.create({ data: { ...row, userId: null } });
+          return;
+        } catch (retryError) {
+          this.logger.warn({ err: retryError }, 'Could not record AI usage');
+          return;
+        }
+      }
+
       this.logger.warn({ err: writeError }, 'Could not record AI usage');
     }
   }
+}
+
+/** Prisma's foreign-key violation, without importing its error class. */
+function isForeignKeyViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === 'P2003'
+  );
 }
 
 /**

@@ -1,13 +1,15 @@
 import { Injectable } from '@nestjs/common';
 
 import {
-  KnowledgeGraph,
-  computeReadiness,
-  traceRootCause,
   type GraphEdge,
   type GraphNode,
+  KnowledgeGraph,
   type Readiness,
   type RootCauseTrace,
+  type SequenceGate,
+  computeReadiness,
+  gateSequence,
+  traceRootCause,
 } from '@forgeroutine/curriculum';
 import type { Concept, SkillVector } from '@forgeroutine/shared-types';
 
@@ -52,7 +54,7 @@ export class ConceptsService {
     const row = await this.prisma.concept.findUnique({
       where: { id: conceptId },
       include: {
-        technology: { select: { name: true } },
+        technology: { select: { id: true, name: true } },
         prerequisites: {
           include: { prerequisite: { select: { id: true, name: true } } },
         },
@@ -62,10 +64,22 @@ export class ConceptsService {
 
     if (!row || row.archivedAt !== null) throw Problems.notFound('Concept');
 
-    const [graph, skillMap] = await Promise.all([
+    const [graph, skillMap, sequence] = await Promise.all([
       this.loadGraph(),
       this.skills.getSkillMap(userId),
+      this.sequenceFor(userId, row.technologyId),
     ]);
+
+    const gate = sequence.get(conceptId);
+    const readiness = computeReadiness(graph, conceptId, (id) => skillMap.get(id));
+
+    // Two gates, and both must be open.
+    //
+    // The graph asks "do you know enough to attempt this", which leaves most
+    // concepts open from day one. The sequence asks "have you finished the
+    // one before it", which is what makes a course a course. Merged here so
+    // every caller gets the same answer rather than each deciding for itself.
+    const blockedBySequence = gate !== undefined && !gate.unlocked;
 
     return {
       ...toConcept(row),
@@ -75,10 +89,77 @@ export class ConceptsService {
         name: p.prerequisite.name,
         strength: p.strength as 'HARD' | 'SOFT',
       })),
-      readiness: computeReadiness(graph, conceptId, (id) => skillMap.get(id)),
+      readiness: {
+        ...readiness,
+        unlocked: readiness.unlocked && !blockedBySequence,
+        blockingConceptIds:
+          blockedBySequence && gate?.blockedByConceptId
+            ? [gate.blockedByConceptId, ...readiness.blockingConceptIds]
+            : readiness.blockingConceptIds,
+      },
       skill: skillMap.get(conceptId) ?? null,
       exerciseCount: row._count.exercises,
     };
+  }
+
+  /**
+   * The sequential gate for every concept in one technology.
+   *
+   * "Cleared" is a passed attempt, not a mastery score. Mastery decays and
+   * is estimated from several signals, so gating on it would re-lock
+   * material the user has genuinely finished — the single most frustrating
+   * thing a course can do to someone.
+   */
+  async sequenceFor(
+    userId: string,
+    technologyId: string,
+  ): Promise<Map<string, SequenceGate>> {
+    const concepts = await this.prisma.concept.findMany({
+      where: { technologyId, archivedAt: null },
+      orderBy: { orderIndex: 'asc' },
+      select: {
+        id: true,
+        orderIndex: true,
+        _count: { select: { exercises: true, questions: true } },
+      },
+    });
+
+    if (concepts.length === 0) return new Map();
+
+    const [passed, answered] = await Promise.all([
+      this.prisma.exerciseAttempt.findMany({
+        where: {
+          userId,
+          outcome: 'PASSED',
+          exercise: { concept: { technologyId } },
+        },
+        select: { exercise: { select: { conceptId: true } } },
+        distinct: ['exerciseId'],
+      }),
+      // A concept with questions and no exercises is cleared by answering
+      // one correctly — otherwise every question-only technology would be
+      // impassable at its first concept.
+      this.prisma.skill.findMany({
+        where: { userId, concept: { technologyId }, recallStrength: { gte: 0.5 } },
+        select: { conceptId: true },
+      }),
+    ]);
+
+    const clearedConceptIds = new Set<string>([
+      ...passed.map((attempt) => attempt.exercise.conceptId),
+      ...answered.map((skill) => skill.conceptId),
+    ]);
+
+    const gates = gateSequence(
+      concepts.map((concept) => ({
+        conceptId: concept.id,
+        orderIndex: concept.orderIndex,
+        hasPractice: concept._count.exercises > 0 || concept._count.questions > 0,
+      })),
+      { clearedConceptIds },
+    );
+
+    return new Map(gates.map((gate) => [gate.conceptId, gate]));
   }
 
   /**

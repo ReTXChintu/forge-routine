@@ -189,6 +189,8 @@ describe('the shipped catalogue', () => {
     before('git', 'github');
     before('github', 'github-actions');
     before('postgresql', 'prisma');
+    before('postgresql', 'typeorm');
+    before('typescript', 'typeorm');
   });
 
   it('keeps learningOrder and dependsOn from contradicting each other', () => {
@@ -224,6 +226,7 @@ describe('the shipped catalogue', () => {
       'nestjs',
       'postgresql',
       'prisma',
+      'typeorm',
       'mongodb',
       'redis',
       'docker',
@@ -232,6 +235,8 @@ describe('the shipped catalogue', () => {
       'jenkins',
       'nginx',
       'traefik',
+      'rust',
+      'software-architecture',
       'system-design',
     ]);
   });

@@ -68,7 +68,7 @@ packages/curriculum     Knowledge-graph algorithms and curated seed data
 packages/ai             Provider port, OpenAI adapter, agents, assistance policy
 packages/sandbox        The isolated code runner
 
-infrastructure/pm2      Process definitions
+ecosystem.config.cjs    PM2 process definitions (repository root)
 infrastructure/nginx    TLS, static SPA, reverse proxy
 ```
 
@@ -164,7 +164,7 @@ PM2, no containers. See [`docs/deployment.md`](docs/deployment.md).
 pnpm install --frozen-lockfile
 pnpm db:generate && pnpm build
 pnpm --filter @forgeroutine/database exec prisma migrate deploy
-pm2 start infrastructure/pm2/ecosystem.config.cjs --env production
+pnpm start                    # PM2, all three processes
 pm2 save
 ```
 

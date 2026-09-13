@@ -19,7 +19,9 @@
 
 const { resolve } = require('node:path');
 
-const ROOT = resolve(__dirname, '../..');
+// This file lives at the repository root, which is where PM2 looks by
+// default — `pm2 start` with no argument finds it.
+const ROOT = __dirname;
 const ENV_FILE = process.env.FORGEROUTINE_ENV_FILE ?? '/etc/forgeroutine/.env';
 
 const WEB_PORT = process.env.WEB_PORT ?? 50004;

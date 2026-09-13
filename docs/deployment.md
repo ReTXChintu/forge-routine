@@ -40,14 +40,15 @@ listening on 80 and 443.
 | `forgeroutine-api`     | cluster | HTTP API. Instance count = CPU cores.                                                                             |
 | `forgeroutine-sandbox` | fork    | Code execution workers. Fork mode deliberately — these spawn child processes and must not share a cluster master. |
 
-Defined in `infrastructure/pm2/ecosystem.config.cjs`.
+Defined in `ecosystem.config.cjs` at the repository root, which is where PM2
+looks by default.
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm db:generate
 pnpm build
 pnpm --filter @forgeroutine/database exec prisma migrate deploy
-pm2 start infrastructure/pm2/ecosystem.config.cjs --env production
+pnpm start                      # pm2 start ecosystem.config.cjs --env production
 pm2 save
 ```
 

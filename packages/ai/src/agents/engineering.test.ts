@@ -74,9 +74,7 @@ describe('scoreDesign', () => {
     // The property the original bug violated. Worth asserting directly.
     const scores = scoreDesign({
       addressed: [...(['scalability'] as const)],
-      gaps: [
-        { severity: 'critical', dimension: 'scalability', title: 'a', explanation: 'x' },
-      ],
+      gaps: [{ severity: 'critical', dimension: 'scalability', title: 'a', explanation: 'x' }],
     });
 
     expect(scores.scalability).toBeLessThan(1);
@@ -131,9 +129,7 @@ describe('designReviewAgent', () => {
         data: {
           addressed: [],
           strengths: [],
-          gaps: [
-            { severity: 'critical', dimension: 'vibes', title: 'a', explanation: 'x' },
-          ],
+          gaps: [{ severity: 'critical', dimension: 'vibes', title: 'a', explanation: 'x' }],
           followUpQuestions: [],
           summary: 's',
         },

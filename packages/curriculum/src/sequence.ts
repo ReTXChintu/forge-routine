@@ -105,9 +105,7 @@ export function sequenceProgress(
   const clearable = concepts.filter((concept) => concept.hasPractice);
   if (clearable.length === 0) return 0;
 
-  const cleared = clearable.filter((concept) =>
-    progress.clearedConceptIds.has(concept.conceptId),
-  );
+  const cleared = clearable.filter((concept) => progress.clearedConceptIds.has(concept.conceptId));
 
   return cleared.length / clearable.length;
 }

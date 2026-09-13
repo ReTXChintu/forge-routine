@@ -167,9 +167,7 @@ export class VirtualFileSystem {
       throw new FileSystemError(`${path}: File exists`, 'EEXIST');
     }
 
-    const { parent, name, parentPath } = recursive
-      ? this.splitCreating(path)
-      : this.split(path);
+    const { parent, name, parentPath } = recursive ? this.splitCreating(path) : this.split(path);
 
     this.requireWrite(parent, parentPath);
     parent.children!.set(name, dir(this.user, DEFAULT_DIR_MODE));
@@ -292,7 +290,8 @@ export class VirtualFileSystem {
     const parent = this.find(parentPath);
 
     if (!parent) throw new FileSystemError(`${parentPath}: No such file or directory`, 'ENOENT');
-    if (parent.kind !== 'dir') throw new FileSystemError(`${parentPath}: Not a directory`, 'ENOTDIR');
+    if (parent.kind !== 'dir')
+      throw new FileSystemError(`${parentPath}: Not a directory`, 'ENOTDIR');
 
     return { parent, name: basename(path), parentPath };
   }

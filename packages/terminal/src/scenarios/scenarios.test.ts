@@ -56,11 +56,14 @@ describe('every curated scenario is solvable', () => {
 });
 
 describe('every curated scenario actually tests something', () => {
-  it.each(TERMINAL_SCENARIOS.map((scenario) => scenario.slug))('%s fails when nothing is done', (slug) => {
-    // A scenario that passes on an empty transcript is not a scenario.
-    const result = runScenario(findScenario(slug)!, []);
-    expect(result.passed).toBe(false);
-  });
+  it.each(TERMINAL_SCENARIOS.map((scenario) => scenario.slug))(
+    '%s fails when nothing is done',
+    (slug) => {
+      // A scenario that passes on an empty transcript is not a scenario.
+      const result = runScenario(findScenario(slug)!, []);
+      expect(result.passed).toBe(false);
+    },
+  );
 
   it('every scenario has a task, checks, and hints that are questions', () => {
     for (const scenario of TERMINAL_SCENARIOS) {

@@ -403,7 +403,9 @@ export class ChallengesService {
   private async load(exerciseId: string) {
     const row = await this.prisma.exercise.findUnique({
       where: { id: exerciseId },
-      include: { concept: { select: { id: true, name: true, technology: { select: { name: true } } } } },
+      include: {
+        concept: { select: { id: true, name: true, technology: { select: { name: true } } } },
+      },
     });
 
     if (!row || row.archivedAt) throw Problems.notFound('Challenge');

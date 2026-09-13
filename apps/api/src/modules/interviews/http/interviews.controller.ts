@@ -75,10 +75,7 @@ export class InterviewsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Transcript and the question awaiting an answer' })
-  get(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-  ): Promise<InterviewView> {
+  get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string): Promise<InterviewView> {
     return this.interviews.get(user.userId, id);
   }
 

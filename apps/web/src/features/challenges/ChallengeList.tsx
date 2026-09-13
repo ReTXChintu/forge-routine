@@ -84,13 +84,7 @@ export function ChallengeList() {
   );
 }
 
-function ChallengeRow({
-  challenge,
-  onOpen,
-}: {
-  challenge: ChallengeSummary;
-  onOpen: () => void;
-}) {
+function ChallengeRow({ challenge, onOpen }: { challenge: ChallengeSummary; onOpen: () => void }) {
   return (
     <HStack
       borderWidth="1px"

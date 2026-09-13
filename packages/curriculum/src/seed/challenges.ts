@@ -64,8 +64,7 @@ export const SEED_CHALLENGES: readonly SeedChallenge[] = [
     conceptSlug: 'streams',
     slug: 'design-file-ingestion',
     title: 'Design a CSV ingestion service',
-    objective:
-      'Design a service that accepts CSV uploads up to 5GB and loads them into Postgres.',
+    objective: 'Design a service that accepts CSV uploads up to 5GB and loads them into Postgres.',
     difficulty: 3,
     estimatedMinutes: 40,
     spec: {

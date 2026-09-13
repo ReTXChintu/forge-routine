@@ -73,8 +73,7 @@ export function TodayView() {
           Nothing planned yet
         </Heading>
         <Text fontSize="sm" color="ink.400" mb={6}>
-          Today&apos;s work is a slice of your roadmap, weighted towards anything due for
-          review.
+          Today&apos;s work is a slice of your roadmap, weighted towards anything due for review.
         </Text>
         <Button
           onClick={() => generate.mutate(false)}

@@ -8,7 +8,15 @@ import { RoadmapService } from '../../roadmap/application/roadmap.service.js';
 import { GENERATOR_VERSION, CurriculumGeneratorService } from './curriculum-generator.service.js';
 
 interface PipelineEntry {
-  job: { id: string; target: string; status: string; step: string; progress: number; error: string | null; kind: string };
+  job: {
+    id: string;
+    target: string;
+    status: string;
+    step: string;
+    progress: number;
+    error: string | null;
+    kind: string;
+  };
   technology: UserTechnologyRow;
   status: string;
 }

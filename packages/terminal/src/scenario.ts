@@ -97,14 +97,19 @@ function evaluate(shell: Shell, check: GoalCheck, lastOutput: string): CheckResu
 
       case 'fileContains': {
         const content = shell.fs.exists(check.path) ? shell.fs.readFile(check.path) : '';
-        return result(check, content.includes(check.text), `${check.path} contains "${check.text}"`);
+        return result(
+          check,
+          content.includes(check.text),
+          `${check.path} contains "${check.text}"`,
+        );
       }
 
       case 'fileEquals': {
         const content = shell.fs.exists(check.path) ? shell.fs.readFile(check.path) : null;
         // Trailing newlines are an accident of how the content was written,
         // not something worth failing a Linux exercise over.
-        const same = content !== null && content.replace(/\n$/, '') === check.content.replace(/\n$/, '');
+        const same =
+          content !== null && content.replace(/\n$/, '') === check.content.replace(/\n$/, '');
         return result(check, same, `${check.path} has the expected contents`);
       }
 

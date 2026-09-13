@@ -23,6 +23,16 @@ PostgreSQL and Redis are external managed services reached by connection string.
    (external)   (external)
 ```
 
+## Ports
+
+| Process             | Port  |
+| ------------------- | ----- |
+| Web (static bundle) | 50004 |
+| API                 | 50005 |
+
+Both are bound locally and reached through nginx, which is the only thing
+listening on 80 and 443.
+
 ## PM2 processes
 
 | Process                | Mode    | Purpose                                                                                                           |
@@ -42,6 +52,72 @@ pm2 save
 ```
 
 `pm2 startup` once per machine so processes survive reboot.
+
+## Releasing
+
+```
+pnpm release          # choose the bump interactively
+pnpm release:minor    # or name it
+pnpm release:dry      # show what would happen, change nothing
+```
+
+`release-it` bumps the root `package.json`, then `scripts/bump-versions.mjs`
+propagates that version to every app under `apps/`. Packages under
+`packages/` are deliberately left alone: they are internal, referenced as
+`workspace:*`, and independent numbers nothing reads would be churn in every
+release diff.
+
+Flutter is the exception to the simple rule. Its version lives in
+`pubspec.yaml` as `X.Y.Z+BUILD`, and the build number must increase
+monotonically for any store to accept an upload — even across a version that
+goes backwards. So the semver part is replaced and the build number only
+ever increments.
+
+Lint, typecheck and tests run before anything is bumped. The tag is pushed,
+and pushing the tag is what triggers CD.
+
+Set `GITHUB_TOKEN` to have the GitHub release created automatically;
+without it release-it prints a URL to create it by hand.
+
+## Continuous deployment
+
+`.github/workflows/cd.yml` runs on a `v*` tag. It builds the release APK,
+keeps it as a workflow artifact, and places it on the server.
+
+Required secrets:
+
+| Secret               | What it is                               |
+| -------------------- | ---------------------------------------- |
+| `DEPLOY_SSH_KEY`     | Private key for the deploy user          |
+| `DEPLOY_HOST`        | Server hostname or address               |
+| `DEPLOY_USER`        | SSH user (defaults to `root`)            |
+| `DEPLOY_PORT`        | SSH port (defaults to `22`)              |
+| `DEPLOY_KNOWN_HOSTS` | Output of `ssh-keyscan -p <port> <host>` |
+
+And variables:
+
+| Variable              | What it is                                                       |
+| --------------------- | ---------------------------------------------------------------- |
+| `MOBILE_API_BASE_URL` | Public API base compiled into the APK                            |
+| `DEPLOY_APK_DIR`      | Where the APK goes (default `/opt/var/spendlog/apps/web/public`) |
+
+`DEPLOY_KNOWN_HOSTS` is required rather than optional. Accepting any host
+key would mean the job trusts whatever answers on that address, which is the
+entire attack — a stolen DNS record and the deploy key walks out.
+
+The APK is uploaded under a dot-prefixed name and then moved into place.
+`mv` within a filesystem is atomic and `scp` is not, so without it anyone
+downloading mid-deploy gets a truncated APK that installs and then fails to
+launch.
+
+It is written to two places. Vite copies `public/` into `dist/` at build
+time and PM2 serves `dist/`, so an APK left only in `public/` is unreachable
+until the next web build — the download button would 404 with the file
+sitting on disk. `public/` is the copy that survives a rebuild; `dist/` is
+the one being served now.
+
+The build fails if `MOBILE_API_BASE_URL` is unset rather than shipping an
+APK pointed at an emulator loopback, which is useless on a real phone.
 
 ## Zero-downtime reloads
 

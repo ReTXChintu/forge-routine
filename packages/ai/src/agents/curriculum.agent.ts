@@ -80,7 +80,9 @@ Rules:
             (input.existingConcepts?.length ?? 0) > 0
               ? `This technology already has these concepts, which carry hand-written exercises:\n${input
                   .existingConcepts!.map((concept) => `- ${concept.slug}: ${concept.name}`)
-                  .join('\n')}\n\nInclude every one of them in your outline, reusing its slug EXACTLY, and place it where it belongs in the progression. Add whatever is missing around them — especially anything more basic. A slug you change is a concept whose exercises are lost.`
+                  .join(
+                    '\n',
+                  )}\n\nInclude every one of them in your outline, reusing its slug EXACTLY, and place it where it belongs in the progression. Add whatever is missing around them — especially anything more basic. A slug you change is a concept whose exercises are lost.`
               : '',
           ]
             .filter(Boolean)

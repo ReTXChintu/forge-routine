@@ -14,11 +14,7 @@ import {
  * no way out and no explanation.
  */
 
-function concept(
-  conceptId: string,
-  orderIndex: number,
-  hasPractice = true,
-): SequenceConcept {
+function concept(conceptId: string, orderIndex: number, hasPractice = true): SequenceConcept {
   return { conceptId, orderIndex, hasPractice };
 }
 
@@ -34,11 +30,7 @@ describe('gateSequence', () => {
   });
 
   it('opens the next one as each is cleared', () => {
-    expect(gateSequence(course, cleared('a')).map((g) => g.unlocked)).toEqual([
-      true,
-      true,
-      false,
-    ]);
+    expect(gateSequence(course, cleared('a')).map((g) => g.unlocked)).toEqual([true, true, false]);
     expect(gateSequence(course, cleared('a', 'b')).map((g) => g.unlocked)).toEqual([
       true,
       true,

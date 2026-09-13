@@ -19,12 +19,7 @@ import {
 } from '../domain/concept-selector.js';
 
 export type InterviewMode =
-  | 'QUICK'
-  | 'TECHNICAL'
-  | 'CODING'
-  | 'DEBUGGING'
-  | 'SYSTEM_DESIGN'
-  | 'SENIOR';
+  'QUICK' | 'TECHNICAL' | 'CODING' | 'DEBUGGING' | 'SYSTEM_DESIGN' | 'SENIOR';
 export type InterviewTarget = 'JUNIOR' | 'MID' | 'SENIOR';
 
 export interface InterviewTurnView {

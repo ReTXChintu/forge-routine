@@ -152,8 +152,8 @@ export function InterviewGuide() {
           </HStack>
           {start.isError && (
             <Text fontSize="xs" color="fail" mt={2}>
-              Practise something first — an interview on material you have never studied
-              measures nothing.
+              Practise something first — an interview on material you have never studied measures
+              nothing.
             </Text>
           )}
         </Box>
@@ -184,9 +184,7 @@ export function InterviewGuide() {
                     fontWeight={500}
                     cursor={priority.conceptId ? 'pointer' : 'default'}
                     _hover={priority.conceptId ? { color: 'forge.400' } : {}}
-                    onClick={() =>
-                      priority.conceptId && navigate(`/concept/${priority.conceptId}`)
-                    }
+                    onClick={() => priority.conceptId && navigate(`/concept/${priority.conceptId}`)}
                   >
                     {priority.title}
                   </Text>
@@ -204,8 +202,8 @@ export function InterviewGuide() {
         <Box mb={8}>
           <SectionLabel>Came up more than once</SectionLabel>
           <Text fontSize="xs" color="ink.500" mb={2}>
-            Weaknesses two or more past interviews agreed on. One interview is an off day;
-            two is a pattern.
+            Weaknesses two or more past interviews agreed on. One interview is an off day; two is a
+            pattern.
           </Text>
           <VStack align="stretch" spacing={1}>
             {guide.recurringWeaknesses.map((weakness) => (
@@ -246,8 +244,8 @@ export function InterviewGuide() {
                     {interview.mode}
                   </Text>
                   <Text fontSize="xs" color="ink.500">
-                    {new Date(interview.startedAt).toLocaleDateString()} ·{' '}
-                    {interview.questionCount} questions
+                    {new Date(interview.startedAt).toLocaleDateString()} · {interview.questionCount}{' '}
+                    questions
                   </Text>
                 </HStack>
                 <Text fontSize="sm" color={interview.overallScore === null ? 'ink.500' : 'ink.200'}>
@@ -282,9 +280,7 @@ function TechnologyBlock({ technology }: { technology: GuideTechnology }) {
           </Badge>
         </HStack>
         <Text fontSize="sm" color="ink.300">
-          {technology.readiness === null
-            ? '—'
-            : `${Math.round(technology.readiness * 100)}%`}
+          {technology.readiness === null ? '—' : `${Math.round(technology.readiness * 100)}%`}
         </Text>
       </HStack>
 

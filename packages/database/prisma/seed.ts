@@ -337,9 +337,7 @@ async function seedChallenges(): Promise<void> {
 
   console.info(`  ${attached} Phase 9 challenges attached`);
   if (skipped.length > 0) {
-    console.info(
-      `  ${skipped.length} skipped (no curriculum yet): ${skipped.join(', ')}`,
-    );
+    console.info(`  ${skipped.length} skipped (no curriculum yet): ${skipped.join(', ')}`);
   }
 }
 
@@ -358,9 +356,7 @@ async function resolveConcept(challenge: SeedChallenge): Promise<string | null> 
 
   // The generated curriculum will have named this differently. Match on the
   // most distinctive word in the intended slug before giving up on placement.
-  const keyword = challenge.conceptSlug
-    .split('-')
-    .sort((a, b) => b.length - a.length)[0];
+  const keyword = challenge.conceptSlug.split('-').sort((a, b) => b.length - a.length)[0];
 
   if (keyword && keyword.length > 3) {
     const near = await prisma.concept.findFirst({

@@ -288,7 +288,14 @@ function StepResult({ result }: { result: StepSubmissionResult }) {
               </Text>
             </HStack>
             {testCase.error && (
-              <Text fontSize="xs" color="fail" fontFamily="mono" pl={6} mt={1} whiteSpace="pre-wrap">
+              <Text
+                fontSize="xs"
+                color="fail"
+                fontFamily="mono"
+                pl={6}
+                mt={1}
+                whiteSpace="pre-wrap"
+              >
                 {testCase.error}
               </Text>
             )}
@@ -302,8 +309,8 @@ function StepResult({ result }: { result: StepSubmissionResult }) {
             Tests pass, but this is not finished
           </Text>
           <Text fontSize="xs" color="ink.300" lineHeight="1.6">
-            The review below found problems serious enough that shipping this would be a
-            mistake. Fix them and resubmit.
+            The review below found problems serious enough that shipping this would be a mistake.
+            Fix them and resubmit.
           </Text>
         </Box>
       )}
@@ -329,8 +336,8 @@ function StepResult({ result }: { result: StepSubmissionResult }) {
             Project complete.
           </Text>
           <Text fontSize="xs" color="ink.400" mt={1} lineHeight="1.6">
-            This is the only work that shows whether you can compose several ideas at once, so
-            it counts for more than the drills did.
+            This is the only work that shows whether you can compose several ideas at once, so it
+            counts for more than the drills did.
           </Text>
         </Box>
       )}

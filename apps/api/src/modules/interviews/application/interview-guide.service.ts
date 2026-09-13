@@ -290,7 +290,9 @@ function byPreparationValue(a: GuideTopic, b: GuideTopic): number {
 
 /** Weaknesses two or more past interviews agreed on. One is an off day. */
 function recurring(
-  interviews: readonly { evaluation: { weakAreas: string[]; recommendedTopics: string[] } | null }[],
+  interviews: readonly {
+    evaluation: { weakAreas: string[]; recommendedTopics: string[] } | null;
+  }[],
 ): string[] {
   const counts = new Map<string, number>();
 

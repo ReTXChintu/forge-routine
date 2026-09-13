@@ -110,10 +110,7 @@ export class ConceptsService {
    * material the user has genuinely finished — the single most frustrating
    * thing a course can do to someone.
    */
-  async sequenceFor(
-    userId: string,
-    technologyId: string,
-  ): Promise<Map<string, SequenceGate>> {
+  async sequenceFor(userId: string, technologyId: string): Promise<Map<string, SequenceGate>> {
     const concepts = await this.prisma.concept.findMany({
       where: { technologyId, archivedAt: null },
       orderBy: { orderIndex: 'asc' },

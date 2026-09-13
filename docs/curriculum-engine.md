@@ -29,7 +29,7 @@ prior skill state, decayed by elapsed time rather than reset.
 ## What gets generated, and when
 
 Generation is the only part of this product that costs money per use, so the
-question is not just *what* to build but *when* to pay for it.
+question is not just _what_ to build but _when_ to pay for it.
 
 **One technology at a time, in a hand-authored order, on demand.**
 
@@ -80,7 +80,7 @@ drills for an engineer filling gaps — the JavaScript set opened at closures,
 with no variables and no control flow. Counting them as built is why asking
 to start with JavaScript produced a course beginning in the middle.
 
-A technology counts as finished only when the *current* generator has
+A technology counts as finished only when the _current_ generator has
 produced a curriculum for it. A `seed-1` version means a starter set and the
 technology still enters the pipeline.
 
@@ -148,7 +148,7 @@ assistance ladder would eventually be forgotten. Test cases hang off the step ra
 the exercise, so the runner can select "this step and every earlier one" with one filter.
 
 **Verification runs the project the way it will be graded.** Each step's reference
-solution executes against its own tests *and every earlier step's*. A project is rejected
+solution executes against its own tests _and every earlier step's_. A project is rejected
 whole if any step fails: a partially valid project cannot be trimmed to its working
 prefix, because the steps that remain were written to lead somewhere it no longer goes.
 

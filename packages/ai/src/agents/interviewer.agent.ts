@@ -54,7 +54,8 @@ const MOVE_INSTRUCTION: Record<NextQuestionInput['move'], string> = {
     'Their answer was strong. Escalate to something harder, or to a practical scenario where this breaks.',
   PIN_DOWN:
     'Their answer was vague. Demand a concrete example — a specific case, a specific failure, a specific number.',
-  PIVOT: 'This area is covered. Move to the next concept cleanly, with no summary of what came before.',
+  PIVOT:
+    'This area is covered. Move to the next concept cleanly, with no summary of what came before.',
 };
 
 export const interviewerAgent = {

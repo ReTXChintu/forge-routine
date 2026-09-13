@@ -1,13 +1,4 @@
-import {
-  Box,
-  Button,
-  HStack,
-  Heading,
-  Spinner,
-  Text,
-  Textarea,
-  VStack,
-} from '@chakra-ui/react';
+import { Box, Button, HStack, Heading, Spinner, Text, Textarea, VStack } from '@chakra-ui/react';
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
@@ -191,9 +182,10 @@ function Debrief({
 
   if (!report) return null;
 
-  const scored = Object.entries(report.dimensions).filter(
-    ([, value]) => value !== null,
-  ) as [string, number][];
+  const scored = Object.entries(report.dimensions).filter(([, value]) => value !== null) as [
+    string,
+    number,
+  ][];
 
   return (
     <Box borderTopWidth="1px" borderColor="surface.300" pt={7} mt={2}>

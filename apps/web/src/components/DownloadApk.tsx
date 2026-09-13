@@ -66,8 +66,8 @@ export function DownloadApkCard() {
       </HStack>
 
       <Text fontSize="xs" color="ink.500" lineHeight="1.6">
-        The Android app covers today&apos;s work, reviews and interviews — including
-        answering an interview out loud. Writing code stays at a desk.
+        The Android app covers today&apos;s work, reviews and interviews — including answering an
+        interview out loud. Writing code stays at a desk.
       </Text>
 
       <Button
@@ -85,8 +85,8 @@ export function DownloadApkCard() {
       {/* Said plainly. A browser will warn about this file and a user who was
           not expecting the warning will assume something is wrong. */}
       <Text fontSize="xs" color="ink.500">
-        Installing outside the Play Store means allowing your browser to install unknown
-        apps. Your phone will ask.
+        Installing outside the Play Store means allowing your browser to install unknown apps. Your
+        phone will ask.
       </Text>
     </VStack>
   );

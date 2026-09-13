@@ -27,9 +27,7 @@ const slugs = (ids: string[]) => ids.map((id) => id.replace('id-', ''));
 
 describe('orderTechnologies', () => {
   it('puts a dependency before the thing that needs it', () => {
-    const ordered = slugs(
-      orderTechnologies([tech('react', ['javascript']), tech('javascript')]),
-    );
+    const ordered = slugs(orderTechnologies([tech('react', ['javascript']), tech('javascript')]));
 
     expect(ordered.indexOf('javascript')).toBeLessThan(ordered.indexOf('react'));
   });
@@ -56,9 +54,7 @@ describe('orderTechnologies', () => {
   });
 
   it('is stable regardless of input order', () => {
-    const first = slugs(
-      orderTechnologies([tech('docker', ['linux']), tech('git'), tech('linux')]),
-    );
+    const first = slugs(orderTechnologies([tech('docker', ['linux']), tech('git'), tech('linux')]));
     const second = slugs(
       orderTechnologies([tech('linux'), tech('docker', ['linux']), tech('git')]),
     );
@@ -68,10 +64,7 @@ describe('orderTechnologies', () => {
 
   it('breaks ties by weight before slug', () => {
     const ordered = slugs(
-      orderTechnologies([
-        tech('alpha', [], { weight: 0 }),
-        tech('zulu', [], { weight: 10 }),
-      ]),
+      orderTechnologies([tech('alpha', [], { weight: 0 }), tech('zulu', [], { weight: 10 })]),
     );
 
     expect(ordered).toEqual(['zulu', 'alpha']);
@@ -175,9 +168,7 @@ describe('the shipped catalogue', () => {
     const ordered = catalogueOrder();
 
     const before = (a: string, b: string) =>
-      expect(ordered.indexOf(a), `${a} must come before ${b}`).toBeLessThan(
-        ordered.indexOf(b),
-      );
+      expect(ordered.indexOf(a), `${a} must come before ${b}`).toBeLessThan(ordered.indexOf(b));
 
     before('javascript', 'typescript');
     before('javascript', 'nodejs');
@@ -247,9 +238,9 @@ describe('the shipped catalogue', () => {
   });
 
   it('rejects a dependency on a technology that does not exist', () => {
-    expect(() =>
-      assertAcyclicTechnologies([{ slug: 'react', dependsOn: ['typescrpt'] }]),
-    ).toThrow(/unknown "typescrpt"/);
+    expect(() => assertAcyclicTechnologies([{ slug: 'react', dependsOn: ['typescrpt'] }])).toThrow(
+      /unknown "typescrpt"/,
+    );
   });
 
   it('names the technologies involved in a cycle', () => {

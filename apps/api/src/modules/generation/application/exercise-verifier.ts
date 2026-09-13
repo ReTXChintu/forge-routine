@@ -148,16 +148,14 @@ export class ExerciseVerifier implements OnModuleInit {
     const { env } = this.config;
 
     for (const [index, step] of project.steps.entries()) {
-      const testCases = project.steps
-        .slice(0, index + 1)
-        .flatMap((earlier, earlierIndex) =>
-          earlier.testCases.map((testCase) => ({
-            name:
-              earlierIndex < index ? `[step ${earlierIndex + 1}] ${testCase.name}` : testCase.name,
-            hidden: testCase.hidden,
-            code: testCase.code,
-          })),
-        );
+      const testCases = project.steps.slice(0, index + 1).flatMap((earlier, earlierIndex) =>
+        earlier.testCases.map((testCase) => ({
+          name:
+            earlierIndex < index ? `[step ${earlierIndex + 1}] ${testCase.name}` : testCase.name,
+          hidden: testCase.hidden,
+          code: testCase.code,
+        })),
+      );
 
       const result = await runInSandbox(
         { code: step.referenceSolution, language: 'javascript', testCases },

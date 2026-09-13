@@ -78,13 +78,7 @@ export function RecallPrompt({
 
           // Nothing is coloured until an answer is committed, so the correct
           // option cannot be inferred from the styling.
-          const state = !result
-            ? 'pending'
-            : isAnswer
-              ? 'correct'
-              : isChosen
-                ? 'wrong'
-                : 'neutral';
+          const state = !result ? 'pending' : isAnswer ? 'correct' : isChosen ? 'wrong' : 'neutral';
 
           return (
             <Button

@@ -67,16 +67,18 @@ module.exports = {
       name: 'forgeroutine-web',
       cwd: resolve(ROOT, 'apps/web'),
 
-      // `pm2 serve` rather than a hand-written static server: this is a
-      // built SPA and nothing about serving it is worth owning code for.
-      // `--spa` matters — every client route must fall back to index.html or
-      // a refresh on /roadmap returns 404.
-      script: 'npx',
-      args: `serve dist ${WEB_PORT} --spa --no-port-switching`,
-      interpreter: 'none',
+      // PM2's own static server, configured the documented way: `script:
+      // 'serve'` plus PM2_SERVE_* environment variables. Not the `serve` npm
+      // package, which is a different program with different flags — an
+      // earlier version of this file passed `--spa` to it and the process
+      // died on startup with "unknown or unexpected option".
+      //
+      // Using the built-in also means the server needs no network access to
+      // start, which matters on a box that may not reach the registry.
+      script: 'serve',
 
       // Fork, single instance. Serving static files is not the bottleneck,
-      // and nginx caches in front of it anyway.
+      // and nginx sits in front of it anyway.
       instances: 1,
       exec_mode: 'fork',
 
@@ -86,8 +88,22 @@ module.exports = {
       min_uptime: '30s',
       restart_delay: 2_000,
 
-      env: { NODE_ENV: 'development', PM2_SERVE_PORT: WEB_PORT },
-      env_production: { NODE_ENV: 'production', PM2_SERVE_PORT: WEB_PORT },
+      env: {
+        NODE_ENV: 'development',
+        PM2_SERVE_PATH: resolve(ROOT, 'apps/web/dist'),
+        PM2_SERVE_PORT: WEB_PORT,
+        // SPA mode. Load-bearing: without it a refresh on /roadmap asks the
+        // static server for a file that does not exist and gets a 404.
+        PM2_SERVE_SPA: 'true',
+        PM2_SERVE_HOMEPAGE: '/index.html',
+      },
+      env_production: {
+        NODE_ENV: 'production',
+        PM2_SERVE_PATH: resolve(ROOT, 'apps/web/dist'),
+        PM2_SERVE_PORT: WEB_PORT,
+        PM2_SERVE_SPA: 'true',
+        PM2_SERVE_HOMEPAGE: '/index.html',
+      },
 
       out_file: '/var/log/forgeroutine/web.out.log',
       error_file: '/var/log/forgeroutine/web.err.log',

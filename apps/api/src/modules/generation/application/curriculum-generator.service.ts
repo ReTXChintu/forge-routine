@@ -209,14 +209,7 @@ export class CurriculumGeneratorService {
     // -- Stage 6: persist ---------------------------------------------------
     await onProgress('Saving', 95);
 
-    const outcome = await this.persist(
-      technology,
-      detailed,
-      edges,
-      exercises,
-      questions,
-      projects,
-    );
+    const outcome = await this.persist(technology, detailed, edges, exercises, questions, projects);
 
     return { ...outcome, exercisesRejected: rejected, projectsRejected };
   }

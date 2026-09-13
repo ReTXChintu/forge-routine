@@ -64,7 +64,12 @@ export class Shell {
     this.fs = new VirtualFileSystem(options.tree ?? {}, user);
     this.state = {
       cwd: options.cwd ?? `/home/${user}`,
-      env: { HOME: `/home/${user}`, USER: user, PWD: options.cwd ?? `/home/${user}`, ...options.env },
+      env: {
+        HOME: `/home/${user}`,
+        USER: user,
+        PWD: options.cwd ?? `/home/${user}`,
+        ...options.env,
+      },
       history: [],
     };
   }
@@ -177,14 +182,19 @@ export class Shell {
     if (!/[*?]/.test(segment)) return [pattern];
 
     const matcher = new RegExp(
-      `^${segment.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*').replace(/\?/g, '[^/]')}$`,
+      `^${segment
+        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*/g, '[^/]*')
+        .replace(/\?/g, '[^/]')}$`,
     );
 
     try {
       const matched = this.fs
         .readDir(this.path(directory))
         // A glob does not match dotfiles unless the pattern starts with a dot.
-        .filter((entry) => matcher.test(entry) && (segment.startsWith('.') || !entry.startsWith('.')))
+        .filter(
+          (entry) => matcher.test(entry) && (segment.startsWith('.') || !entry.startsWith('.')),
+        )
         .map((entry) => (slash >= 0 ? `${pattern.slice(0, slash)}/${entry}` : entry));
 
       return matched.length > 0 ? matched : [pattern];
@@ -231,9 +241,7 @@ const COMMANDS: Record<string, Command> = {
       const rendered = long
         ? visible
             .map((name) => {
-              const node = shell.fs.stat(
-                shell.fs.isDirectory(path) ? `${path}/${name}` : path,
-              );
+              const node = shell.fs.stat(shell.fs.isDirectory(path) ? `${path}/${name}` : path);
               const size = node.kind === 'dir' ? 4096 : (node.content ?? '').length;
               return `${formatMode(node)} ${node.owner} ${node.group} ${String(size).padStart(6)} ${name}`;
             })
@@ -386,7 +394,12 @@ const COMMANDS: Record<string, Command> = {
 
     const base = shell.path(root);
     const matcher = pattern
-      ? new RegExp(`^${pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`)
+      ? new RegExp(
+          `^${pattern
+            .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+            .replace(/\*/g, '.*')
+            .replace(/\?/g, '.')}$`,
+        )
       : null;
 
     const results = shell.fs.walk(base).filter((path) => {
@@ -442,8 +455,7 @@ const COMMANDS: Record<string, Command> = {
 
   whoami: (shell) => ok(`${shell.state.env.USER ?? 'forge'}\n`),
 
-  history: (shell) =>
-    okLines(shell.state.history.map((line, i) => `${i + 1}  ${line}`).join('\n')),
+  history: (shell) => okLines(shell.state.history.map((line, i) => `${i + 1}  ${line}`).join('\n')),
 };
 
 /** Every command this shell knows. Shown to the user so they are not guessing. */

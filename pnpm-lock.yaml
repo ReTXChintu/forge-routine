@@ -223,6 +223,9 @@ importers:
       '@forgeroutine/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
+      '@forgeroutine/terminal':
+        specifier: workspace:*
+        version: link:../../packages/terminal
       '@forgeroutine/utils':
         specifier: workspace:*
         version: link:../../packages/utils
@@ -566,6 +569,18 @@ importers:
         version: 2.1.9(@types/node@20.19.43)(jsdom@25.0.1(supports-color@7.2.0))(supports-color@7.2.0)(terser@5.51.2)
 
   packages/shared-types:
+    devDependencies:
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.28)(supports-color@7.2.0)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)(jsdom@25.0.1(supports-color@7.2.0))(supports-color@7.2.0)(terser@5.51.2)
+
+  packages/terminal:
     devDependencies:
       tsup:
         specifier: ^8.3.5

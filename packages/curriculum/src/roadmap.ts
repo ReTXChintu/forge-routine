@@ -28,7 +28,19 @@ export interface RoadmapTechnology {
 
 export interface RoadmapExercise {
   id: string;
-  kind: 'CODING' | 'RECALL' | 'DEBUGGING' | 'BLIND_CODING' | 'EXPLANATION' | 'PROJECT';
+  kind:
+    | 'CODING'
+    | 'RECALL'
+    | 'DEBUGGING'
+    | 'BLIND_CODING'
+    | 'EXPLANATION'
+    | 'PROJECT'
+    // Phase 9 kinds. Accepted so the builder does not reject a concept that
+    // has one, but not yet selected into any item: scheduling a system design
+    // needs its own placement rule, not a slot borrowed from a drill.
+    | 'SYSTEM_DESIGN'
+    | 'INCIDENT'
+    | 'TERMINAL';
   difficulty: number;
   estimatedMinutes: number;
 }

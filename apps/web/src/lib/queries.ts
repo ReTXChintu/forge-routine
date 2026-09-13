@@ -43,6 +43,8 @@ export const queryKeys = {
   interviews: ['interviews', 'history'] as const,
   interview: (id: string) => ['interviews', 'detail', id] as const,
   interviewReport: (id: string) => ['interviews', 'report', id] as const,
+  challenges: ['challenges'] as const,
+  challenge: (id: string) => ['challenges', id] as const,
 };
 
 // -- Auth --------------------------------------------------------------------
@@ -776,5 +778,132 @@ export function useInterviewReport(id: string | undefined): UseQueryResult<Inter
     queryKey: queryKeys.interviewReport(id ?? ''),
     queryFn: () => apiRequest<InterviewReportView>(`/interviews/${id}/report`),
     enabled: Boolean(id),
+  });
+}
+
+// -- Engineering challenges --------------------------------------------------
+
+export type ChallengeKind = 'SYSTEM_DESIGN' | 'INCIDENT' | 'TERMINAL';
+
+export interface ChallengeSummary {
+  exerciseId: string;
+  slug: string;
+  kind: ChallengeKind;
+  title: string;
+  objective: string;
+  difficulty: number;
+  estimatedMinutes: number;
+  conceptName: string;
+  technologyName: string;
+  completed: boolean;
+}
+
+export interface ChallengeView extends ChallengeSummary {
+  attemptId: string | null;
+  brief: {
+    body: string;
+    constraints: string[];
+    sections: string[];
+    terminal?: { task: string; goals: string[] };
+    telemetry?: string;
+  };
+}
+
+export interface TerminalRunResult {
+  transcript: { command: string; stdout: string; stderr: string; exitCode: number }[];
+  checks: { description: string; passed: boolean; detail: string }[];
+  passed: boolean;
+}
+
+export interface WrittenReviewResult {
+  passed: boolean;
+  scores: Record<string, number | null>;
+  strengths: string[];
+  issues: { severity: string; title: string; explanation: string }[];
+  followUpQuestions: string[];
+  summary: string;
+  rootCause?: string;
+  missedSignals?: string[];
+  degraded: boolean;
+}
+
+export function useChallenges(): UseQueryResult<ChallengeSummary[]> {
+  return useQuery({
+    queryKey: queryKeys.challenges,
+    queryFn: () => apiRequest<ChallengeSummary[]>('/challenges'),
+  });
+}
+
+export function useChallenge(id: string | undefined): UseQueryResult<ChallengeView> {
+  return useQuery({
+    queryKey: queryKeys.challenge(id ?? ''),
+    queryFn: () => apiRequest<ChallengeView>(`/challenges/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+export function useStartChallenge() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (exerciseId: string) =>
+      apiRequest<ChallengeView>(`/challenges/${exerciseId}/start`, { method: 'POST' }),
+    onSuccess: (challenge) => {
+      queryClient.setQueryData(queryKeys.challenge(challenge.exerciseId), challenge);
+    },
+  });
+}
+
+/**
+ * A dry run: replays the commands and reports, but records nothing.
+ *
+ * The terminal is meant to be explored. Charging every `ls` against the
+ * attempt would make people plan in their head and paste one answer, which
+ * is the opposite of learning to use a shell.
+ */
+export function useRunTerminal() {
+  return useMutation({
+    mutationFn: (input: { exerciseId: string; commands: string[] }) =>
+      apiRequest<TerminalRunResult>(`/challenges/${input.exerciseId}/terminal/run`, {
+        method: 'POST',
+        body: { commands: input.commands },
+      }),
+  });
+}
+
+export function useSubmitTerminal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: { exerciseId: string; attemptId: string; commands: string[] }) =>
+      apiRequest<TerminalRunResult>('/challenges/terminal/submit', {
+        method: 'POST',
+        body: { attemptId: input.attemptId, commands: input.commands },
+        idempotencyKey: crypto.randomUUID(),
+      }),
+    onSuccess: (_result, input) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.challenge(input.exerciseId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.challenges });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.overview });
+    },
+  });
+}
+
+export function useSubmitWritten() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: { exerciseId: string; attemptId: string; text: string }) =>
+      apiRequest<WrittenReviewResult>('/challenges/written/submit', {
+        method: 'POST',
+        body: { attemptId: input.attemptId, text: input.text },
+        idempotencyKey: crypto.randomUUID(),
+      }),
+    onSuccess: (_result, input) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.challenge(input.exerciseId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.challenges });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.overview });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.weakest });
+    },
   });
 }

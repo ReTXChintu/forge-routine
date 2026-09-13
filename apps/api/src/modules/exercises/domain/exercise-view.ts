@@ -13,6 +13,14 @@ export interface StoredExercise {
   id: string;
   slug: string;
   title: string;
+  /**
+   * Code exercises only.
+   *
+   * SYSTEM_DESIGN, INCIDENT and TERMINAL are deliberately absent: none of
+   * them has starter code, a function signature or a reference solution, so
+   * the assistance ladder this projection implements does not apply to them.
+   * They are served by ChallengesService, which withholds different things.
+   */
   kind: 'CODING' | 'RECALL' | 'DEBUGGING' | 'BLIND_CODING' | 'EXPLANATION' | 'PROJECT';
   difficulty: number;
   language: string;

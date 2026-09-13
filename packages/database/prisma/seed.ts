@@ -8,12 +8,14 @@
 import { PrismaClient, type Prisma } from '@prisma/client';
 
 import {
+  SEED_CHALLENGES,
   TECHNOLOGY_CATALOGUE,
   assertAcyclic,
   getCuratedCurricula,
   seedTechnologySchema,
   type GraphEdge,
   type GraphNode,
+  type SeedChallenge,
   type SeedTechnology,
 } from '@forgeroutine/curriculum';
 
@@ -56,11 +58,16 @@ async function main(): Promise<void> {
 
   await verifyGraph();
 
-  const [technologies, concepts, exercises, testCases] = await Promise.all([
+  // 3. Phase 9 challenges. After the curricula, because each one attaches to
+  // a concept that must already exist.
+  await seedChallenges();
+
+  const [technologies, concepts, exercises, testCases, challenges] = await Promise.all([
     prisma.technology.count(),
     prisma.concept.count(),
     prisma.exercise.count(),
     prisma.exerciseTestCase.count(),
+    prisma.exercise.count({ where: { kind: { in: ['SYSTEM_DESIGN', 'INCIDENT', 'TERMINAL'] } } }),
   ]);
 
   console.info('\nSeed complete.');
@@ -68,6 +75,7 @@ async function main(): Promise<void> {
   console.info(`  concepts:     ${concepts}`);
   console.info(`  exercises:    ${exercises}`);
   console.info(`  test cases:   ${testCases}`);
+  console.info(`  challenges:   ${challenges}`);
 }
 
 async function importTechnology(
@@ -263,3 +271,105 @@ main()
   .finally(() => {
     void prisma.$disconnect();
   });
+
+/**
+ * Attaches Phase 9 challenges to concepts.
+ *
+ * A challenge names the concept it belongs on, but most technologies here
+ * have AI-generated curricula whose concept slugs are not known in advance.
+ * So: exact slug first, then a keyword match on the slug, then the
+ * technology's first concept. The fallback is deliberate — a system design
+ * hanging off a slightly wrong concept is still worth doing, whereas silently
+ * seeding nothing leaves the whole feature looking broken.
+ *
+ * A technology with no concepts at all is skipped and reported, because that
+ * means its curriculum has not been generated yet.
+ */
+async function seedChallenges(): Promise<void> {
+  let attached = 0;
+  const skipped: string[] = [];
+
+  for (const challenge of SEED_CHALLENGES) {
+    const conceptId = await resolveConcept(challenge);
+
+    if (!conceptId) {
+      skipped.push(challenge.slug);
+      continue;
+    }
+
+    await prisma.exercise.upsert({
+      where: { conceptId_slug: { conceptId, slug: challenge.slug } },
+      create: {
+        conceptId,
+        slug: challenge.slug,
+        title: challenge.title,
+        kind: challenge.spec.kind,
+        difficulty: challenge.difficulty,
+        // Not JavaScript: none of these is graded by running the user's code.
+        language: 'text',
+        objective: challenge.objective,
+        requirements: '',
+        estimatedMinutes: challenge.estimatedMinutes,
+        challengeSpec: challenge.spec as unknown as Prisma.InputJsonValue,
+      },
+      update: {
+        title: challenge.title,
+        kind: challenge.spec.kind,
+        difficulty: challenge.difficulty,
+        objective: challenge.objective,
+        estimatedMinutes: challenge.estimatedMinutes,
+        challengeSpec: challenge.spec as unknown as Prisma.InputJsonValue,
+        archivedAt: null,
+      },
+    });
+
+    attached += 1;
+  }
+
+  console.info(`  ${attached} Phase 9 challenges attached`);
+  if (skipped.length > 0) {
+    console.info(
+      `  ${skipped.length} skipped (no curriculum yet): ${skipped.join(', ')}`,
+    );
+  }
+}
+
+async function resolveConcept(challenge: SeedChallenge): Promise<string | null> {
+  const technology = await prisma.technology.findUnique({
+    where: { slug: challenge.technologySlug },
+    select: { id: true },
+  });
+  if (!technology) return null;
+
+  const exact = await prisma.concept.findUnique({
+    where: { technologyId_slug: { technologyId: technology.id, slug: challenge.conceptSlug } },
+    select: { id: true },
+  });
+  if (exact) return exact.id;
+
+  // The generated curriculum will have named this differently. Match on the
+  // most distinctive word in the intended slug before giving up on placement.
+  const keyword = challenge.conceptSlug
+    .split('-')
+    .sort((a, b) => b.length - a.length)[0];
+
+  if (keyword && keyword.length > 3) {
+    const near = await prisma.concept.findFirst({
+      where: {
+        technologyId: technology.id,
+        archivedAt: null,
+        slug: { contains: keyword, mode: 'insensitive' },
+      },
+      select: { id: true },
+    });
+    if (near) return near.id;
+  }
+
+  const first = await prisma.concept.findFirst({
+    where: { technologyId: technology.id, archivedAt: null },
+    orderBy: { orderIndex: 'asc' },
+    select: { id: true },
+  });
+
+  return first?.id ?? null;
+}

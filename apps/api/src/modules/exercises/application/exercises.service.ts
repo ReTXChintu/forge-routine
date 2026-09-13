@@ -12,7 +12,7 @@ import { Problems } from '../../../common/http/problem-details.js';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
 import { ConceptsService } from '../../concepts/application/concepts.service.js';
 import { SkillsService } from '../../skills/application/skills.service.js';
-import { projectExercise } from '../domain/exercise-view.js';
+import { projectExercise, type StoredExercise } from '../domain/exercise-view.js';
 
 @Injectable()
 export class ExercisesService {
@@ -26,12 +26,16 @@ export class ExercisesService {
     const level = await this.skills.getAssistanceLevel(userId, conceptId);
 
     const rows = await this.prisma.exercise.findMany({
-      where: { conceptId, archivedAt: null },
+      where: { conceptId, archivedAt: null, kind: { in: CODE_EXERCISE_KINDS } },
       include: { testCases: { select: { name: true, hidden: true } } },
       orderBy: { difficulty: 'asc' },
     });
 
-    return rows.map((row) => projectExercise(row, { level, blindMode: false }));
+    // Filtered again in code so the row type narrows: the query guarantees
+    // it, but TypeScript cannot see a Prisma `in` clause.
+    return rows
+      .filter(isCodeExercise)
+      .map((row) => projectExercise(row, { level, blindMode: false }));
   }
 
   async getView(
@@ -45,6 +49,9 @@ export class ExercisesService {
     });
 
     if (!row || row.archivedAt !== null) throw Problems.notFound('Exercise');
+    // A challenge reaching this projection would be shown with an assistance
+    // ladder it does not have, and without the brief it does.
+    if (!isCodeExercise(row)) throw Problems.notFound('Exercise');
 
     const level = overrides.level ?? (await this.skills.getAssistanceLevel(userId, row.conceptId));
 
@@ -66,6 +73,9 @@ export class ExercisesService {
     });
 
     if (!exercise || exercise.archivedAt !== null) throw Problems.notFound('Exercise');
+    // Phase 9 challenges open their own attempts through ChallengesService,
+    // which gives them a brief instead of an assistance level.
+    if (!isCodeExercise(exercise)) throw Problems.notFound('Exercise');
 
     await this.assertUnlocked(userId, exercise.conceptId);
 
@@ -135,3 +145,30 @@ export class ExercisesService {
 }
 
 export { computeReadiness };
+
+/**
+ * The kinds this service serves.
+ *
+ * Phase 9 added SYSTEM_DESIGN, INCIDENT and TERMINAL, which are graded by
+ * reading prose or replaying a shell rather than by running code. They have
+ * no starter code and no reference solution, so the assistance ladder has
+ * nothing to reveal — ChallengesService serves them instead.
+ *
+ * Typed as the projection's own kind union rather than restated, so adding a
+ * kind there without deciding what it means here will not compile.
+ */
+const CODE_EXERCISE_KINDS: StoredExercise['kind'][] = [
+  'CODING',
+  'RECALL',
+  'DEBUGGING',
+  'BLIND_CODING',
+  'EXPLANATION',
+  'PROJECT',
+];
+
+/** Narrows a row to something the assistance ladder can actually project. */
+function isCodeExercise<T extends { kind: string }>(
+  row: T,
+): row is T & { kind: StoredExercise['kind'] } {
+  return (CODE_EXERCISE_KINDS as readonly string[]).includes(row.kind);
+}

@@ -1,6 +1,8 @@
 import { Navigate, createBrowserRouter } from 'react-router-dom';
 
 import { AuthScreen } from '~/features/auth/AuthScreen';
+import { ChallengeList } from '~/features/challenges/ChallengeList';
+import { ChallengeWorkspace } from '~/features/challenges/ChallengeWorkspace';
 import { ConceptView } from '~/features/concepts/ConceptView';
 import { Dashboard } from '~/features/dashboard/Dashboard';
 import { ExerciseWorkspace } from '~/features/exercise/ExerciseWorkspace';
@@ -55,6 +57,8 @@ export const router = createBrowserRouter([
       { path: 'concept/:conceptId', element: <ConceptView /> },
       { path: 'exercise/:exerciseId', element: <ExerciseWorkspace /> },
       { path: 'project/:exerciseId', element: <ProjectWorkspace /> },
+      { path: 'engineering', element: <ChallengeList /> },
+      { path: 'challenge/:exerciseId', element: <ChallengeWorkspace /> },
       { path: 'interview', element: <InterviewGuide /> },
       { path: 'interview/:interviewId', element: <InterviewSession /> },
       { path: '*', element: <Navigate to="/" replace /> },

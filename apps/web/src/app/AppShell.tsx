@@ -50,6 +50,7 @@ export function AppShell() {
           <NavItem to="/">Dashboard</NavItem>
           <NavItem to="/today">Today</NavItem>
           <NavItem to="/roadmap">Roadmap</NavItem>
+          <NavItem to="/engineering">Engineering</NavItem>
           <NavItem to="/interview">Interview</NavItem>
           <NavItem to="/technologies">Technologies</NavItem>
         </HStack>

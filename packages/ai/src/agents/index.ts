@@ -7,3 +7,4 @@ export * from './exercise.agent.js';
 export * from './question.agent.js';
 export * from './project.agent.js';
 export * from './interviewer.agent.js';
+export * from './engineering.agent.js';

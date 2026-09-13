@@ -5,6 +5,7 @@ import { PrismaModule } from './infrastructure/prisma/prisma.module.js';
 import { CacheModule } from './infrastructure/redis/cache.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { ChallengesModule } from './modules/challenges/challenges.module.js';
 import { ConceptsModule } from './modules/concepts/concepts.module.js';
 import { CurriculumModule } from './modules/curriculum/curriculum.module.js';
 import { ExercisesModule } from './modules/exercises/exercises.module.js';
@@ -49,6 +50,7 @@ import { TechnologiesModule } from './modules/technologies/technologies.module.j
     RecallModule,
     RoutinesModule,
     InterviewsModule,
+    ChallengesModule,
     SubmissionsModule,
     ProgressModule,
     HealthModule,

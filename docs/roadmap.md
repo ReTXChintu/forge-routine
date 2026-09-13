@@ -8,8 +8,9 @@ that make them compose what they learned, be interrupted at boundaries by recall
 that keep it from fading, and sit a live adaptive interview that tells them where they
 would be caught out. The design behind the path is in `learning-path.md`.
 
-What remains is breadth, not foundation: Phase 9 adds the engineering exercises the
-sandbox cannot currently express, and Phase 10 puts the whole thing on a phone.
+Phase 9 added the engineering work a coding sandbox cannot express — system design,
+production incidents, and a simulated shell. What remains is Phase 10: putting it on a
+phone.
 
 ## Phase 1 — Foundation — **done**
 
@@ -174,12 +175,73 @@ overall against 0.17 correctness.
 `confidence` is reported and deliberately excluded from the overall score. Sounding
 certain is not the same as being correct, and rewarding it would train the wrong habit.
 
-## Phase 9 — Advanced Engineering — **next**
+## Phase 9 — Advanced Engineering — **done**
 
-System design, the production incident simulator, DevOps challenges, Linux terminal
-simulation, architecture challenges.
+The three things a senior interview always reaches that a coding drill cannot test.
+None of them is graded by running the user's code.
 
-## Phase 10 — Mobile
+**System design** — a brief with real numbers and real constraints. The reviewer names
+gaps and refuses to design it for them; a gap explanation containing a patch is stripped,
+the same guard the code reviewer uses.
+
+**Production incidents** — telemetry from an outage, and a diagnosis written against it.
+The real cause is withheld until the user has committed to one, for the same reason a
+debugging exercise withholds its bug explanation (§13). The telemetry itself is shown in
+full: in a real incident the signal was always there, and hiding some of it would test
+luck rather than diagnosis. `foundRootCause` and `reasoningQuality` are scored
+separately, because guessing right without using the evidence demonstrates nothing and
+reasoning carefully to a wrong answer demonstrates a great deal.
+
+**Terminal** — a simulated POSIX shell in `@forgeroutine/terminal`. Graded on the end
+state, not on which commands were typed: there are five ways to remove a file, and a
+scenario that accepts one of them tests recall of an incantation rather than whether the
+user can operate a machine.
+
+### Why the shell is simulated
+
+Running real shell commands would mean either handing untrusted input a real filesystem
+or building the container isolation this project has deliberately deferred
+(`code-execution.md`). A simulation cannot be escaped from, because there is nothing
+underneath it to escape to.
+
+The honest cost: commands behave the way the simulator says they do. So the command set
+is small, permission bits are **enforced rather than displayed** — a `chmod` that changes
+a number nothing reads teaches that permissions are cosmetic, which is the exact
+misunderstanding these exercises exist to correct — and anything ambiguous is refused
+rather than guessed at. Backticks, `$()`, `||` and background jobs return "this shell
+does not support that" instead of an approximation, because a shell that quietly does the
+wrong thing with quoting teaches the user that quoting works that way.
+
+Scenarios and challenges are hand-written, not generated. A generated coding exercise can
+be verified by executing it; a generated Linux scenario could only be verified against
+this simulator, which would prove it consistent with the simulation rather than correct
+about Linux. Every curated scenario carries a reference solution in the test suite — the
+same gate the sandbox applies to generated exercises — plus a test that it fails on an
+empty transcript and tests that it rejects the plausible near misses.
+
+### Bugs the tests and the live run caught
+
+- `&(?!&)` matched the second ampersand of `&&` and rejected every chained command.
+- Globbing only handled a trailing `*`, so `rm *.log` silently did nothing.
+- Commands did not terminate their output, so `echo a > f; echo b >> f` produced `ab`.
+- Every terminal challenge failed to parse: the spec schema required `task` and `checks`
+  that the seed did not write, so five challenges silently never appeared.
+- Jest's `testRegex` was `'.*\.spec\.ts$'` written with single backslashes, which JS
+  drops — the dots matched any character and pulled the source file `challenge-spec.ts`
+  in as a test suite.
+- **The design reviewer scored 1.00 on every dimension of a design it had just described
+  as having two critical flaws.** Exactly the failure the interview report had. The
+  dimension scores were removed from the model's contract: it now tags each gap with the
+  dimension it belongs to, says which dimensions the submission engaged with at all, and
+  the scores are computed from those. A gap counts as evidence about its dimension even
+  when the model forgets to list it as addressed — otherwise a real penalty is discarded
+  as "not tested". The same design now scores 0.05 on scalability and failure handling.
+
+The pattern is now established twice: **ask the model for observations, compute the
+numbers in code.** Models are reliable at "is this a gap, and how bad" and unreliable at
+turning that into a score.
+
+## Phase 10 — Mobile — **next**
 
 Flutter expansion: daily routine, reviews, interviews, voice interview, progress,
 notifications.

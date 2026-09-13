@@ -7,6 +7,8 @@ import { seedTechnologySchema, type SeedTechnology, type SeedTechnologyInput } f
 
 export * from './types.js';
 export { TECHNOLOGY_CATALOGUE } from './catalogue.js';
+export { SEED_CHALLENGES, challengesFor } from './challenges.js';
+export type { SeedChallenge, SeedChallengeSpec } from './challenges.js';
 export { DEBUGGING_EXERCISES, debuggingExercisesFor } from './debugging.js';
 export { EXTRA_EXERCISES, extraExercisesFor } from './javascript-extra.js';
 export { REFERENCE_SOLUTIONS, referenceSolutionFor } from './reference-solutions.js';

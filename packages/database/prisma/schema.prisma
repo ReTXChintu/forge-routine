@@ -340,6 +340,15 @@ model Exercise {
   /// diagnose. Unlike starterCode this IS shown at every assistance level —
   /// the bug is the problem statement.
   brokenCode        String?
+
+  /// Kind-specific payload for SYSTEM_DESIGN, INCIDENT and TERMINAL.
+  ///
+  /// JSON rather than three sets of columns: the three shapes have nothing in
+  /// common, and adding fifteen nullable columns that are null for every
+  /// ordinary exercise would make the table harder to read for no gain. The
+  /// shapes are validated by Zod at the boundary, which is where the schema
+  /// for them actually lives.
+  challengeSpec     Json?
   /// What is actually wrong. Used to grade the diagnosis; never sent to the
   /// client before the user has submitted one.
   bugExplanation    String?
@@ -939,6 +948,12 @@ enum ExerciseKind {
   BLIND_CODING
   EXPLANATION
   PROJECT
+  /// Phase 9. None of these three are graded by running the user's code:
+  /// a design and an incident diagnosis are prose, and a terminal scenario
+  /// is graded by replaying commands against the simulator.
+  SYSTEM_DESIGN
+  INCIDENT
+  TERMINAL
 }
 
 enum AttemptOutcome {

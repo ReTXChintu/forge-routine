@@ -74,6 +74,32 @@ export const seedTechnologySchema = z.object({
    * concept questions instead of coding exercises.
    */
   exerciseLanguage: z.enum(['javascript', 'typescript']).nullable().default('javascript'),
+  /**
+   * Technologies that should be learned first, by slug.
+   *
+   * Hand-authored rather than inferred. The generator does propose
+   * cross-technology prerequisite edges, but those only exist *after* both
+   * technologies have been generated — which is too late to decide what to
+   * generate first, and pays for the answer to a question we already know.
+   * Nobody needs a model to work out that React comes after JavaScript.
+   *
+   * Used for two things: the order curriculum is generated in, and the order
+   * phases appear in the roadmap.
+   */
+  dependsOn: z.array(z.string().min(1)).default([]),
+  /**
+   * Where this sits in the intended reading order. Lower comes first.
+   *
+   * `dependsOn` says what is *forbidden*; this says what is *wanted*. Both
+   * are needed, because dependencies alone leave most pairs unordered — a
+   * topological sort of them alone scatters the JavaScript chain across the
+   * whole list and interleaves it with DevOps, which is a valid order and a
+   * bad curriculum.
+   *
+   * A test proves the two never contradict each other, so this can be
+   * reordered freely without quietly breaking a prerequisite.
+   */
+  learningOrder: z.number().int().min(0).default(500),
   concepts: z.array(seedConceptSchema).default([]),
 });
 

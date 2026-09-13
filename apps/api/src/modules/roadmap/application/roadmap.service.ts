@@ -143,6 +143,8 @@ export class RoadmapService {
       technologyId: t.technologyId,
       slug: t.technology.slug,
       name: t.technology.name,
+      dependsOn: t.technology.dependsOn,
+      learningOrder: t.technology.learningOrder,
       priority: t.priority,
       targetProficiency: t.targetProficiency,
       interviewImportance: t.interviewImportance,

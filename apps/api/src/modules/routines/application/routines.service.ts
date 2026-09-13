@@ -4,6 +4,7 @@ import { dayKey } from '@forgeroutine/utils';
 
 import { Problems } from '../../../common/http/problem-details.js';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { GenerationService } from '../../generation/application/generation.service.js';
 import { RoadmapService } from '../../roadmap/application/roadmap.service.js';
 
 export interface RoutineItemView {
@@ -47,6 +48,7 @@ export class RoutinesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly roadmap: RoadmapService,
+    private readonly generation: GenerationService,
   ) {}
 
   async today(userId: string): Promise<RoutineView | null> {
@@ -55,6 +57,12 @@ export class RoutinesService {
   }
 
   async generate(userId: string, force = false): Promise<RoutineView> {
+    // Planning the day is the natural moment to look ahead: if the user is
+    // well into what has been built, start building the next technology now
+    // so it is ready before they reach it. Deliberately not awaited —
+    // generation takes minutes and the user wants their day.
+    void this.generation.enqueueNext(userId).catch(() => undefined);
+
     const date = startOfToday();
     const existing = await this.find(userId, date);
 

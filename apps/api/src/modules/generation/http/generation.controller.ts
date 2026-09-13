@@ -26,8 +26,12 @@ export class GenerationController {
 
   @Post('retry')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Queue generation for any technology still missing content' })
+  @ApiOperation({
+    summary: 'Build the next technology now, without waiting for progress',
+  })
   retry(@CurrentUser() user: AuthenticatedUser): Promise<GenerationJobView[]> {
-    return this.generation.enqueueMissing(user.userId);
+    // `force`: the user asked explicitly, which overrides the progress
+    // threshold. They are allowed to spend their own budget early.
+    return this.generation.enqueueNext(user.userId, { force: true });
   }
 }

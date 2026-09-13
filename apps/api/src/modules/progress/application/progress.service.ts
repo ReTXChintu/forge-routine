@@ -13,6 +13,7 @@ import {
 } from '@forgeroutine/utils';
 
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { GenerationService } from '../../generation/application/generation.service.js';
 import { SkillsService } from '../../skills/application/skills.service.js';
 
 @Injectable()
@@ -20,6 +21,7 @@ export class ProgressService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly skills: SkillsService,
+    private readonly generation: GenerationService,
   ) {}
 
   /**
@@ -70,6 +72,13 @@ export class ProgressService {
   }
 
   async getOverview(userId: string): Promise<DashboardOverview> {
+    // Opening the app is the other natural moment to look ahead, and unlike
+    // planning a routine it happens for everyone. Not awaited, and errors are
+    // swallowed: a dashboard must not fail because a background build could
+    // not be queued. The call returns after one query in the common case,
+    // because the threshold has not been reached.
+    void this.generation.enqueueNext(userId).catch(() => undefined);
+
     const now = new Date();
     const startOfToday = new Date(now);
     startOfToday.setHours(0, 0, 0, 0);

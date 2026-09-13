@@ -20,6 +20,23 @@ import type { SeedTechnologyInput } from './types.js';
  *
  * Null does not mean unteachable. Those technologies get concept questions,
  * which is honest practice rather than exercises that cannot run.
+ *
+ * `dependsOn` is the learning order, hand-authored. It decides which
+ * technology's curriculum is generated first and which phase the roadmap
+ * opens on. It is deliberately *not* inferred: the generator can propose
+ * cross-technology prerequisites, but only after both sides already exist,
+ * which is too late to decide what to build first and pays a model to answer
+ * a question we already know the answer to.
+ *
+ * Only genuine prerequisites belong here. "Useful alongside" is not a
+ * dependency, and over-constraining the graph forces people through material
+ * they did not ask for.
+ *
+ * `learningOrder` is the intended reading sequence. Dependencies alone leave
+ * most pairs unordered, and sorting on them alone scatters the JavaScript
+ * chain through the DevOps one — a valid order and a bad curriculum. So
+ * `dependsOn` says what is forbidden and `learningOrder` says what is
+ * wanted; `technology-order.test.ts` proves they never disagree.
  */
 export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
   {
@@ -28,6 +45,9 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'JavaScript',
     description: 'The language underneath everything else in the stack.',
     category: 'language',
+    // Everything else in this stack sits on it.
+    dependsOn: [],
+    learningOrder: 1,
   },
   {
     slug: 'typescript',
@@ -35,6 +55,8 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'TypeScript',
     description: 'Static types over JavaScript.',
     category: 'language',
+    dependsOn: ['javascript'],
+    learningOrder: 2,
   },
   {
     slug: 'nodejs',
@@ -42,6 +64,8 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'Node.js',
     description: 'Server-side JavaScript runtime: the event loop, streams, and I/O.',
     category: 'runtime',
+    dependsOn: ['javascript'],
+    learningOrder: 3,
   },
   {
     slug: 'react',
@@ -49,6 +73,10 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'React',
     description: 'Component model, hooks, rendering, and state.',
     category: 'frontend',
+    // Hooks are closures. Learning React first means learning the rules
+    // without the reason for them.
+    dependsOn: ['javascript', 'typescript'],
+    learningOrder: 6,
   },
   {
     slug: 'nextjs',
@@ -56,6 +84,8 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'Next.js',
     description: 'React framework: routing, rendering strategies, and the server boundary.',
     category: 'frontend',
+    dependsOn: ['react'],
+    learningOrder: 7,
   },
   {
     slug: 'nestjs',
@@ -63,6 +93,9 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'NestJS',
     description: 'Structured Node.js framework: modules, DI, and layered architecture.',
     category: 'backend',
+    // Decorators and DI on top of both.
+    dependsOn: ['typescript', 'nodejs'],
+    learningOrder: 8,
   },
   {
     slug: 'mongodb',
@@ -70,6 +103,9 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'MongoDB',
     description: 'Document database: schema design, aggregation, and indexes.',
     category: 'database',
+    // Standalone: nothing here depends on the rest of the stack.
+    dependsOn: [],
+    learningOrder: 11,
   },
   {
     slug: 'postgresql',
@@ -77,6 +113,9 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'PostgreSQL',
     description: 'Relational database: SQL, transactions, indexes, and query planning.',
     category: 'database',
+    // Standalone: SQL is worth learning on its own terms.
+    dependsOn: [],
+    learningOrder: 9,
   },
   {
     slug: 'prisma',
@@ -84,6 +123,10 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'Prisma',
     description: 'Type-safe database toolkit: schema, migrations, and the client.',
     category: 'database',
+    // A typed client over a schema. Without SQL underneath it you are
+    // learning an API, not a database.
+    dependsOn: ['typescript', 'postgresql'],
+    learningOrder: 10,
   },
   {
     slug: 'docker',
@@ -91,6 +134,9 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'Docker',
     description: 'Containers: images, layers, networking, and volumes.',
     category: 'devops',
+    // Namespaces, cgroups and the filesystem are the whole idea.
+    dependsOn: ['linux'],
+    learningOrder: 13,
   },
   {
     slug: 'linux',
@@ -98,6 +144,9 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'Linux',
     description: 'Processes, filesystem, permissions, networking, and troubleshooting.',
     category: 'systems',
+    // Underneath Docker, Nginx and every deploy.
+    dependsOn: [],
+    learningOrder: 5,
   },
   {
     slug: 'git',
@@ -105,6 +154,9 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'Git',
     description: 'Version control: the object model, branching, and history surgery.',
     category: 'tooling',
+    // Needed from the first day, depends on nothing.
+    dependsOn: [],
+    learningOrder: 4,
   },
   {
     slug: 'github',
@@ -112,6 +164,8 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'GitHub',
     description: 'Collaboration: pull requests, reviews, and repository configuration.',
     category: 'tooling',
+    dependsOn: ['git'],
+    learningOrder: 14,
   },
   {
     slug: 'github-actions',
@@ -119,6 +173,8 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'GitHub Actions',
     description: 'CI/CD: workflows, jobs, caching, and deployment pipelines.',
     category: 'devops',
+    dependsOn: ['github', 'docker'],
+    learningOrder: 15,
   },
   {
     slug: 'jenkins',
@@ -126,6 +182,8 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'Jenkins',
     description: 'Pipelines, agents, and build orchestration.',
     category: 'devops',
+    dependsOn: ['docker'],
+    learningOrder: 16,
   },
   {
     slug: 'redis',
@@ -133,6 +191,9 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'Redis',
     description: 'In-memory data structures: caching, queues, and rate limiting.',
     category: 'database',
+    // Standalone: the data structures are the subject.
+    dependsOn: [],
+    learningOrder: 12,
   },
   {
     slug: 'nginx',
@@ -140,6 +201,8 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'Nginx',
     description: 'Reverse proxy, TLS termination, static serving, and load balancing.',
     category: 'infrastructure',
+    dependsOn: ['linux'],
+    learningOrder: 17,
   },
   {
     slug: 'traefik',
@@ -147,6 +210,8 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'Traefik',
     description: 'Dynamic reverse proxy and routing.',
     category: 'infrastructure',
+    dependsOn: ['docker', 'nginx'],
+    learningOrder: 18,
   },
   {
     slug: 'system-design',
@@ -154,5 +219,9 @@ export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
     name: 'System Design',
     description: 'Scaling, consistency, caching, queues, and trade-offs.',
     category: 'architecture',
+    // No hard prerequisite, but it is ordered last deliberately: designing
+    // systems is worth far more once you have built parts of one.
+    dependsOn: [],
+    learningOrder: 19,
   },
 ];

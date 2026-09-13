@@ -20,6 +20,10 @@ export interface RoadmapTechnology {
   technologyId: string;
   slug: string;
   name: string;
+  /** Slugs to learn first. Authored in the catalogue, not inferred. */
+  dependsOn?: readonly string[];
+  /** Position in the intended reading order; lower comes first. */
+  learningOrder?: number;
   priority: Priority;
   targetProficiency: TargetProficiency;
   /** 0-5. Raises the chance of an interview checkpoint at the end. */
@@ -207,10 +211,29 @@ function orderTechnologies(input: BuildRoadmapInput): string[] {
   const byId = new Map(input.technologies.map((t) => [t.technologyId, t]));
   const conceptTech = new Map(input.concepts.map((c) => [c.id, c.technologyId]));
 
-  // Cross-technology dependencies, derived from concept edges that cross a
-  // boundary. Only HARD edges: a soft link is advice, not an ordering.
+  // Two sources of ordering, unioned.
+  //
+  // The authored one comes from the catalogue and is available immediately,
+  // including for technologies that have not been generated yet — which is
+  // the whole point, since it decides what gets built first.
+  //
+  // The derived one comes from concept edges that cross a technology
+  // boundary. It only exists after both sides have been generated, so it can
+  // refine the order but can never establish it.
+  const bySlug = new Map(input.technologies.map((t) => [t.slug, t.technologyId]));
   const dependsOn = new Map<string, Set<string>>();
   for (const id of byId.keys()) dependsOn.set(id, new Set());
+
+  for (const technology of input.technologies) {
+    for (const slug of technology.dependsOn ?? []) {
+      // A dependency the user did not choose is ignored rather than pulled
+      // in: picking React and not TypeScript is a decision, not an oversight.
+      const dependencyId = bySlug.get(slug);
+      if (dependencyId && dependencyId !== technology.technologyId) {
+        dependsOn.get(technology.technologyId)?.add(dependencyId);
+      }
+    }
+  }
 
   for (const edge of input.edges) {
     if (edge.strength !== 'HARD') continue;
@@ -227,6 +250,11 @@ function orderTechnologies(input: BuildRoadmapInput): string[] {
   const hasContent = new Set(input.concepts.map((c) => c.technologyId));
 
   // Preference score, used only to break ties the dependency graph leaves open.
+  //
+  // The authored learning order dominates, because dependencies alone leave
+  // most pairs unordered and sorting on preference there scatters the
+  // JavaScript chain through the DevOps one — a valid order and a bad
+  // curriculum. Priority and interview weight then break what remains.
   const score = (id: string): number => {
     const tech = byId.get(id);
     if (!tech) return 0;
@@ -235,7 +263,8 @@ function orderTechnologies(input: BuildRoadmapInput): string[] {
       input.preferences.primaryGoal === 'JOB_PREPARATION'
         ? tech.interviewImportance * 0.5
         : 0;
-    return PRIORITY_WEIGHT[tech.priority] * 2 + interviewBoost;
+    const authored = -(tech.learningOrder ?? 500) * 100;
+    return authored + PRIORITY_WEIGHT[tech.priority] * 2 + interviewBoost;
   };
 
   const remaining = new Set(byId.keys());

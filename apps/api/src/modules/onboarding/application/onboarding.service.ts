@@ -109,9 +109,11 @@ export class OnboardingService {
     const roadmap = await this.roadmap.regenerate(userId);
     const awaitingTechnologies = await this.technologiesAwaitingContent(userId);
 
-    // Fire and forget. Generation takes minutes; the user gets their roadmap
-    // now and the remaining technologies fill in behind them.
-    await this.generation.enqueueMissing(userId);
+    // Fire and forget, and only the first technology. Generation takes
+    // minutes; the user gets their roadmap now, and the rest is built one at
+    // a time as they work through it rather than all bought up front for
+    // material they may never reach.
+    await this.generation.enqueueNext(userId, { force: true });
 
     this.logger.log(
       `Onboarded ${userId}: ${input.technologies.length} technologies, ` +

@@ -24,7 +24,9 @@
     "prepare": "husky || true",
     "dev:worker": "turbo run dev --filter=@forgeroutine/sandbox-worker",
     "dev:apps": "turbo run dev --filter=@forgeroutine/web --filter=@forgeroutine/api",
-    "db:reset": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/reset-db.mjs"
+    "db:reset": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/reset-db.mjs",
+    "db:cancel-generation": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/cancel-pending-generation.mjs",
+    "db:generation-plan": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/generation-plan.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.19.9",

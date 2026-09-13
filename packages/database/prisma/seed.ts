@@ -11,6 +11,7 @@ import {
   SEED_CHALLENGES,
   TECHNOLOGY_CATALOGUE,
   assertAcyclic,
+  assertAcyclicTechnologies,
   getCuratedCurricula,
   seedTechnologySchema,
   type GraphEdge,
@@ -27,22 +28,30 @@ async function main(): Promise<void> {
   console.info('Seeding ForgeRoutine…\n');
 
   // 1. Catalogue rows for every §41 technology, so a user can add any of them.
+  // A cycle or a typo here would leave some technology permanently
+  // ungeneratable — every pass would find it blocked — with nothing in the
+  // logs to say why. Cheaper to refuse to seed.
+  assertAcyclicTechnologies(
+    TECHNOLOGY_CATALOGUE.map((technology) => ({
+      slug: technology.slug,
+      dependsOn: technology.dependsOn ?? [],
+    })),
+  );
+
   for (const technology of TECHNOLOGY_CATALOGUE) {
+    const shared = {
+      name: technology.name,
+      description: technology.description ?? '',
+      category: technology.category ?? 'general',
+      exerciseLanguage: technology.exerciseLanguage ?? null,
+      dependsOn: technology.dependsOn ?? [],
+      learningOrder: technology.learningOrder ?? 500,
+    };
+
     await prisma.technology.upsert({
       where: { slug: technology.slug },
-      create: {
-        slug: technology.slug,
-        name: technology.name,
-        description: technology.description ?? '',
-        category: technology.category ?? 'general',
-        exerciseLanguage: technology.exerciseLanguage ?? null,
-      },
-      update: {
-        name: technology.name,
-        description: technology.description ?? '',
-        category: technology.category ?? 'general',
-        exerciseLanguage: technology.exerciseLanguage ?? null,
-      },
+      create: { slug: technology.slug, ...shared },
+      update: shared,
     });
   }
   console.info(`  ${TECHNOLOGY_CATALOGUE.length} technologies in the catalogue`);

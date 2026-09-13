@@ -26,6 +26,60 @@ time (§5):
 Removing a technology must never destroy learning history. Re-adding it restores the user's
 prior skill state, decayed by elapsed time rather than reset.
 
+## What gets generated, and when
+
+Generation is the only part of this product that costs money per use, so the
+question is not just *what* to build but *when* to pay for it.
+
+**One technology at a time, in a hand-authored order, on demand.**
+
+The order lives in the catalogue as `dependsOn` (what is forbidden) plus
+`learningOrder` (what is wanted). Both are data. Nobody needs a model to work
+out that React comes after JavaScript, and the generator's own
+cross-technology prerequisites cannot help here anyway: they only exist once
+both sides have been built, which is too late to decide what to build first.
+
+The trigger is progress, not sign-up. The first technology is built during
+onboarding; each subsequent one is queued when the user is
+`GENERATE_AHEAD_AT` (60%) of the way through what they already have. The lead
+time is deliberate — generation takes minutes, so waiting until they are
+actually blocked means they sit and wait.
+
+`pnpm db:generation-plan` shows the order, the progress, and what would be
+built next, without calling OpenAI.
+
+### Why this changed
+
+The first version queued every technology the user selected, during
+onboarding. A real sign-up selected seventeen and the queue built eight
+before anyone noticed — for a user who had not yet completed a single
+exercise. Seven of the eight were technologies they were months away from
+reaching, and some they might never open.
+
+Two separate bugs made it worse than the design intended:
+
+- `drain` looped until the queue was empty, so a backlog from any source —
+  an older version, a crash, a double submit — would run end to end. It now
+  takes exactly one job per call.
+- Nothing ever wrote to `AIInteraction`. The table and its schema comment
+  had been there since the first migration, but no code populated it, so the
+  only record of spend was the OpenAI dashboard, which cannot say which
+  technology or which agent caused it. A `RecordingAIProvider` decorator now
+  wraps the real provider and records every call: agent, model, tokens,
+  latency, outcome. It is a decorator rather than a change inside the AI
+  package so that package keeps no database dependency.
+
+Prompts are hashed rather than stored. They contain the user's own code and
+their interview answers, and an observability table should not quietly become
+a transcript of everything they have written.
+
+### Sharing
+
+Curriculum is per-technology, not per-user: a `Concept` belongs to a
+`Technology`. The second person to pick Docker pays nothing, because the
+check is on concept count and content already exists. This was already true
+and is now relied on deliberately rather than by accident.
+
 ## Generation pipeline
 
 Triggered when a technology has no curriculum version for the current generator version.

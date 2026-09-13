@@ -115,6 +115,18 @@ model Technology {
   /// technologies get concept questions instead of runnable exercises — which
   /// is honest, rather than generating code exercises that cannot work.
   exerciseLanguage  String?  @default("javascript")
+
+  /// Slugs that should be learned first. Hand-authored in the catalogue.
+  ///
+  /// Curriculum is generated one technology at a time, in this order, so a
+  /// user never pays for React before JavaScript exists. The generator does
+  /// propose cross-technology prerequisites, but only once both sides have
+  /// been built — too late to decide what to build first.
+  dependsOn         String[] @default([])
+  /// Position in the intended reading order; lower comes first. `dependsOn`
+  /// says what is forbidden, this says what is wanted.
+  learningOrder     Int      @default(500)
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

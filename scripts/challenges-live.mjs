@@ -16,9 +16,9 @@ const root = resolve(import.meta.dirname, '..');
 
 const { NestFactory } = require('@nestjs/core');
 const { AppModule } = require(resolve(root, 'apps/api/dist/app.module.js'));
-const {
-  ChallengesService,
-} = require(resolve(root, 'apps/api/dist/modules/challenges/application/challenges.service.js'));
+const { ChallengesService } = require(
+  resolve(root, 'apps/api/dist/modules/challenges/application/challenges.service.js'),
+);
 const { PrismaClient } = require('@prisma/client');
 
 const EMAIL = 'challenges-live@forgeroutine.test';
@@ -36,7 +36,9 @@ async function main() {
   const list = await challenges.list(userId);
   console.log(`\n${list.length} challenges visible:\n`);
   for (const challenge of list) {
-    console.log(`  [${challenge.kind.padEnd(13)}] ${challenge.title}  (${challenge.technologyName})`);
+    console.log(
+      `  [${challenge.kind.padEnd(13)}] ${challenge.title}  (${challenge.technologyName})`,
+    );
   }
 
   // -- Terminal, the free and deterministic half ---------------------------
@@ -76,7 +78,9 @@ async function main() {
 
     console.log(`\n  passed: ${review.passed}`);
     for (const [dimension, value] of Object.entries(review.scores)) {
-      console.log(`  ${dimension.padEnd(26)} ${value === null ? 'not addressed' : value.toFixed(2)}`);
+      console.log(
+        `  ${dimension.padEnd(26)} ${value === null ? 'not addressed' : value.toFixed(2)}`,
+      );
     }
     console.log(`\n  ${review.summary}\n`);
     for (const issue of review.issues) {

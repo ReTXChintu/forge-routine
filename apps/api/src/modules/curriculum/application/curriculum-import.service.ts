@@ -93,6 +93,7 @@ export class CurriculumImportService {
 
     await this.linkPrerequisites(tx, seed, conceptIdBySlug);
     await this.importExercises(tx, seed, conceptIdBySlug);
+    await this.importQuestions(tx, seed, conceptIdBySlug);
 
     // Only now is the version safe to serve.
     await tx.curriculumVersion.updateMany({
@@ -213,6 +214,42 @@ export class CurriculumImportService {
     }
 
     assertAcyclic(nodes, [...merged.values()]);
+  }
+
+  /**
+   * Recall questions, replaced wholesale per concept.
+   *
+   * Wholesale rather than upserted: a question has no stable identity — its
+   * prompt *is* its identity — so editing one in the seed would otherwise
+   * leave the old wording behind as a second question, and the user would be
+   * asked the same thing twice with different answer keys.
+   *
+   * Deleted rather than archived because nothing references a question: an
+   * answer records the concept and the outcome, not the row.
+   */
+  private async importQuestions(
+    tx: Prisma.TransactionClient,
+    seed: SeedTechnology,
+    conceptIdBySlug: Map<string, string>,
+  ): Promise<void> {
+    for (const concept of seed.concepts) {
+      if (concept.questions.length === 0) continue;
+
+      const conceptId = conceptIdBySlug.get(`${seed.slug}:${concept.slug}`);
+      if (!conceptId) continue;
+
+      await tx.conceptQuestion.deleteMany({ where: { conceptId } });
+      await tx.conceptQuestion.createMany({
+        data: concept.questions.map((question) => ({
+          conceptId,
+          prompt: question.prompt,
+          options: question.options,
+          correctIndex: question.correctIndex,
+          explanation: question.explanation,
+          difficulty: question.difficulty,
+        })),
+      });
+    }
   }
 
   private async importExercises(

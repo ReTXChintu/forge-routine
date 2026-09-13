@@ -70,7 +70,7 @@ export const projectAgent = {
     return {
       model: 'reasoning',
       temperature: 0.35,
-      maxTokens: 6_000,
+      maxTokens: 3_500,
       messages: [
         {
           role: 'system',

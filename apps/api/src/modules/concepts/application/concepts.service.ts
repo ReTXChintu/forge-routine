@@ -111,9 +111,24 @@ export class ConceptsService {
    * thing a course can do to someone.
    */
   async sequenceFor(userId: string, technologyId: string): Promise<Map<string, SequenceGate>> {
+    // Only the active version's concepts. A technology that has been
+    // regenerated or re-seeded keeps the previous version's concepts in the
+    // table — deliberately, so the exercises attached to them are not
+    // destroyed — and their orderIndex values collide with the new ones.
+    //
+    // Two concepts at index 0 is not a cosmetic problem here: the sequence
+    // gate blocks on the first uncleared concept, so an orphan from an old
+    // version sits in front of the course and locks all of it, with nothing
+    // in the UI to say why. That is exactly what happened to JavaScript.
     const concepts = await this.prisma.concept.findMany({
-      where: { technologyId, archivedAt: null },
-      orderBy: { orderIndex: 'asc' },
+      where: {
+        technologyId,
+        archivedAt: null,
+        curriculumVersion: { status: 'ACTIVE' },
+      },
+      // Slug breaks an orderIndex tie, so the order is at least stable
+      // rather than whatever the planner happened to return.
+      orderBy: [{ orderIndex: 'asc' }, { slug: 'asc' }],
       select: {
         id: true,
         orderIndex: true,
@@ -186,8 +201,12 @@ export class ConceptsService {
     if (cached) return new KnowledgeGraph(cached.nodes, cached.edges);
 
     const [concepts, edges] = await Promise.all([
+      // Active versions only. Regenerating a technology supersedes its old
+      // version without deleting the concepts — on purpose, so the exercises
+      // and skill history hanging off them survive — but those concepts are
+      // no longer part of any course.
       this.prisma.concept.findMany({
-        where: { archivedAt: null },
+        where: { archivedAt: null, curriculumVersion: { status: 'ACTIVE' } },
         select: { id: true, name: true, technologyId: true },
       }),
       this.prisma.conceptPrerequisite.findMany({
@@ -196,11 +215,23 @@ export class ConceptsService {
     ]);
 
     const nodes: GraphNode[] = concepts;
-    const graphEdges: GraphEdge[] = edges.map((e) => ({
-      conceptId: e.conceptId,
-      prerequisiteId: e.prerequisiteId,
-      strength: e.strength as 'HARD' | 'SOFT',
-    }));
+    const live = new Set(concepts.map((concept) => concept.id));
+
+    // An edge pointing at a superseded concept is unsatisfiable: there is no
+    // way left to practise it, so the dependent concept is locked forever
+    // with no route to unlock it. JavaScript was in exactly this state — the
+    // first concept of the course required one from a version that had been
+    // replaced, and the whole technology was unreachable.
+    //
+    // Dropped rather than followed. A prerequisite nobody can meet is not a
+    // prerequisite, it is a dead end.
+    const graphEdges: GraphEdge[] = edges
+      .filter((e) => live.has(e.conceptId) && live.has(e.prerequisiteId))
+      .map((e) => ({
+        conceptId: e.conceptId,
+        prerequisiteId: e.prerequisiteId,
+        strength: e.strength as 'HARD' | 'SOFT',
+      }));
 
     await this.cache.set(cacheKey, { nodes, edges: graphEdges }, 86_400);
 

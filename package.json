@@ -40,7 +40,8 @@
     "status": "pm2 status",
     "start:inline": "pm2 start ecosystem.config.cjs --only forgeroutine-api,forgeroutine-web --env production",
     "db:sync-order": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/sync-technology-order.mjs",
-    "db:ai-spend": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/ai-spend.mjs"
+    "db:ai-spend": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/ai-spend.mjs",
+    "db:backfill-compulsory": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/backfill-compulsory.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.19.9",

@@ -207,7 +207,9 @@ describe('onboarding and roadmap', () => {
 
     expect(response.body.completed).toBe(true);
     expect(response.body.hasRoadmap).toBe(true);
-    expect(response.body.technologyCount).toBe(2);
+    // Three, not two: DSA is added for every account whether or not the
+    // user picked it, so the two chosen here come with it.
+    expect(response.body.technologyCount).toBe(3);
   });
 
   it('refuses a roadmap item belonging to someone else, without revealing it exists', async () => {

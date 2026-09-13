@@ -106,6 +106,13 @@ export class OnboardingService {
       });
     }
 
+    // DSA is not a choice. Interviews ask for it regardless of stack, it is
+    // the one subject that rewards a little every day over a block at the
+    // end, and it is curated — so adding it costs nothing and needs no
+    // generation. Added last so an explicit choice of it keeps its own
+    // priority rather than being overwritten by this default.
+    await this.technologies.ensureCompulsory(userId);
+
     const roadmap = await this.roadmap.regenerate(userId);
     const awaitingTechnologies = await this.technologiesAwaitingContent(userId);
 

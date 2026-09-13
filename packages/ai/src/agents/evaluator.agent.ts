@@ -58,9 +58,12 @@ export const evaluatorAgent = {
         : '';
 
     return {
-      model: 'reasoning',
+      // 'fast', not 'reasoning'. The tests have already run: the verdict
+      // is decided before the model is asked, and its job is to explain the
+      // result rather than reach it. gpt-4o was 17x the price for prose.
+      model: 'fast',
       temperature: 0.1,
-      maxTokens: 1_500,
+      maxTokens: 1_200,
       messages: [
         { role: 'system', content: SYSTEM },
         {

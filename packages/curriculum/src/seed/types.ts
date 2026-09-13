@@ -43,6 +43,23 @@ export const seedExerciseSchema = z.object({
   testCases: z.array(seedTestCaseSchema).min(1),
 });
 
+export const seedQuestionSchema = z
+  .object({
+    prompt: z.string().min(1).max(600),
+    /** Two to five options; exactly one is correct. */
+    options: z.array(z.string().min(1).max(300)).min(2).max(5),
+    correctIndex: z.number().int().min(0),
+    /** Shown after answering, right or wrong. This is where the learning is. */
+    explanation: z.string().min(1).max(800),
+    difficulty: z.number().int().min(1).max(5).default(3),
+  })
+  // An out-of-range answer key would mark the right answer wrong, which is
+  // worse than having no question at all. Caught at author time.
+  .refine((q) => q.correctIndex < q.options.length, {
+    message: 'correctIndex must point at one of the options',
+    path: ['correctIndex'],
+  });
+
 export const seedConceptSchema = z.object({
   slug: z.string().min(1).max(64),
   name: z.string().min(1).max(120),
@@ -61,6 +78,15 @@ export const seedConceptSchema = z.object({
     )
     .default([]),
   exercises: z.array(seedExerciseSchema).default([]),
+  /**
+   * Recall questions for this concept.
+   *
+   * Previously these only ever came from the generator, which made a
+   * question-based day impossible without spending money. A curated
+   * technology can now ship its own, and the import path is the same one
+   * the generator writes through.
+   */
+  questions: z.array(seedQuestionSchema).default([]),
 });
 
 export const seedTechnologySchema = z.object({
@@ -103,6 +129,7 @@ export const seedTechnologySchema = z.object({
   concepts: z.array(seedConceptSchema).default([]),
 });
 
+export type SeedQuestion = z.infer<typeof seedQuestionSchema>;
 export type SeedTestCase = z.infer<typeof seedTestCaseSchema>;
 export type SeedExercise = z.infer<typeof seedExerciseSchema>;
 export type SeedConcept = z.infer<typeof seedConceptSchema>;
@@ -115,6 +142,7 @@ export type SeedTechnology = z.infer<typeof seedTechnologySchema>;
  * Hand-written seed literals must not have to spell out every default, so they are
  * typed against `z.input` and become fully-populated output types after parsing.
  */
+export type SeedQuestionInput = z.input<typeof seedQuestionSchema>;
 export type SeedTestCaseInput = z.input<typeof seedTestCaseSchema>;
 export type SeedExerciseInput = z.input<typeof seedExerciseSchema>;
 export type SeedConceptInput = z.input<typeof seedConceptSchema>;

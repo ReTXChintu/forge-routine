@@ -14,6 +14,7 @@ import {
 } from '~/components/ui';
 import { RecallPrompt } from '~/features/recall/RecallPrompt';
 import {
+  useConceptQuestions,
   useGenerateRoutine,
   useRecallDue,
   useTodayRoutine,
@@ -56,20 +57,21 @@ export function TodayView() {
   const { data: duePrompts } = useRecallDue();
   const [promptIndex, setPromptIndex] = useState(0);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [quizItem, setQuizItem] = useState<RoutineItemView | null>(null);
 
   if (isLoading) return <Spinner label="Loading today" />;
 
-  if (!routine) {
+  // No "plan today" button. The budget is in preferences, the order is in
+  // the roadmap and the due dates are in the schedule — there was nothing
+  // left for the user to decide, so the server decides it on first look.
+  if (!routine) return <Spinner label="Planning today" />;
+
+  if (routine.items.length === 0) {
     return (
       <StateBlock
         icon="routine"
-        title="Nothing planned yet"
-        body="Today's work is a slice of your roadmap, weighted towards anything due for review."
-        action={
-          <Button icon="plus" onClick={() => generate.mutate(false)} disabled={generate.isPending}>
-            {generate.isPending ? 'Planning…' : 'Plan today'}
-          </Button>
-        }
+        title="Nothing to do today"
+        body="Add a technology, or finish onboarding, and tomorrow's plan will have something in it."
       />
     );
   }
@@ -82,6 +84,12 @@ export function TodayView() {
   const todayIndex = (new Date().getDay() + 6) % 7;
 
   const open = (item: RoutineItemView) => {
+    if (item.kind === 'RECALL' && item.conceptId) {
+      // Answering is the item. Sending the user to the concept page to read
+      // it again would be the opposite of what a recall item is for.
+      setQuizItem(item);
+      return;
+    }
     if (item.exerciseId) {
       navigate(`${item.kind === 'PROJECT' ? '/project' : '/exercise'}/${item.exerciseId}`);
     } else if (item.conceptId) {
@@ -164,6 +172,17 @@ export function TodayView() {
         </div>
       )}
 
+      {quizItem && (
+        <ConceptQuiz
+          item={quizItem}
+          onClose={() => setQuizItem(null)}
+          onFinished={() => {
+            updateItem.mutate({ id: quizItem.id, status: 'DONE' });
+            setQuizItem(null);
+          }}
+        />
+      )}
+
       <div className="row items-center justify-between mb3 g4">
         <span className="t-h3">Today</span>
         <div style={{ flex: 1, maxWidth: 320 }}>
@@ -194,6 +213,68 @@ export function TodayView() {
         </Card>
       )}
     </>
+  );
+}
+
+/**
+ * The questions attached to one routine item, asked in sequence.
+ *
+ * Answering marks the item done automatically — asking the user to also
+ * press "Done" after working through every question is making them report
+ * on something the app already watched them do.
+ */
+function ConceptQuiz({
+  item,
+  onClose,
+  onFinished,
+}: {
+  item: RoutineItemView;
+  onClose: () => void;
+  onFinished: () => void;
+}) {
+  const { data: questions, isLoading } = useConceptQuestions(
+    item.conceptId,
+    Math.max(1, item.questionCount),
+  );
+  const [index, setIndex] = useState(0);
+
+  if (isLoading) return <Spinner label="Loading questions" />;
+
+  if (!questions || questions.length === 0) {
+    return (
+      <Card className="mb6">
+        <div className="t-h4">No questions on this concept yet</div>
+        <div className="t-small mt1">
+          They arrive with the curriculum. Mark the item done and carry on.
+        </div>
+        <Button variant="secondary" size="sm" className="mt3" onClick={onClose}>
+          Close
+        </Button>
+      </Card>
+    );
+  }
+
+  const prompt = questions[Math.min(index, questions.length - 1)]!;
+  const last = index >= questions.length - 1;
+
+  return (
+    <div className="mb6">
+      <div className="row items-center justify-between mb2">
+        <span className="t-caption">
+          Question {Math.min(index + 1, questions.length)} of {questions.length}
+        </span>
+        <Button variant="ghost" size="sm" onClick={onClose}>
+          Close
+        </Button>
+      </div>
+
+      <RecallPrompt
+        key={prompt.id}
+        prompt={prompt}
+        onDone={() => (last ? onFinished() : setIndex((current) => current + 1))}
+        onSkip={last ? onClose : () => setIndex((current) => current + 1)}
+      />
+    </div>
   );
 }
 

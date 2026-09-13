@@ -121,7 +121,19 @@ export const generatedExerciseSchema = z.object({
   requirements: z.string().min(1).max(2_000),
   functionSignature: z.string().max(300).nullable(),
   starterCode: z.string().max(2_000).nullable(),
-  examples: z.array(z.string().max(600)).max(4),
+  /**
+   * Described, not just typed. "examples" reads as input/output pairs and
+   * the model kept sending `{input, output}` objects — two whole generations
+   * were thrown away over it. Strict mode now makes that impossible, but the
+   * description is what stops it producing a stringified object instead.
+   */
+  examples: z
+    .array(z.string().max(600))
+    .max(4)
+    .describe(
+      'Each example is ONE plain string showing a call and its result, ' +
+        'e.g. "chunk([1,2,3], 2) // [[1,2],[3]]". Never an object.',
+    ),
   /** Questions, not answers — these are the AI-unavailable fallback hints. */
   staticHints: z.array(z.string().min(1).max(300)).min(1).max(4),
   referenceSolution: z.string().min(1).max(8_000),

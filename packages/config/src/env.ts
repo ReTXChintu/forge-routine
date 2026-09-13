@@ -40,6 +40,13 @@ export const envSchema = z
     BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
 
     AI_PROVIDER: z.literal('openai').default('openai'),
+    /**
+     * Master switch. `false` disables every model call while leaving the key
+     * in place, so turning AI back on is one character rather than finding
+     * the key again. Every agent already declares a fallback, so the product
+     * stays usable — thinner, but usable.
+     */
+    AI_ENABLED: booleanish.default(true),
     OPENAI_API_KEY: z.string().default(''),
     OPENAI_BASE_URL: z.string().url().default('https://api.openai.com/v1'),
     OPENAI_MODEL_FAST: z.string().default('gpt-4o-mini'),

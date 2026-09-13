@@ -15,6 +15,8 @@ import {
   type StructuredResult,
 } from '../ai-provider.port.js';
 
+import { stripAbsent, toStrictSchema } from './strict-schema.js';
+
 export interface OpenAIProviderOptions {
   apiKey: string;
   baseURL: string;
@@ -107,18 +109,30 @@ export class OpenAIProvider implements AIProvider {
   /**
    * Strict JSON mode plus validation. Never returns unvalidated data.
    *
-   * On a schema failure the validation error is fed back as a correction turn and
-   * the call is retried exactly once. A second failure is a contract violation:
-   * the agent falls back rather than the domain receiving a guess.
+   * `strict: true` makes OpenAI itself guarantee the shape, so the repair
+   * round trip below is a genuine last resort rather than the normal path it
+   * used to be. It is kept because strict mode constrains structure and not
+   * meaning: a schema can still come back with an empty array where the
+   * agent needs one entry, and that is worth one more ask.
+   *
+   * A second failure is a contract violation: the agent falls back rather
+   * than the domain receiving a guess.
    */
   async structured<T>(req: StructuredRequest<T>): Promise<StructuredResult<T>> {
     const model = this.resolveModel(req.prompt);
     const startedAt = Date.now();
-    const jsonSchema = zodToJsonSchema(req.schema, {
-      name: req.schemaName,
-      target: 'openApi3',
+
+    // jsonSchema7, not openApi3: strict mode expresses nullability as
+    // `type: [..., "null"]` rather than OpenAPI's `nullable: true`.
+    // No `name`: that option wraps the result in a root \ plus a
+    // definitions block, and strict mode wants the schema itself. The name
+    // is passed to OpenAI separately below.
+    const generated = zodToJsonSchema(req.schema, {
+      target: 'jsonSchema7',
       $refStrategy: 'none',
     });
+
+    const { schema: jsonSchema, absence } = toStrictSchema(generated as Record<string, unknown>);
 
     const messages = [...req.prompt.messages];
     let promptTokens = 0;
@@ -140,8 +154,8 @@ export class OpenAIProvider implements AIProvider {
               type: 'json_schema',
               json_schema: {
                 name: req.schemaName,
-                strict: false,
-                schema: jsonSchema as Record<string, unknown>,
+                strict: true,
+                schema: jsonSchema,
               },
             },
           },
@@ -159,7 +173,10 @@ export class OpenAIProvider implements AIProvider {
       const parsed = safeParseJson(raw);
 
       if (parsed.ok) {
-        const validated = req.schema.safeParse(parsed.value);
+        // Strict mode has no "omit this key", so an optional field comes back
+        // as an explicit null. Turn those back into absences before Zod sees
+        // them, or every `.optional()` in every agent schema fails.
+        const validated = req.schema.safeParse(stripAbsent(parsed.value, absence));
         if (validated.success) {
           return {
             data: validated.data,

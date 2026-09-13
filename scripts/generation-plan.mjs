@@ -15,12 +15,9 @@ const require = createRequire(resolve(import.meta.dirname, '../apps/api/index.js
 const root = resolve(import.meta.dirname, '..');
 
 const { PrismaClient } = require('@prisma/client');
-const {
-  orderTechnologies,
-  nextToGenerate,
-  shouldGenerateAhead,
-  GENERATE_AHEAD_AT,
-} = require(resolve(root, 'packages/curriculum/dist/index.cjs'));
+const { orderTechnologies, nextToGenerate, shouldGenerateAhead, GENERATE_AHEAD_AT } = require(
+  resolve(root, 'packages/curriculum/dist/index.cjs'),
+);
 
 const prisma = new PrismaClient();
 
@@ -118,9 +115,7 @@ async function main() {
   }
 
   const counts = await prisma.generationJob.groupBy({ by: ['status'], _count: true });
-  console.log(
-    `\njobs: ${counts.map((row) => `${row.status}=${row._count}`).join('  ') || 'none'}`,
-  );
+  console.log(`\njobs: ${counts.map((row) => `${row.status}=${row._count}`).join('  ') || 'none'}`);
   console.log('PENDING costs nothing — it is the plan, not the work.');
 }
 

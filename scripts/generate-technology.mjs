@@ -58,8 +58,7 @@ function estimateCost() {
   const inputPerM = 2.5;
   const outputPerM = 10;
   return (
-    (usage.promptTokens / 1_000_000) * inputPerM +
-    (usage.completionTokens / 1_000_000) * outputPerM
+    (usage.promptTokens / 1_000_000) * inputPerM + (usage.completionTokens / 1_000_000) * outputPerM
   );
 }
 
@@ -123,7 +122,9 @@ async function main() {
   );
   console.log(`        ${edges.edges.length} edges:`);
   for (const e of edges.edges.slice(0, 12)) {
-    console.log(`          ${e.conceptSlug} ${e.strength === 'HARD' ? '<-' : '<~'} ${e.prerequisiteSlug}`);
+    console.log(
+      `          ${e.conceptSlug} ${e.strength === 'HARD' ? '<-' : '<~'} ${e.prerequisiteSlug}`,
+    );
   }
 
   console.log('\n  [4/4] exercises for the first concept, verified in the sandbox');

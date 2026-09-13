@@ -41,8 +41,9 @@ export class RecallController {
   due(
     @CurrentUser() user: AuthenticatedUser,
     @Query('limit') limit?: string,
+    @Query('conceptId') conceptId?: string,
   ): Promise<RecallPromptView[]> {
-    return this.recall.due(user.userId, limit ? Number(limit) : 3);
+    return this.recall.due(user.userId, limit ? Number(limit) : 3, conceptId);
   }
 
   @Post('answer')

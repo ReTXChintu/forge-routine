@@ -67,7 +67,10 @@ export function loadConfig(options: { reload?: boolean; cwd?: string } = {}): Ap
     corsOrigins: env.CORS_ORIGINS.split(',')
       .map((o) => o.trim())
       .filter(Boolean),
-    aiEnabled: env.OPENAI_API_KEY.trim().length > 0,
+    // Both, deliberately. A key without the switch is someone who has paused
+    // spending; a switch without a key is someone who has not finished
+    // setting up. Neither should produce a model call.
+    aiEnabled: env.AI_ENABLED && env.OPENAI_API_KEY.trim().length > 0,
     databaseUrlForMigrations:
       env.DIRECT_DATABASE_URL && env.DIRECT_DATABASE_URL.length > 0
         ? env.DIRECT_DATABASE_URL

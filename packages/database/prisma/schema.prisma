@@ -602,6 +602,10 @@ model RoutineItem {
   concept    Concept? @relation(fields: [conceptId], references: [id])
   exerciseId String?
   exercise   Exercise? @relation(fields: [exerciseId], references: [id])
+  /// RECALL items: how many questions to ask on this concept. Stored rather
+  /// than counted at read time so the plan says the same thing all day, even
+  /// if the concept gains questions while the user is working through it.
+  questionCount Int   @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -1004,6 +1008,10 @@ enum RoutineItemKind {
   BLIND_CODE
   DEBUG
   EXPLAIN
+  /// Mirrors RoadmapItemKind. A roadmap PROJECT or CHECKPOINT lands in a
+  /// routine unchanged, and without these the insert fails on the enum.
+  PROJECT
+  CHECKPOINT
   REVIEW
   INTERVIEW
 }

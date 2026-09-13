@@ -65,7 +65,7 @@ export const exerciseAgent = {
     return {
       model: 'reasoning',
       temperature: 0.35,
-      maxTokens: 4_000,
+      maxTokens: 3_000,
       messages: [
         {
           role: 'system',

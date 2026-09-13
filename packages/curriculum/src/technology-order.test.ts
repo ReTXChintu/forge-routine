@@ -207,6 +207,8 @@ describe('the shipped catalogue', () => {
     // Since the two agree, the emitted order is just learningOrder. Asserted
     // in full so a reordering is a visible diff rather than a surprise.
     expect(catalogueOrder()).toEqual([
+      // Nothing gates it, and learningOrder 0 puts it first.
+      'dsa',
       'javascript',
       'typescript',
       'git',

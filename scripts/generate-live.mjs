@@ -16,9 +16,9 @@ const root = resolve(import.meta.dirname, '..');
 
 const { NestFactory } = require('@nestjs/core');
 const { AppModule } = require(resolve(root, 'apps/api/dist/app.module.js'));
-const {
-  CurriculumGeneratorService,
-} = require(resolve(root, 'apps/api/dist/modules/generation/application/curriculum-generator.service.js'));
+const { CurriculumGeneratorService } = require(
+  resolve(root, 'apps/api/dist/modules/generation/application/curriculum-generator.service.js'),
+);
 const { PrismaClient } = require('@prisma/client');
 
 const slug = process.argv[2] ?? 'docker';
@@ -28,7 +28,9 @@ async function main() {
   const technology = await prisma.technology.findUnique({ where: { slug } });
   if (!technology) throw new Error(`No technology with slug "${slug}"`);
 
-  console.log(`\n${technology.name}  (exerciseLanguage: ${technology.exerciseLanguage ?? 'null → concept questions'})\n`);
+  console.log(
+    `\n${technology.name}  (exerciseLanguage: ${technology.exerciseLanguage ?? 'null → concept questions'})\n`,
+  );
 
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
   const generator = app.get(CurriculumGeneratorService);
@@ -64,7 +66,9 @@ async function main() {
       console.log(`       mistake: ${concept.commonMistakes[0]}`);
     }
     for (const exercise of concept.exercises) {
-      console.log(`       [${exercise.kind}] ${exercise.title} — ${exercise.testCases.length} tests`);
+      console.log(
+        `       [${exercise.kind}] ${exercise.title} — ${exercise.testCases.length} tests`,
+      );
     }
     for (const question of concept.questions.slice(0, 1)) {
       console.log(`       Q: ${question.prompt}`);

@@ -339,6 +339,243 @@ export const REFERENCE_SOLUTIONS: Record<string, string> = {
 }
 `,
 
+  // -- DSA --------------------------------------------------------------
+  // Written the way they should be written in an interview: named steps,
+  // the invariant stated once, no cleverness that needs a second read.
+
+  'dsa-count-pairs-naive-vs-linear': `export default function countPairs(numbers, target) {
+  // Count how many of each value we have already passed. Checking the
+  // complement *before* recording the current number is what stops an
+  // element pairing with itself.
+  const seen = new Map();
+  let pairs = 0;
+
+  for (const value of numbers) {
+    pairs += seen.get(target - value) ?? 0;
+    seen.set(value, (seen.get(value) ?? 0) + 1);
+  }
+
+  return pairs;
+}
+`,
+
+  'dsa-move-zeroes': `export default function moveZeroes(numbers) {
+  // \`write\` is where the next non-zero belongs. Everything before it is
+  // already correct and in its original order.
+  let write = 0;
+
+  for (let read = 0; read < numbers.length; read += 1) {
+    if (numbers[read] !== 0) {
+      numbers[write] = numbers[read];
+      write += 1;
+    }
+  }
+
+  // Whatever is left can only be the zeroes we skipped.
+  for (let i = write; i < numbers.length; i += 1) numbers[i] = 0;
+
+  return numbers;
+}
+`,
+
+  'dsa-first-unique-char': `export default function firstUniqueChar(text) {
+  const counts = new Map();
+  for (const character of text) counts.set(character, (counts.get(character) ?? 0) + 1);
+
+  // Second pass over the *string*, not the map: the map has no order that
+  // means anything, and the question asks for the first index.
+  for (let i = 0; i < text.length; i += 1) {
+    if (counts.get(text[i]) === 1) return i;
+  }
+
+  return -1;
+}
+`,
+
+  'dsa-is-palindrome-alnum': `const isAlphanumeric = (character) => /[a-z0-9]/i.test(character);
+
+export default function isPalindrome(text) {
+  let left = 0;
+  let right = text.length - 1;
+
+  while (left < right) {
+    // Skip, rather than clean the string first: cleaning would allocate a
+    // copy and the exercise asks for O(1) space.
+    if (!isAlphanumeric(text[left])) {
+      left += 1;
+    } else if (!isAlphanumeric(text[right])) {
+      right -= 1;
+    } else if (text[left].toLowerCase() !== text[right].toLowerCase()) {
+      return false;
+    } else {
+      left += 1;
+      right -= 1;
+    }
+  }
+
+  return true;
+}
+`,
+
+  'dsa-longest-unique-substring': `export default function longestUnique(text) {
+  const lastSeen = new Map();
+  let best = 0;
+  let start = 0;
+
+  for (let end = 0; end < text.length; end += 1) {
+    const character = text[end];
+    const previous = lastSeen.get(character);
+
+    // Only move start forward. A repeat from before the window has already
+    // been left behind and must not drag start backwards.
+    if (previous !== undefined && previous >= start) start = previous + 1;
+
+    lastSeen.set(character, end);
+    best = Math.max(best, end - start + 1);
+  }
+
+  return best;
+}
+`,
+
+  'dsa-search-insert-position': `export default function searchInsert(sorted, target) {
+  let low = 0;
+  let high = sorted.length - 1;
+
+  while (low <= high) {
+    const mid = low + Math.floor((high - low) / 2);
+
+    if (sorted[mid] === target) return mid;
+    if (sorted[mid] < target) low = mid + 1;
+    else high = mid - 1;
+  }
+
+  // The loop ends with low one past the last value smaller than target,
+  // which is exactly where target belongs.
+  return low;
+}
+`,
+
+  'dsa-valid-parentheses': `const CLOSERS = { ')': '(', ']': '[', '}': '{' };
+
+export default function isValid(text) {
+  const open = [];
+
+  for (const character of text) {
+    if (character === '(' || character === '[' || character === '{') {
+      open.push(character);
+    } else if (open.pop() !== CLOSERS[character]) {
+      // Covers both the wrong type and a closer with nothing open, since
+      // pop() on an empty array gives undefined.
+      return false;
+    }
+  }
+
+  // Anything still open was never closed.
+  return open.length === 0;
+}
+`,
+
+  'dsa-reverse-linked-list': `export default function reverseList(head) {
+  let previous = null;
+  let current = head;
+
+  while (current !== null) {
+    // Save next before overwriting it, or the rest of the list is lost:
+    // this is the only reference to it.
+    const next = current.next;
+    current.next = previous;
+    previous = current;
+    current = next;
+  }
+
+  // current is null here, so previous is the last node we visited.
+  return previous;
+}
+`,
+
+  'dsa-subsets': `export default function subsets(numbers) {
+  const results = [];
+  const path = [];
+
+  const explore = (index) => {
+    if (index === numbers.length) {
+      // Copy. Pushing \`path\` itself would store a reference that is empty
+      // again by the time the search unwinds.
+      results.push([...path]);
+      return;
+    }
+
+    // Leave it out.
+    explore(index + 1);
+
+    // Take it, then un-choose so the sibling branch starts clean.
+    path.push(numbers[index]);
+    explore(index + 1);
+    path.pop();
+  };
+
+  explore(0);
+  return results;
+}
+`,
+
+  'dsa-max-depth': `export default function maxDepth(root) {
+  // An empty tree has depth 0, which makes every leaf come out at 1.
+  if (root === null) return 0;
+
+  return 1 + Math.max(maxDepth(root.left), maxDepth(root.right));
+}
+`,
+
+  'dsa-count-islands': `export default function countIslands(grid) {
+  if (grid.length === 0) return 0;
+
+  const rows = grid.length;
+  const columns = grid[0].length;
+  let islands = 0;
+
+  // Sinking the island as we walk it doubles as the visited set.
+  const sink = (row, column) => {
+    if (row < 0 || row >= rows || column < 0 || column >= columns) return;
+    if (grid[row][column] !== 1) return;
+
+    grid[row][column] = 0;
+    sink(row + 1, column);
+    sink(row - 1, column);
+    sink(row, column + 1);
+    sink(row, column - 1);
+  };
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      if (grid[row][column] === 1) {
+        islands += 1;
+        sink(row, column);
+      }
+    }
+  }
+
+  return islands;
+}
+`,
+
+  'dsa-climbing-stairs': `export default function climbStairs(n) {
+  // Ways to reach step i is ways(i-1) + ways(i-2), so only the last two
+  // matter and the table collapses to two variables.
+  let twoBack = 1;
+  let oneBack = 1;
+
+  for (let step = 2; step <= n; step += 1) {
+    const current = oneBack + twoBack;
+    twoBack = oneBack;
+    oneBack = current;
+  }
+
+  return oneBack;
+}
+`,
+
   'debug-unawaited-async-map': `export default async function notifyAll(users, sendEmail) {
   // Promise.all waits for every send and propagates the first rejection,
   // so the returned count is a fact rather than a guess.

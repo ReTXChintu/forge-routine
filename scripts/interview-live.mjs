@@ -20,12 +20,10 @@ const root = resolve(import.meta.dirname, '..');
 
 const { NestFactory } = require('@nestjs/core');
 const { AppModule } = require(resolve(root, 'apps/api/dist/app.module.js'));
-const {
-  InterviewsService,
-} = require(resolve(root, 'apps/api/dist/modules/interviews/application/interviews.service.js'));
-const {
-  InterviewGuideService,
-} = require(
+const { InterviewsService } = require(
+  resolve(root, 'apps/api/dist/modules/interviews/application/interviews.service.js'),
+);
+const { InterviewGuideService } = require(
   resolve(root, 'apps/api/dist/modules/interviews/application/interview-guide.service.js'),
 );
 const { PrismaClient } = require('@prisma/client');
@@ -63,7 +61,9 @@ async function main() {
   console.log('Guide before:');
   console.log(
     `  overall readiness: ${
-      before.overallReadiness === null ? 'null (not enough practised)' : before.overallReadiness.toFixed(2)
+      before.overallReadiness === null
+        ? 'null (not enough practised)'
+        : before.overallReadiness.toFixed(2)
     }`,
   );
   for (const priority of before.priorities.slice(0, 3)) {
@@ -170,9 +170,7 @@ async function seedPractisedUser(prisma) {
     });
   }
 
-  console.log(
-    `Seeded ${technology.concepts.length} practised concepts in ${technology.name}`,
-  );
+  console.log(`Seeded ${technology.concepts.length} practised concepts in ${technology.name}`);
 
   return user.id;
 }

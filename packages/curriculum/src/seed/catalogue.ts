@@ -40,6 +40,19 @@ import type { SeedTechnologyInput } from './types.js';
  */
 export const TECHNOLOGY_CATALOGUE: Omit<SeedTechnologyInput, 'concepts'>[] = [
   {
+    slug: 'dsa',
+    exerciseLanguage: 'javascript',
+    name: 'DSA',
+    description:
+      'Data structures and algorithms. Added to every account automatically and ' +
+      'practised daily rather than studied in a block.',
+    category: 'foundations',
+    // Nothing gates it and it gates nothing: DSA runs alongside whatever
+    // else is being learned, from the first day to the last.
+    dependsOn: [],
+    learningOrder: 0,
+  },
+  {
     slug: 'javascript',
     exerciseLanguage: 'javascript',
     name: 'JavaScript',

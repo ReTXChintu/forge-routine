@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import { currentConcept } from '@forgeroutine/curriculum';
 import { dayKey } from '@forgeroutine/utils';
 
 import { Problems } from '../../../common/http/problem-details.js';
@@ -16,6 +17,8 @@ export interface RoutineItemView {
   rationale: string;
   conceptId: string | null;
   exerciseId: string | null;
+  /** RECALL items: how many questions are waiting on that concept. */
+  questionCount: number;
 }
 
 export interface RoutineView {
@@ -36,10 +39,17 @@ export interface RoutineView {
  * without reference to the first produces two planners that quietly disagree
  * (docs/learning-path.md).
  *
+ * Entirely rule-based. There is no model call anywhere in this file and
+ * there should never be one: the inputs are a time budget, an ordered
+ * roadmap and a set of due dates, and arithmetic answers that question
+ * exactly. Asking a model to do it would cost money to introduce variance
+ * into a plan whose whole value is that it is predictable.
+ *
  * Composition, in priority order:
- *   1. Reviews that are due — decay is the thing that undoes everything else.
- *   2. The next roadmap items, in order.
- *   3. Nothing else. A routine padded to fill the time is busywork.
+ *   1. Reviews that are due — decay undoes everything else.
+ *   2. DSA — one concept and one problem, every single day.
+ *   3. The next roadmap concept, its questions, then its exercises.
+ *   4. Nothing else. A routine padded to fill the time is busywork.
  */
 @Injectable()
 export class RoutinesService {
@@ -51,16 +61,27 @@ export class RoutinesService {
     private readonly generation: GenerationService,
   ) {}
 
-  async today(userId: string): Promise<RoutineView | null> {
+  /**
+   * Today's plan, built on first look.
+   *
+   * It used to return null until the user pressed "Plan today", which asked
+   * them to make a decision the app had already made: the budget is in their
+   * preferences, the order is in the roadmap, and the due dates are in the
+   * schedule. There was nothing left for the button to ask.
+   */
+  async today(userId: string): Promise<RoutineView> {
     const existing = await this.find(userId, startOfToday());
-    return existing ? this.toView(userId, existing.id) : null;
+    if (existing) return this.toView(userId, existing.id);
+
+    return this.generate(userId);
   }
 
   async generate(userId: string, force = false): Promise<RoutineView> {
     // Planning the day is the natural moment to look ahead: if the user is
     // well into what has been built, start building the next technology now
     // so it is ready before they reach it. Deliberately not awaited —
-    // generation takes minutes and the user wants their day.
+    // generation takes minutes and the user wants their day. Does nothing
+    // at all when AI is switched off.
     void this.generation.enqueueNext(userId).catch(() => undefined);
 
     const date = startOfToday();
@@ -73,16 +94,19 @@ export class RoutinesService {
     const preferences = await this.prisma.userPreferences.findUnique({ where: { userId } });
     const budget = preferences?.dailyMinutes ?? 45;
 
-    const [dueReviews, roadmapItems] = await Promise.all([
+    const planned: PlannedItem[] = [];
+    const claimed = new Set<string>();
+
+    const [dueReviews, dsa, roadmapItems] = await Promise.all([
       this.dueReviews(userId),
+      this.dsaBlock(userId),
       this.nextRoadmapItems(userId),
     ]);
 
-    const planned: PlannedItem[] = [];
+    // -- 1. Reviews -------------------------------------------------------
+    // A concept that decays takes the work that built it with it, so review
+    // outranks new ground even when new ground is more interesting.
     let used = 0;
-
-    // Reviews first. A concept that decays takes the work that built it with
-    // it, so review outranks new ground even when new ground is more fun.
     for (const review of dueReviews) {
       if (used + REVIEW_MINUTES > budget) break;
       planned.push({
@@ -95,28 +119,76 @@ export class RoutinesService {
             : 'Due today.',
         conceptId: review.conceptId,
         exerciseId: null,
+        questionCount: 0,
       });
       used += REVIEW_MINUTES;
     }
 
+    // -- 2. DSA -----------------------------------------------------------
+    // Added before the budget check and never dropped for want of minutes.
+    // The point of a daily problem is that it is daily; a plan that skips it
+    // on a busy day is a plan that skips it most days.
+    for (const item of dsa) {
+      planned.push(item);
+      used += item.minutes;
+      if (item.conceptId) claimed.add(item.conceptId);
+      if (item.exerciseId) claimed.add(item.exerciseId);
+    }
+
+    // -- 3. The roadmap ---------------------------------------------------
+    const questionCounts = await this.questionCounts(
+      roadmapItems.map((item) => item.conceptId).filter((id): id is string => id !== null),
+    );
+    const recalled = new Set<string>();
+
     for (const item of roadmapItems) {
       if (used >= budget) break;
+      if (item.exerciseId && claimed.has(item.exerciseId)) continue;
 
       // Include an item that overruns only if nothing has been planned yet:
-      // a 60-minute project against a 45-minute budget is better offered than
-      // silently withheld, but it must not crowd out a shorter day's work.
+      // a 60-minute project against a 45-minute budget is better offered
+      // than silently withheld, but it must not crowd out a shorter day.
       const fits = used + item.estimatedMinutes <= budget;
       if (!fits && planned.length > 0) continue;
 
+      // Narrowed rather than cast. The two enums match today, and the cast
+      // that used to sit here claimed every roadmap kind was LEARN — which
+      // is how PROJECT items reached the database and failed on insert.
+      const kind = toRoutineKind(item.kind);
+      if (!kind) {
+        this.logger.warn(`Unknown roadmap item kind "${item.kind}"; leaving it out of today`);
+        continue;
+      }
+
       planned.push({
-        kind: item.kind,
+        kind,
         minutes: item.estimatedMinutes,
         title: item.title,
         rationale: item.rationale,
         conceptId: item.conceptId,
         exerciseId: item.exerciseId,
+        questionCount: 0,
       });
       used += item.estimatedMinutes;
+
+      // Reading a concept and then being asked about it is the whole
+      // difference between studying and revising, so the questions follow
+      // the concept immediately rather than waiting for the review to fall
+      // due days later.
+      const count = item.conceptId ? (questionCounts.get(item.conceptId) ?? 0) : 0;
+      if (item.kind === 'LEARN' && count > 0 && !recalled.has(item.conceptId!)) {
+        recalled.add(item.conceptId!);
+        planned.push({
+          kind: 'RECALL',
+          minutes: QUESTION_MINUTES,
+          title: `${Math.min(count, QUESTIONS_PER_ITEM)} questions on ${stripPrefix(item.title)}`,
+          rationale: 'Answering beats rereading. This is what fixes it.',
+          conceptId: item.conceptId,
+          exerciseId: null,
+          questionCount: Math.min(count, QUESTIONS_PER_ITEM),
+        });
+        used += QUESTION_MINUTES;
+      }
     }
 
     const routine = await this.persist(userId, date, planned, existing?.id);
@@ -169,6 +241,156 @@ export class RoutinesService {
     }));
   }
 
+  /**
+   * The daily DSA block: where you are in the sequence, and one problem.
+   *
+   * Selected outside the roadmap on purpose. DSA sorts first in the
+   * learning order, so a roadmap-driven plan would front-load the whole
+   * subject and finish it before touching anything else — which is exactly
+   * the cramming this is meant to replace. One concept and one problem a
+   * day, alongside whatever else is being learned.
+   */
+  private async dsaBlock(userId: string): Promise<PlannedItem[]> {
+    const owned = await this.prisma.userTechnology.findFirst({
+      where: {
+        userId,
+        status: 'ACTIVE',
+        archivedAt: null,
+        technology: { slug: DSA_SLUG },
+      },
+      select: { technologyId: true },
+    });
+
+    // Archived, or never added. Either way the user has decided, and the
+    // planner does not argue with it.
+    if (!owned) return [];
+
+    const concepts = await this.prisma.concept.findMany({
+      where: { technologyId: owned.technologyId, archivedAt: null },
+      orderBy: { orderIndex: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        orderIndex: true,
+        exercises: {
+          where: { archivedAt: null, kind: { in: ['CODING', 'DEBUGGING'] } },
+          orderBy: [{ difficulty: 'asc' }, { createdAt: 'asc' }],
+          select: { id: true, title: true, estimatedMinutes: true },
+        },
+        _count: { select: { questions: { where: { archivedAt: null } } } },
+      },
+    });
+
+    if (concepts.length === 0) return [];
+
+    const cleared = await this.clearedConceptIds(
+      userId,
+      concepts.map((concept) => concept.id),
+    );
+
+    const currentId =
+      currentConcept(
+        concepts.map((concept) => ({
+          conceptId: concept.id,
+          orderIndex: concept.orderIndex,
+          hasPractice: concept.exercises.length > 0,
+        })),
+        { clearedConceptIds: cleared },
+      ) ?? concepts[concepts.length - 1]!.id;
+
+    const concept = concepts.find((candidate) => candidate.id === currentId);
+    if (!concept) return [];
+
+    const items: PlannedItem[] = [
+      {
+        kind: 'LEARN',
+        minutes: DSA_LEARN_MINUTES,
+        title: `DSA: ${concept.name}`,
+        rationale: 'Today’s technique. Read it, then use it on the problem below.',
+        conceptId: concept.id,
+        exerciseId: null,
+        questionCount: 0,
+      },
+    ];
+
+    if (concept._count.questions > 0) {
+      items.push({
+        kind: 'RECALL',
+        minutes: QUESTION_MINUTES,
+        title: `${Math.min(concept._count.questions, QUESTIONS_PER_ITEM)} questions on ${concept.name}`,
+        rationale: 'Checks you can state it, not just recognise it.',
+        conceptId: concept.id,
+        exerciseId: null,
+        questionCount: Math.min(concept._count.questions, QUESTIONS_PER_ITEM),
+      });
+    }
+
+    // Exactly one. Two problems is a different product, and the thing that
+    // makes this work is that it is small enough to do on a bad day.
+    const exercise = await this.unsolvedExercise(userId, concept.exercises);
+    if (exercise) {
+      items.push({
+        kind: 'CODE',
+        minutes: exercise.estimatedMinutes,
+        title: `DSA problem: ${exercise.title}`,
+        rationale: 'One problem, every day. This is the part that compounds.',
+        conceptId: concept.id,
+        exerciseId: exercise.id,
+        questionCount: 0,
+      });
+    }
+
+    return items;
+  }
+
+  /** The easiest exercise the user has not already passed, else the easiest. */
+  private async unsolvedExercise(
+    userId: string,
+    exercises: readonly { id: string; title: string; estimatedMinutes: number }[],
+  ) {
+    if (exercises.length === 0) return null;
+
+    const passed = await this.prisma.exerciseAttempt.findMany({
+      where: {
+        userId,
+        outcome: 'PASSED',
+        exerciseId: { in: exercises.map((exercise) => exercise.id) },
+      },
+      select: { exerciseId: true },
+    });
+
+    const solved = new Set(passed.map((attempt) => attempt.exerciseId));
+
+    // Falling back to the first rather than returning nothing: re-solving a
+    // problem you have done before is a worse day than a new one, and a
+    // better day than no problem at all.
+    return exercises.find((exercise) => !solved.has(exercise.id)) ?? exercises[0]!;
+  }
+
+  private async clearedConceptIds(
+    userId: string,
+    conceptIds: readonly string[],
+  ): Promise<Set<string>> {
+    const passed = await this.prisma.exerciseAttempt.findMany({
+      where: { userId, outcome: 'PASSED', exercise: { conceptId: { in: [...conceptIds] } } },
+      select: { exercise: { select: { conceptId: true } } },
+    });
+
+    return new Set(passed.map((attempt) => attempt.exercise.conceptId));
+  }
+
+  private async questionCounts(conceptIds: readonly string[]): Promise<Map<string, number>> {
+    if (conceptIds.length === 0) return new Map();
+
+    const grouped = await this.prisma.conceptQuestion.groupBy({
+      by: ['conceptId'],
+      where: { conceptId: { in: [...conceptIds] }, archivedAt: null },
+      _count: { _all: true },
+    });
+
+    return new Map(grouped.map((row) => [row.conceptId, row._count._all]));
+  }
+
   private async nextRoadmapItems(userId: string) {
     const roadmap = await this.roadmap.getActive(userId);
     if (!roadmap) return [];
@@ -201,13 +423,14 @@ export class RoutinesService {
         await tx.routineItem.createMany({
           data: planned.map((item, index) => ({
             routineId: routine.id,
-            kind: item.kind as 'LEARN',
+            kind: item.kind,
             minutes: item.minutes,
             orderIndex: index,
             title: item.title,
             rationale: item.rationale,
             conceptId: item.conceptId,
             exerciseId: item.exerciseId,
+            questionCount: item.questionCount,
           })),
         });
       }
@@ -264,15 +487,54 @@ export class RoutinesService {
 }
 
 interface PlannedItem {
-  kind: string;
+  kind: RoutineKind;
   minutes: number;
   title: string;
   rationale: string;
   conceptId: string | null;
   exerciseId: string | null;
+  questionCount: number;
 }
 
+type RoutineKind =
+  | 'LEARN'
+  | 'RECALL'
+  | 'CODE'
+  | 'BLIND_CODE'
+  | 'DEBUG'
+  | 'EXPLAIN'
+  | 'PROJECT'
+  | 'CHECKPOINT'
+  | 'REVIEW'
+  | 'INTERVIEW';
+
+const ROUTINE_KINDS = [
+  'LEARN',
+  'RECALL',
+  'CODE',
+  'BLIND_CODE',
+  'DEBUG',
+  'EXPLAIN',
+  'PROJECT',
+  'CHECKPOINT',
+  'REVIEW',
+  'INTERVIEW',
+] as const satisfies readonly RoutineKind[];
+
+function toRoutineKind(kind: string): RoutineKind | null {
+  return (ROUTINE_KINDS as readonly string[]).includes(kind) ? (kind as RoutineKind) : null;
+}
+
+const DSA_SLUG = 'dsa';
 const REVIEW_MINUTES = 8;
+const QUESTION_MINUTES = 5;
+const DSA_LEARN_MINUTES = 8;
+const QUESTIONS_PER_ITEM = 3;
+
+/** Roadmap titles arrive as "Learn closures"; the verb is already in the row. */
+function stripPrefix(title: string): string {
+  return title.replace(/^(Learn|Practise|Practice|Study)\s+/i, '');
+}
 
 function startOfToday(): Date {
   const date = new Date();
@@ -289,6 +551,7 @@ function toItemView(item: {
   rationale: string;
   conceptId: string | null;
   exerciseId: string | null;
+  questionCount: number;
 }): RoutineItemView {
   return {
     id: item.id,
@@ -299,5 +562,6 @@ function toItemView(item: {
     rationale: item.rationale,
     conceptId: item.conceptId,
     exerciseId: item.exerciseId,
+    questionCount: item.questionCount,
   };
 }

@@ -85,9 +85,7 @@ async function main() {
   // One statement so foreign keys never see an inconsistent intermediate
   // state. CASCADE follows references; RESTART IDENTITY resets sequences so
   // a fresh database really does start from the beginning.
-  await prisma.$executeRawUnsafe(
-    `TRUNCATE TABLE ${names.join(', ')} RESTART IDENTITY CASCADE`,
-  );
+  await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${names.join(', ')} RESTART IDENTITY CASCADE`);
 
   const remaining = await prisma.user.count();
   console.log(`  done — ${remaining} accounts remain`);

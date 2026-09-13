@@ -54,7 +54,13 @@ export class RecallService {
    * so a new user is not told there is nothing to review when in fact nothing
    * has been scheduled yet.
    */
-  async due(userId: string, limit = 3): Promise<RecallPromptView[]> {
+  async due(userId: string, limit = 3, conceptId?: string): Promise<RecallPromptView[]> {
+    // A routine RECALL item asks for one concept's questions specifically,
+    // and wants several of them rather than the one-per-concept spread the
+    // between-items prompt uses. That is a different question, so it takes a
+    // different path rather than being squeezed through the scheduler.
+    if (conceptId) return this.forConcept(conceptId, limit);
+
     const dueSchedules = await this.prisma.reviewSchedule.findMany({
       where: { userId, frozenAt: null, dueAt: { lte: new Date() } },
       orderBy: { dueAt: 'asc' },
@@ -93,6 +99,35 @@ export class RecallService {
     }
 
     return [...byConcept.values()].slice(0, limit).map((question) => ({
+      id: question.id,
+      conceptId: question.conceptId,
+      conceptName: question.concept.name,
+      technologyName: question.concept.technology.name,
+      prompt: question.prompt,
+      options: question.options,
+    }));
+  }
+
+  /**
+   * Every question on one concept, up to `limit`.
+   *
+   * No scheduling filter: the user chose this concept by opening the item,
+   * and refusing to show questions because the spaced-repetition clock says
+   * "not yet" would be the product overruling a deliberate request.
+   */
+  private async forConcept(conceptId: string, limit: number): Promise<RecallPromptView[]> {
+    const questions = await this.prisma.conceptQuestion.findMany({
+      where: { conceptId, archivedAt: null },
+      orderBy: { difficulty: 'asc' },
+      take: limit,
+      include: {
+        concept: {
+          select: { id: true, name: true, technology: { select: { name: true } } },
+        },
+      },
+    });
+
+    return questions.map((question) => ({
       id: question.id,
       conceptId: question.conceptId,
       conceptName: question.concept.name,

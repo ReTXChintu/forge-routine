@@ -11,6 +11,15 @@ import { CurriculumImportService } from '../../curriculum/application/curriculum
 import { SkillsService } from '../../skills/application/skills.service.js';
 
 /**
+ * Technologies every account gets, whether or not the user picked them.
+ *
+ * Kept as data next to the service that applies it rather than in the
+ * catalogue, because "compulsory" is a product decision about users and not
+ * a property of the subject.
+ */
+const COMPULSORY_SLUGS = ['dsa'] as const;
+
+/**
  * The user's learning universe (§5).
  *
  * The central invariant: **removing a technology must never destroy learning
@@ -51,6 +60,51 @@ export class TechnologiesService {
     });
 
     return rows.map(toUserTechnology);
+  }
+
+  /**
+   * Adds the technologies nobody opts out of.
+   *
+   * Only DSA today. It is compulsory because it is the one subject an
+   * interview asks about whatever the stack, and because it is the one that
+   * genuinely rewards fifteen minutes a day over a fortnight at the end.
+   *
+   * Idempotent, and safe to call on every sign-in: a user who already has
+   * it keeps whatever priority and progress they had. It deliberately does
+   * *not* un-archive — someone who removed it made a decision, and silently
+   * putting it back every morning would be the product arguing with them.
+   */
+  async ensureCompulsory(userId: string): Promise<void> {
+    for (const slug of COMPULSORY_SLUGS) {
+      const technology = await this.prisma.technology.findUnique({
+        where: { slug },
+        select: { id: true },
+      });
+
+      // Seeded, so a missing row means the seed has not run. Skipping is
+      // right: failing sign-in over it would be a worse trade.
+      if (!technology) {
+        this.logger.warn(`Compulsory technology "${slug}" is not in the catalogue; skipping`);
+        continue;
+      }
+
+      const existing = await this.prisma.userTechnology.findUnique({
+        where: { userId_technologyId: { userId, technologyId: technology.id } },
+        select: { id: true },
+      });
+      if (existing) continue;
+
+      await this.add(userId, {
+        technologyId: technology.id,
+        priority: 'HIGH',
+        targetProficiency: 'PROFICIENT',
+        interviewImportance: 5,
+        frequency: 'DAILY',
+        existingKnowledge: 0,
+      });
+
+      this.logger.log(`Added compulsory technology "${slug}" for ${userId}`);
+    }
   }
 
   /**

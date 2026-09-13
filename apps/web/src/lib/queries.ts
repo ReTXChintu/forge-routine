@@ -558,6 +558,28 @@ export function useRecallDue(enabled = true): UseQueryResult<RecallPromptView[]>
   });
 }
 
+/**
+ * The questions for one concept, for a routine RECALL item.
+ *
+ * Separate from `useRecallDue` because it is a different question: that one
+ * asks "what is fading", this one asks "what is on today's plan", and they
+ * must not share a cache entry.
+ */
+export function useConceptQuestions(
+  conceptId: string | null,
+  limit = 3,
+): UseQueryResult<RecallPromptView[]> {
+  return useQuery({
+    queryKey: ['recall', 'concept', conceptId, limit] as const,
+    queryFn: () =>
+      apiRequest<RecallPromptView[]>(
+        `/recall/due?conceptId=${encodeURIComponent(conceptId!)}&limit=${limit}`,
+      ),
+    enabled: conceptId !== null,
+    staleTime: 60_000,
+  });
+}
+
 export function useAnswerRecall() {
   const queryClient = useQueryClient();
 
@@ -583,6 +605,8 @@ export interface RoutineItemView {
   rationale: string;
   conceptId: string | null;
   exerciseId: string | null;
+  /** RECALL items: how many questions this item covers. */
+  questionCount: number;
 }
 
 export interface RoutineView {
@@ -597,11 +621,9 @@ export interface RoutineView {
 export function useTodayRoutine(): UseQueryResult<RoutineView | null> {
   return useQuery({
     queryKey: queryKeys.routineToday,
-    queryFn: async () => {
-      const result = await apiRequest<RoutineView | null>('/routines/today');
-      // No routine generated yet reads as an empty body, not an empty routine.
-      return result && Object.keys(result).length > 0 ? result : null;
-    },
+    // The server plans the day on first look, so this no longer comes back
+    // empty. The null is kept only for the moment before the first fetch.
+    queryFn: () => apiRequest<RoutineView>('/routines/today'),
   });
 }
 

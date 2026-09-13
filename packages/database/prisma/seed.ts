@@ -153,6 +153,26 @@ async function importTechnology(
     conceptIds.set(concept.slug, row.id);
   }
 
+  // Recall questions, replaced wholesale. A question's prompt is its
+  // identity, so upserting would leave an edited question behind as a
+  // duplicate with a different answer key.
+  for (const concept of seed.concepts) {
+    const conceptId = conceptIds.get(concept.slug);
+    if (!conceptId || concept.questions.length === 0) continue;
+
+    await tx.conceptQuestion.deleteMany({ where: { conceptId } });
+    await tx.conceptQuestion.createMany({
+      data: concept.questions.map((question) => ({
+        conceptId,
+        prompt: question.prompt,
+        options: question.options,
+        correctIndex: question.correctIndex,
+        explanation: question.explanation,
+        difficulty: question.difficulty,
+      })),
+    });
+  }
+
   for (const concept of seed.concepts) {
     const conceptId = conceptIds.get(concept.slug);
     if (!conceptId) continue;

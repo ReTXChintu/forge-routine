@@ -54,6 +54,8 @@ class ApiClient {
 
   Future<T> post<T>(String path, {Object? body}) => _send<T>('POST', path, body: body);
 
+  Future<T> patch<T>(String path, {Object? body}) => _send<T>('PATCH', path, body: body);
+
   Future<T> _send<T>(
     String method,
     String path, {
@@ -68,9 +70,13 @@ class ApiClient {
       if (token != null) 'Authorization': 'Bearer $token',
     };
 
-    final response = method == 'POST'
-        ? await _http.post(uri, headers: headers, body: jsonEncode(body ?? <String, Object?>{}))
-        : await _http.get(uri, headers: headers);
+    final encoded = jsonEncode(body ?? <String, Object?>{});
+
+    final response = switch (method) {
+      'POST' => await _http.post(uri, headers: headers, body: encoded),
+      'PATCH' => await _http.patch(uri, headers: headers, body: encoded),
+      _ => await _http.get(uri, headers: headers),
+    };
 
     // One transparent refresh. The isRetry guard stops an expired refresh
     // token from spinning forever.

@@ -2,15 +2,17 @@
 
 Phases are ordered by dependency, not by appeal.
 
-Phases 1–8 are complete. A user can pick technologies, get a generated and ordered
-roadmap, work through it a day at a time, write code and have it graded, build projects
-that make them compose what they learned, be interrupted at boundaries by recall prompts
-that keep it from fading, and sit a live adaptive interview that tells them where they
-would be caught out. The design behind the path is in `learning-path.md`.
+All ten phases are built. A user can pick technologies, get a generated and ordered
+roadmap, work through it a day at a time on either a desktop or a phone, write code and
+have it graded, build projects that force them to compose what they learned, be caught by
+recall prompts at the boundaries, sit a live adaptive interview by typing or by speaking,
+and take on the engineering work a coding sandbox cannot express. The design behind
+the path is in `learning-path.md`.
 
-Phase 9 added the engineering work a coding sandbox cannot express — system design,
-production incidents, and a simulated shell. What remains is Phase 10: putting it on a
-phone.
+What is left is not a phase. It is the ordinary work of using it: the generated
+curriculum is proven solvable but not proven well-chosen, the sandbox has no filesystem
+isolation on Windows, and the two device-dependent mobile features have never run on a
+device.
 
 ## Phase 1 — Foundation — **done**
 
@@ -241,10 +243,48 @@ The pattern is now established twice: **ask the model for observations, compute 
 numbers in code.** Models are reliable at "is this a gap, and how bad" and unreliable at
 turning that into a score.
 
-## Phase 10 — Mobile — **next**
+## Phase 10 — Mobile — **done**
 
-Flutter expansion: daily routine, reviews, interviews, voice interview, progress,
-notifications.
+Four tabs, chosen by what genuinely works one-handed: today's routine, reviews,
+interviews, progress. Plus the sign-in screen the app did not previously have.
+
+**Writing code is absent on purpose (§4).** Reproducing the desktop editor on a phone
+would be a worse version of both. Coding items appear in the routine with their rationale
+and say plainly that they belong at a desk, so the phone is for reading the brief on the
+train and the desk is for writing the code.
+
+There is no registration and no onboarding here either. Choosing technologies and having
+a roadmap generated is a sit-down decision, and doing it on a phone while half-attending
+produces a plan the user did not mean.
+
+**Voice interview.** An interview is spoken. Typing an answer lets you edit it into
+shape, which is the one thing you cannot do in the room; speaking it surfaces the
+hesitation and circling an interviewer actually hears — and `explanationAbility` is the
+dimension this product has the least evidence for. Dictation uses the platform
+recogniser, so no audio is recorded or uploaded and only the transcript is sent, byte for
+byte the same request a typed answer produces. The screen says so, and the iOS permission
+strings say so, because a feature that asks for the microphone should say what happens to
+the audio.
+
+`VoiceInput` is an interface with a `FakeVoiceInput` implementation, so the interview
+screen is unit-testable without a microphone and a device with no recogniser degrades to
+typing rather than to a dead button.
+
+**Notifications** are scheduled locally. A push backend for one notification a day is
+infrastructure with no user benefit, and it would mean the server knowing when someone is
+asleep. One reminder a day, and it is **not a streak** — streak notifications work by
+making people anxious, and an anxious learner opens the app to clear a badge rather than
+to think. Permission is requested from the progress screen, where the user has context
+for why, rather than on first launch where it simply gets denied.
+
+### What is not verified
+
+`flutter analyze` and `flutter test` pass (23 tests), which proves the code compiles and
+the widgets behave. They do not prove anything about the two device-dependent features:
+dictation and notifications both need a real handset to confirm, and neither has had one.
+The permissions are declared in both manifests and the code handles refusal as an
+ordinary outcome, but "handles refusal correctly" and "works when granted" are different
+claims and only the first is currently supported by evidence.
 
 ## Deferred deliberately
 

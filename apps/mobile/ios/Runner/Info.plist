@@ -2,6 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Voice interview. Both strings are shown verbatim in the system prompt,
+	     so they say exactly what happens rather than "to improve your
+	     experience". -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>ForgeRoutine uses the microphone so you can speak your interview answers instead of typing them. No audio is recorded or uploaded — only the text.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Speech recognition turns your spoken interview answer into text on this device. Only the text is sent to ForgeRoutine.</string>
+
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

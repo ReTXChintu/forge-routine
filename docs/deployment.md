@@ -35,11 +35,11 @@ listening on 80 and 443.
 
 ## PM2 processes
 
-| Process                | Mode   | Instances | Purpose                                                                                    |
-| ---------------------- | ------ | --------- | ------------------------------------------------------------------------------------------ |
-| `forgeroutine-web`     | fork   | 1         | Static bundle on 50004, SPA fallback on.                                                     |
-| `forgeroutine-api`     | fork   | 1         | HTTP API on 50005.                                                                           |
-| `forgeroutine-sandbox` | fork   | 1         | Code execution. Fork always — these spawn child processes and must not share a cluster master. |
+| Process                | Mode | Instances | Purpose                                                                                        |
+| ---------------------- | ---- | --------- | ---------------------------------------------------------------------------------------------- |
+| `forgeroutine-web`     | fork | 1         | Static bundle on 50004, SPA fallback on.                                                       |
+| `forgeroutine-api`     | fork | 1         | HTTP API on 50005.                                                                             |
+| `forgeroutine-sandbox` | fork | 1         | Code execution. Fork always — these spawn child processes and must not share a cluster master. |
 
 One instance each, sized for about ten users. See [Restarts](#restarts) for what that
 costs.
@@ -148,7 +148,7 @@ where PM2 starts a replacement worker before retiring the old one. With one proc
 there is nothing to hand over to, so `pnpm restart` costs a second or two of refused
 connections.
 
-It is still *graceful*, which is a different thing: the API stops accepting connections,
+It is still _graceful_, which is a different thing: the API stops accepting connections,
 drains in-flight requests, closes Prisma and Redis, then exits, with `kill_timeout` at
 10s. Nobody loses a submission mid-flight. Somebody arriving during the gap gets a
 failure.

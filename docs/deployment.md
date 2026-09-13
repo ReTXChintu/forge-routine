@@ -44,6 +44,30 @@ listening on 80 and 443.
 One instance each, sized for about ten users. See [Restarts](#restarts) for what that
 costs.
 
+`pnpm start` brings up the API and web only. The sandbox worker consumes a Redis queue
+and exits without one, so under `EXECUTION_DRIVER=inline` it would crash-loop forever
+and paint the dashboard red while nothing is actually wrong. Use `pnpm start:queue` when
+running the queue topology.
+
+## Execution driver
+
+`inline` is the default and is supported in production.
+
+It used to be forbidden there, on the grounds that it would "block API workers". That
+was never quite true: inline spawns a sandbox child process and awaits it, which is
+async I/O, not event-loop work. Code has always run out-of-process — `inline` describes
+who starts it, not where it runs.
+
+The real risk was that inline had no backpressure. N simultaneous submissions meant N
+child processes, each allowed `EXECUTION_MAX_MEMORY_MB`, with nothing to stop them.
+`InlineExecutionAdapter` now honours `EXECUTION_CONCURRENCY` exactly as the queue workers
+do: past the limit, submissions wait. Config also refuses to boot if
+`EXECUTION_CONCURRENCY × EXECUTION_MAX_MEMORY_MB` exceeds 1GB, which is the out-of-memory
+the old rule was really guarding against.
+
+So the driver choice is now about topology. Use `queue` to spread execution across
+machines; use `inline` when one box is enough, and skip Redis entirely.
+
 Defined in `ecosystem.config.cjs` at the repository root, which is where PM2
 looks by default.
 

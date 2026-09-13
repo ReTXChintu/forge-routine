@@ -32,12 +32,13 @@
     "release:patch": "release-it patch",
     "release:major": "release-it major",
     "release:dry": "release-it --dry-run --ci",
-    "start": "pm2 start ecosystem.config.cjs --env production",
-    "stop": "pm2 stop forgeroutine-api forgeroutine-web forgeroutine-sandbox",
-    "restart": "pm2 reload forgeroutine-api forgeroutine-web forgeroutine-sandbox",
-    "delete": "pm2 delete forgeroutine-api forgeroutine-web forgeroutine-sandbox",
+    "start": "pm2 start ecosystem.config.cjs --only forgeroutine-api,forgeroutine-web --env production",
+    "stop": "pm2 stop all",
+    "restart": "pm2 reload all",
+    "delete": "pm2 delete all",
     "logs": "pm2 logs --lines 100",
-    "status": "pm2 status"
+    "status": "pm2 status",
+    "start:queue": "pm2 start ecosystem.config.cjs --env production"
   },
   "devDependencies": {
     "@types/node": "^20.19.9",
@@ -48,6 +49,7 @@
     "eslint-plugin-import": "^2.31.0",
     "husky": "^9.1.7",
     "lint-staged": "^15.4.1",
+    "pm2": "^7.0.4",
     "prettier": "^3.4.2",
     "release-it": "^21.0.2",
     "rimraf": "^6.0.1",

@@ -82,13 +82,37 @@ export const envSchema = z
         message: 'Access and refresh secrets must differ',
       });
     }
+    // The inline driver is allowed in production, with a bound.
+    //
+    // It used to be forbidden, on the grounds that it would "block API
+    // workers". That was never quite true: inline spawns a sandbox child
+    // process and awaits it, which is async I/O, not event-loop work. The
+    // real risk is that inline had no backpressure — N simultaneous
+    // submissions meant N child processes, each allowed
+    // EXECUTION_MAX_MEMORY_MB, and nothing to stop them.
+    //
+    // InlineExecutionAdapter now honours EXECUTION_CONCURRENCY the same way
+    // the queue workers do, so the bound exists either way and the driver
+    // choice is about topology rather than safety. Requiring Redis and a
+    // second process for a handful of users was infrastructure with no user
+    // benefit.
+    //
+    // What is still checked is that the bound is sane: a high concurrency
+    // with a single API process is the OOM the old rule was really guarding
+    // against.
     if (env.EXECUTION_DRIVER === 'inline') {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['EXECUTION_DRIVER'],
-        message:
-          'EXECUTION_DRIVER must be "queue" in production so code execution cannot block API workers',
-      });
+      const worstCaseMb = env.EXECUTION_CONCURRENCY * env.EXECUTION_MAX_MEMORY_MB;
+
+      if (worstCaseMb > 1_024) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['EXECUTION_CONCURRENCY'],
+          message:
+            `EXECUTION_CONCURRENCY × EXECUTION_MAX_MEMORY_MB is ${worstCaseMb}MB of sandboxes ` +
+            'alongside the API in one process tree. Lower one of them, or use the queue driver ' +
+            'and run apps/sandbox on its own.',
+        });
+      }
     }
     if (env.EXECUTION_DRIVER === 'queue' && !env.REDIS_ENABLED) {
       ctx.addIssue({

@@ -1,0 +1,169 @@
+name: CD
+
+# Runs on a release tag. Releases are cut with `pnpm release`, which bumps
+# every app, tags, and pushes — so the tag is the trigger rather than a push
+# to main. A build that ships to a server should correspond to a version
+# somebody chose.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Tag or branch to build'
+        required: false
+        default: main
+
+concurrency:
+  # Never two deploys to the same box at once, and do not cancel one halfway:
+  # a cancelled scp leaves a truncated APK where a working one used to be.
+  group: cd-production
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    name: Build and publish the Android app
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      # Analysed before building. A release APK that does not compile fails
+      # here anyway, but a lint failure should not be discovered by a user
+      # downloading it.
+      - name: Analyze
+        working-directory: apps/mobile
+        run: flutter analyze
+
+      - name: Test
+        working-directory: apps/mobile
+        run: flutter test
+
+      - name: Build release APK
+        working-directory: apps/mobile
+        env:
+          API_BASE_URL: ${{ vars.MOBILE_API_BASE_URL }}
+        run: |
+          # The base URL is compiled in, so the same binary can never be
+          # pointed at the wrong backend at runtime. Without the variable set
+          # the build would silently ship pointing at an emulator loopback,
+          # which is useless on a real phone — so fail instead.
+          if [ -z "$API_BASE_URL" ]; then
+            echo "::error::MOBILE_API_BASE_URL repository variable is not set."
+            echo "Set it to the public API base, e.g. https://example.com/api/v1"
+            exit 1
+          fi
+          flutter build apk --release --dart-define=API_BASE_URL="$API_BASE_URL"
+
+      - name: Report size
+        working-directory: apps/mobile
+        run: ls -lh build/app/outputs/flutter-apk/app-release.apk
+
+      # Kept regardless of whether the upload succeeds, so a deploy failure
+      # never means rebuilding to get the artefact back.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ForgeRoutine-apk
+          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+      - name: Authorise the deploy key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          if [ -z "$SSH_PRIVATE_KEY" ] || [ -z "$SSH_HOST" ]; then
+            echo "::error::DEPLOY_SSH_KEY and DEPLOY_HOST secrets are required."
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+
+          # The host key is pinned from a secret rather than accepted blindly.
+          # StrictHostKeyChecking=no would make this job trust whatever answers
+          # on that address, which is the whole attack.
+          if [ -n "${{ secrets.DEPLOY_KNOWN_HOSTS }}" ]; then
+            printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          else
+            echo "::error::DEPLOY_KNOWN_HOSTS is not set."
+            echo "Generate it with: ssh-keyscan -p ${SSH_PORT:-22} $SSH_HOST"
+            exit 1
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload the APK
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_USER }}
+          SSH_PORT: ${{ secrets.DEPLOY_PORT }}
+          # Where the web server actually serves files from. Overridable
+          # because a path baked into a workflow is a path nobody can fix
+          # without a commit.
+          APK_DIR: ${{ vars.DEPLOY_APK_DIR || '/opt/var/spendlog/apps/web/public' }}
+        run: |
+          PORT="${SSH_PORT:-22}"
+          USER="${SSH_USER:-root}"
+          SOURCE=apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+
+          ssh -i ~/.ssh/deploy -p "$PORT" "$USER@$SSH_HOST" \
+            "mkdir -p '$APK_DIR'"
+
+          # Uploaded under a temporary name and moved into place, because mv
+          # within a filesystem is atomic and scp is not. Without this, anyone
+          # downloading during the upload gets a half-written APK that
+          # installs and then fails to launch.
+          scp -i ~/.ssh/deploy -P "$PORT" \
+            "$SOURCE" "$USER@$SSH_HOST:$APK_DIR/.Forgeroutine.apk.incoming"
+
+          ssh -i ~/.ssh/deploy -p "$PORT" "$USER@$SSH_HOST" \
+            "mv '$APK_DIR/.Forgeroutine.apk.incoming' '$APK_DIR/Forgeroutine.apk' \
+             && chmod 644 '$APK_DIR/Forgeroutine.apk' \
+             && ls -lh '$APK_DIR/Forgeroutine.apk'"
+
+      # Vite copies `public/` into `dist/` at build time, and PM2 serves
+      # `dist/`. An APK dropped into `public/` after a build is therefore not
+      # reachable until the next web build — the download button would 404
+      # with the file sitting right there on disk.
+      #
+      # So it goes in both. `public/` is the source of truth and survives a
+      # rebuild; `dist/` is what is being served right now. Skipped when
+      # there is no sibling `dist/`, because the directory is configurable
+      # and may not be inside the web app at all.
+      - name: Make it reachable without a rebuild
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_USER }}
+          SSH_PORT: ${{ secrets.DEPLOY_PORT }}
+          APK_DIR: ${{ vars.DEPLOY_APK_DIR || '/opt/var/spendlog/apps/web/public' }}
+        run: |
+          PORT="${SSH_PORT:-22}"
+          USER="${SSH_USER:-root}"
+          DIST="$(dirname "$APK_DIR")/dist"
+
+          ssh -i ~/.ssh/deploy -p "$PORT" "$USER@$SSH_HOST" \
+            "if [ -d '$DIST' ]; then \
+               cp '$APK_DIR/Forgeroutine.apk' '$DIST/Forgeroutine.apk' && \
+               echo 'Also served from $DIST'; \
+             else \
+               echo 'No sibling dist/; served after the next web build.'; \
+             fi"
+
+      - name: Clean up the key
+        if: always()
+        run: rm -f ~/.ssh/deploy

@@ -15,6 +15,7 @@ import {
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { DownloadApkCard } from '~/components/DownloadApk';
 import { ApiError } from '~/lib/api';
 import { useLogin, useRegister } from '~/lib/queries';
 
@@ -150,6 +151,11 @@ export function AuthScreen() {
               </Button>
             </HStack>
           </VStack>
+
+          {/* Outside the form, and reachable without an account: deciding
+              whether this is worth your evening should not require signing
+              up first. */}
+          <DownloadApkCard />
         </Box>
       </Box>
     </Box>

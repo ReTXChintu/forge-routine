@@ -21,10 +21,10 @@ export const envSchema = z
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
 
-    API_PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
+    API_PORT: z.coerce.number().int().min(1).max(65_535).default(50005),
     API_HOST: z.string().default('0.0.0.0'),
     API_GLOBAL_PREFIX: z.string().default('api'),
-    CORS_ORIGINS: z.string().default('http://localhost:5173'),
+    CORS_ORIGINS: z.string().default('http://localhost:50004'),
 
     DATABASE_URL: z.string().url().startsWith('postgres'),
     DIRECT_DATABASE_URL: z.string().url().optional().or(z.literal('')),

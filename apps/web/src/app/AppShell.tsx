@@ -2,6 +2,7 @@ import { Box, Button, Flex, HStack, Image, Kbd, Text } from '@chakra-ui/react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 import { CommandPalette } from '~/components/CommandPalette';
+import { DownloadApkButton } from '~/components/DownloadApk';
 import { tokenStore } from '~/lib/api';
 
 import appIcon from '../../../../assets/brand/app-icon-64.png';
@@ -72,6 +73,9 @@ export function AppShell() {
               K
             </Kbd>
           </HStack>
+          <Box display={{ base: 'none', sm: 'block' }}>
+            <DownloadApkButton />
+          </Box>
           <Button variant="ghost" size="xs" onClick={signOut}>
             Sign out
           </Button>

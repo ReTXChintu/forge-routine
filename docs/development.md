@@ -23,7 +23,7 @@ pnpm db:seed
 pnpm dev
 ```
 
-`pnpm dev` runs the API on `:4000` and the web app on `:5173` through Turborepo, along with
+`pnpm dev` runs the API on `:50005` and the web app on `:50004` through Turborepo, along with
 a watcher for every shared package so a change in `packages/*` propagates without a manual
 rebuild.
 

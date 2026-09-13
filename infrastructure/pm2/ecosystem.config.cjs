@@ -4,9 +4,14 @@
  * No containers anywhere. PostgreSQL and Redis are external managed services
  * reached by connection string.
  *
- *   pm2 start infrastructure/pm2/ecosystem.config.cjs --env production
- *   pm2 reload forgeroutine-api     # zero-downtime, one worker at a time
+ *   pnpm start                      # everything, production env
+ *   pnpm restart                    # zero-downtime reload
+ *   pnpm stop
  *   pm2 save && pm2 startup         # survive reboot
+ *
+ * Ports: the web bundle is served on 50004 and the API listens on 50005.
+ * Both are behind nginx in production, which is the only thing bound to 80
+ * and 443.
  *
  * Secrets live in an .env file outside the repository, mode 0600, owned by the
  * service user. Set FORGEROUTINE_ENV_FILE if it is not at the default path.
@@ -16,6 +21,9 @@ const { resolve } = require('node:path');
 
 const ROOT = resolve(__dirname, '../..');
 const ENV_FILE = process.env.FORGEROUTINE_ENV_FILE ?? '/etc/forgeroutine/.env';
+
+const WEB_PORT = process.env.WEB_PORT ?? 50004;
+const API_PORT = process.env.API_PORT ?? 50005;
 
 module.exports = {
   apps: [
@@ -43,11 +51,46 @@ module.exports = {
       restart_delay: 2_000,
 
       env_file: ENV_FILE,
-      env: { NODE_ENV: 'development' },
-      env_production: { NODE_ENV: 'production' },
+      // PORT is set here rather than only in the env file so the process
+      // cannot silently come up on the default and leave nginx proxying to
+      // nothing.
+      env: { NODE_ENV: 'development', API_PORT },
+      env_production: { NODE_ENV: 'production', API_PORT },
 
       out_file: '/var/log/forgeroutine/api.out.log',
       error_file: '/var/log/forgeroutine/api.err.log',
+      merge_logs: true,
+      time: true,
+    },
+
+    {
+      name: 'forgeroutine-web',
+      cwd: resolve(ROOT, 'apps/web'),
+
+      // `pm2 serve` rather than a hand-written static server: this is a
+      // built SPA and nothing about serving it is worth owning code for.
+      // `--spa` matters — every client route must fall back to index.html or
+      // a refresh on /roadmap returns 404.
+      script: 'npx',
+      args: `serve dist ${WEB_PORT} --spa --no-port-switching`,
+      interpreter: 'none',
+
+      // Fork, single instance. Serving static files is not the bottleneck,
+      // and nginx caches in front of it anyway.
+      instances: 1,
+      exec_mode: 'fork',
+
+      max_memory_restart: '256M',
+      autorestart: true,
+      max_restarts: 10,
+      min_uptime: '30s',
+      restart_delay: 2_000,
+
+      env: { NODE_ENV: 'development', PM2_SERVE_PORT: WEB_PORT },
+      env_production: { NODE_ENV: 'production', PM2_SERVE_PORT: WEB_PORT },
+
+      out_file: '/var/log/forgeroutine/web.out.log',
+      error_file: '/var/log/forgeroutine/web.err.log',
       merge_logs: true,
       time: true,
     },

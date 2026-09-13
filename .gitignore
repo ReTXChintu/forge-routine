@@ -54,3 +54,7 @@ apps/mobile/ios/.symlinks/
 apps/mobile/android/.gradle/
 apps/mobile/android/local.properties
 apps/mobile/**/GeneratedPluginRegistrant.*
+
+# Built APKs published by CD, never committed.
+apps/web/public/*.apk
+apps/web/dist/*.apk

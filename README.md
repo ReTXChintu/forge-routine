@@ -88,7 +88,7 @@ cp .env.example .env          # set DATABASE_URL and OPENAI_API_KEY
 pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
-pnpm dev                      # API on :4000, web on :5173
+pnpm dev                      # API on :50005, web on :50004
 ```
 
 Mobile:
@@ -96,7 +96,7 @@ Mobile:
 ```bash
 cd apps/mobile
 flutter pub get
-flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000/api/v1
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:50005/api/v1
 ```
 
 ### Running without every dependency

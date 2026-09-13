@@ -1,6 +1,6 @@
 {
   "name": "forgeroutine",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "private": true,
   "description": "Forge your coding skills. Build your engineering mind.",
   "packageManager": "pnpm@12.4.1",
@@ -26,7 +26,18 @@
     "dev:apps": "turbo run dev --filter=@forgeroutine/web --filter=@forgeroutine/api",
     "db:reset": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/reset-db.mjs",
     "db:cancel-generation": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/cancel-pending-generation.mjs",
-    "db:generation-plan": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/generation-plan.mjs"
+    "db:generation-plan": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/generation-plan.mjs",
+    "release": "release-it",
+    "release:minor": "release-it minor",
+    "release:patch": "release-it patch",
+    "release:major": "release-it major",
+    "release:dry": "release-it --dry-run",
+    "start": "pm2 start infrastructure/pm2/ecosystem.config.cjs --env production",
+    "stop": "pm2 stop forgeroutine-api forgeroutine-web forgeroutine-sandbox",
+    "restart": "pm2 reload forgeroutine-api forgeroutine-web forgeroutine-sandbox",
+    "delete": "pm2 delete forgeroutine-api forgeroutine-web forgeroutine-sandbox",
+    "logs": "pm2 logs --lines 100",
+    "status": "pm2 status"
   },
   "devDependencies": {
     "@types/node": "^20.19.9",
@@ -38,6 +49,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^15.4.1",
     "prettier": "^3.4.2",
+    "release-it": "^21.0.2",
     "rimraf": "^6.0.1",
     "turbo": "^2.3.3",
     "typescript": "^5.7.3"

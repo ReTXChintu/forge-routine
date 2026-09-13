@@ -14,11 +14,13 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       'import.meta.env.VITE_API_BASE_URL': JSON.stringify(
-        env.VITE_API_BASE_URL ?? 'http://localhost:4000/api/v1',
+        env.VITE_API_BASE_URL ?? 'http://localhost:50005/api/v1',
       ),
       'import.meta.env.VITE_APP_NAME': JSON.stringify(env.VITE_APP_NAME ?? 'ForgeRoutine'),
     },
-    server: { port: 5173, strictPort: true },
+    // strictPort so a port clash fails loudly rather than starting on
+    // another port the API has not been told to allow through CORS.
+    server: { port: 50004, strictPort: true },
     build: {
       outDir: 'dist',
       sourcemap: true,

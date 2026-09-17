@@ -92,10 +92,30 @@ looks by default.
 pnpm install --frozen-lockfile
 pnpm db:generate
 pnpm build
-pnpm --filter @forgeroutine/database exec prisma migrate deploy
+pnpm db:deploy                  # prisma migrate deploy
 pnpm start                      # pm2 start ecosystem.config.cjs --env production
 pm2 save
 ```
+
+**`db:deploy` on a server, never `db:migrate`.** They are different Prisma
+commands wearing similar names. `migrate deploy` applies what is pending and
+stops. `migrate dev` is a development tool: it compares the migration history
+against the files, and when they disagree — an edited migration, a rolled-back
+row left behind — its remedy is to _drop the database and rebuild it_. It will
+say so and wait for a keypress, which is the only reason production data has
+survived it so far.
+
+If `db:deploy` reports a checksum mismatch, do not reach for `migrate reset`.
+Compare the recorded checksum against the file first:
+
+```sql
+SELECT migration_name, checksum, finished_at, rolled_back_at
+FROM _prisma_migrations ORDER BY started_at;
+```
+
+`sha256sum` of the migration file is what the checksum should equal. A row with
+`rolled_back_at` set is a failed attempt Prisma still counts; deleting that one
+row is usually the whole fix.
 
 `pm2 startup` once per machine so processes survive reboot.
 

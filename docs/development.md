@@ -64,17 +64,18 @@ scripts/        Repo tooling.
 
 ## Commands
 
-| Command           | Effect                                     |
-| ----------------- | ------------------------------------------ |
-| `pnpm dev`        | Everything in watch mode                   |
-| `pnpm build`      | Topological build of all packages and apps |
-| `pnpm typecheck`  | `tsc --noEmit` everywhere                  |
-| `pnpm lint`       | ESLint everywhere                          |
-| `pnpm test`       | Vitest (packages, web) and Jest (api)      |
-| `pnpm format`     | Prettier write                             |
-| `pnpm db:migrate` | Create and apply a dev migration           |
-| `pnpm db:seed`    | Seed technologies, concepts, exercises     |
-| `pnpm db:studio`  | Prisma Studio                              |
+| Command           | Effect                                                                   |
+| ----------------- | ------------------------------------------------------------------------ |
+| `pnpm dev`        | Everything in watch mode                                                 |
+| `pnpm build`      | Topological build of all packages and apps                               |
+| `pnpm typecheck`  | `tsc --noEmit` everywhere                                                |
+| `pnpm lint`       | ESLint everywhere                                                        |
+| `pnpm test`       | Vitest (packages, web) and Jest (api)                                    |
+| `pnpm format`     | Prettier write                                                           |
+| `pnpm db:migrate` | Create and apply a dev migration                                         |
+| `pnpm db:deploy`  | Apply pending migrations without a reset — the only one safe on a server |
+| `pnpm db:seed`    | Seed technologies, concepts, exercises                                   |
+| `pnpm db:studio`  | Prisma Studio                                                            |
 
 Filter to one workspace with `pnpm --filter @forgeroutine/api <cmd>`.
 

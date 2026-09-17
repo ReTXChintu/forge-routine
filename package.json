@@ -17,6 +17,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
     "db:generate": "pnpm --filter @forgeroutine/database generate",
     "db:migrate": "pnpm --filter @forgeroutine/database migrate",
+    "db:deploy": "pnpm --filter @forgeroutine/database migrate:deploy",
     "db:push": "pnpm --filter @forgeroutine/database push",
     "db:seed": "pnpm --filter @forgeroutine/database seed",
     "db:studio": "pnpm --filter @forgeroutine/database studio",

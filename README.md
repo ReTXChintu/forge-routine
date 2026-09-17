@@ -137,7 +137,8 @@ Secrets never go in source control.
 | `pnpm typecheck`                            | `tsc --noEmit` everywhere             |
 | `pnpm lint`                                 | ESLint everywhere                     |
 | `pnpm test`                                 | Vitest (packages, web) and Jest (api) |
-| `pnpm db:migrate` / `db:seed` / `db:studio` | Prisma                                |
+| `pnpm db:migrate` / `db:seed` / `db:studio` | Prisma (dev)                          |
+| `pnpm db:deploy`                            | Apply migrations on a server          |
 
 Filter with `pnpm --filter @forgeroutine/api <cmd>`.
 

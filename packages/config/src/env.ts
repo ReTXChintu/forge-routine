@@ -39,7 +39,11 @@ export const envSchema = z
     JWT_REFRESH_TTL: durationString.default('30d'),
     BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
 
-    AI_PROVIDER: z.literal('openai').default('openai'),
+    /**
+     * The server's own vendor, used by anyone who has not chosen one in
+     * settings, and by scripts that run outside a request.
+     */
+    AI_PROVIDER: z.enum(['openai', 'anthropic', 'gemini']).default('openai'),
     /**
      * Master switch. `false` disables every model call while leaving the key
      * in place, so turning AI back on is one character rather than finding
@@ -55,6 +59,16 @@ export const envSchema = z
     AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(300_000).default(60_000),
     AI_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
     AI_DAILY_TOKEN_BUDGET: z.coerce.number().int().min(0).default(200_000),
+    ANTHROPIC_API_KEY: z.string().default(''),
+    GEMINI_API_KEY: z.string().default(''),
+    /**
+     * Encrypts the vendor keys users save in settings.
+     *
+     * Changing it does not migrate anything: every stored key becomes
+     * undecryptable and has to be re-entered. Generate once, per
+     * deployment, with `openssl rand -base64 32`.
+     */
+    ENCRYPTION_KEY: z.string().default(''),
 
     EXECUTION_DRIVER: z.enum(['inline', 'queue']).default('inline'),
     EXECUTION_TIMEOUT_MS: z.coerce.number().int().min(500).max(60_000).default(5_000),
@@ -120,6 +134,17 @@ export const envSchema = z
             'and run apps/sandbox on its own.',
         });
       }
+    }
+    // Without this, a user saving a vendor key in settings gets an error
+    // at the moment they press save. Better to refuse at boot, where an
+    // operator is watching, than in front of the user.
+    if (env.ENCRYPTION_KEY.trim().length > 0 && env.ENCRYPTION_KEY.trim().length < 16) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ENCRYPTION_KEY'],
+        message:
+          'ENCRYPTION_KEY must be at least 16 characters; generate one with `openssl rand -base64 32`',
+      });
     }
     if (env.EXECUTION_DRIVER === 'queue' && !env.REDIS_ENABLED) {
       ctx.addIssue({

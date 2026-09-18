@@ -19,6 +19,7 @@ import { RecallModule } from './modules/recall/recall.module.js';
 import { RoadmapModule } from './modules/roadmap/roadmap.module.js';
 import { RoutinesModule } from './modules/routines/routines.module.js';
 import { SessionsModule } from './modules/sessions/sessions.module.js';
+import { SettingsModule } from './modules/settings/settings.module.js';
 import { SkillsModule } from './modules/skills/skills.module.js';
 import { SubmissionsModule } from './modules/submissions/submissions.module.js';
 import { TechnologiesModule } from './modules/technologies/technologies.module.js';
@@ -33,6 +34,9 @@ import { TechnologiesModule } from './modules/technologies/technologies.module.j
     ConfigModule,
     PrismaModule,
     CacheModule,
+    // Before AiModule: the provider factory resolves each call's vendor
+    // through AISettingsService, so it must already be available.
+    SettingsModule,
     AiModule,
 
     // Domains

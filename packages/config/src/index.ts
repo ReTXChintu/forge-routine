@@ -41,6 +41,8 @@ export interface AppConfig {
   corsOrigins: string[];
   /** True only when a key is actually present; agents fall back when false. */
   aiEnabled: boolean;
+  /** Whether users may save their own vendor keys — needs ENCRYPTION_KEY. */
+  secretsEnabled: boolean;
   databaseUrlForMigrations: string;
 }
 
@@ -67,10 +69,18 @@ export function loadConfig(options: { reload?: boolean; cwd?: string } = {}): Ap
     corsOrigins: env.CORS_ORIGINS.split(',')
       .map((o) => o.trim())
       .filter(Boolean),
-    // Both, deliberately. A key without the switch is someone who has paused
-    // spending; a switch without a key is someone who has not finished
-    // setting up. Neither should produce a model call.
-    aiEnabled: env.AI_ENABLED && env.OPENAI_API_KEY.trim().length > 0,
+    // Both the switch and a key, deliberately: a key without the switch is
+    // someone who has paused spending, a switch without a key is someone
+    // who has not finished setting up, and neither should produce a call.
+    // Any vendor's key counts — a deployment configured for Claude alone
+    // must not read as "AI is off" for want of an OpenAI key.
+    aiEnabled:
+      env.AI_ENABLED &&
+      [env.OPENAI_API_KEY, env.ANTHROPIC_API_KEY, env.GEMINI_API_KEY].some(
+        (key) => key.trim().length > 0,
+      ),
+    /** Whether users can save their own vendor keys. Needs somewhere safe to put them. */
+    secretsEnabled: env.ENCRYPTION_KEY.trim().length >= 16,
     databaseUrlForMigrations:
       env.DIRECT_DATABASE_URL && env.DIRECT_DATABASE_URL.length > 0
         ? env.DIRECT_DATABASE_URL

@@ -931,3 +931,98 @@ export function useSubmitWritten() {
     },
   });
 }
+
+// -- Settings: AI provider ---------------------------------------------------
+
+export type AIVendorId = 'OPENAI' | 'ANTHROPIC' | 'GEMINI';
+
+export interface VendorSettingView {
+  id: AIVendorId;
+  label: string;
+  keyUrl: string;
+  keyPrefix: string;
+  note: string;
+  configured: boolean;
+  /** Last four characters only. The key itself is never sent to the client. */
+  keyLast4: string | null;
+  verifiedAt: string | null;
+  modelFast: string;
+  modelReasoning: string;
+  defaultFast: string;
+  defaultReasoning: string;
+}
+
+export interface AISettingsView {
+  selected: AIVendorId | null;
+  serverDefault: AIVendorId | null;
+  canStoreKeys: boolean;
+  vendors: VendorSettingView[];
+}
+
+export function useAISettings(): UseQueryResult<AISettingsView> {
+  return useQuery({
+    queryKey: ['settings', 'ai'] as const,
+    queryFn: () => apiRequest<AISettingsView>('/settings/ai'),
+  });
+}
+
+/** Every mutation returns the whole view, so the cache is replaced not invalidated. */
+function useAISettingsMutation<TInput>(send: (input: TInput) => Promise<AISettingsView>) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: send,
+    onSuccess: (view) => {
+      queryClient.setQueryData(['settings', 'ai'], view);
+    },
+  });
+}
+
+export function useSelectAIProvider() {
+  return useAISettingsMutation((provider: AIVendorId | null) =>
+    apiRequest<AISettingsView>('/settings/ai/provider', {
+      method: 'PUT',
+      body: { provider },
+    }),
+  );
+}
+
+export function useSaveAIKey() {
+  return useAISettingsMutation(
+    (input: {
+      provider: AIVendorId;
+      apiKey: string;
+      modelFast?: string | null;
+      modelReasoning?: string | null;
+    }) =>
+      apiRequest<AISettingsView>(`/settings/ai/keys/${input.provider}`, {
+        method: 'PUT',
+        body: {
+          apiKey: input.apiKey,
+          modelFast: input.modelFast ?? null,
+          modelReasoning: input.modelReasoning ?? null,
+        },
+      }),
+  );
+}
+
+export function useRemoveAIKey() {
+  return useAISettingsMutation((provider: AIVendorId) =>
+    apiRequest<AISettingsView>(`/settings/ai/keys/${provider}`, { method: 'DELETE' }),
+  );
+}
+
+export function useTestAIKey() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (provider: AIVendorId) =>
+      apiRequest<{ ok: boolean; detail: string }>(`/settings/ai/keys/${provider}/test`, {
+        method: 'POST',
+      }),
+    onSuccess: () => {
+      // A successful test stamps verifiedAt server-side.
+      void queryClient.invalidateQueries({ queryKey: ['settings', 'ai'] });
+    },
+  });
+}

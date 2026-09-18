@@ -30,10 +30,12 @@
     "vitest": "^2.1.8"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.126.0",
     "@forgeroutine/config": "workspace:*",
     "@forgeroutine/shared-types": "workspace:*",
     "@forgeroutine/utils": "workspace:*",
     "@forgeroutine/validation": "workspace:*",
+    "@google/genai": "^2.23.0",
     "openai": "^4.77.3",
     "zod": "^3.24.1",
     "zod-to-json-schema": "^3.24.1"

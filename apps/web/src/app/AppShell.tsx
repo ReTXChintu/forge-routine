@@ -23,6 +23,7 @@ const NAV = [
   { to: '/interview', label: 'Interviews', icon: 'interview' },
   { to: '/technologies', label: 'Technologies', icon: 'tech' },
   { to: '/progress', label: 'Progress', icon: 'progress' },
+  { to: '/settings', label: 'Settings', icon: 'settings' },
 ];
 
 /**

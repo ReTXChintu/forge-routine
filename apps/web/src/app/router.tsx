@@ -12,6 +12,7 @@ import { Onboarding } from '~/features/onboarding/Onboarding';
 import { ProjectWorkspace } from '~/features/project/ProjectWorkspace';
 import { RoadmapPage } from '~/features/roadmap/RoadmapView';
 import { TodayView } from '~/features/routine/TodayView';
+import { Settings } from '~/features/settings/Settings';
 import { Technologies } from '~/features/technologies/Technologies';
 import { TechnologyView } from '~/features/technologies/TechnologyView';
 import { tokenStore } from '~/lib/api';
@@ -53,6 +54,7 @@ export const router = createBrowserRouter([
       { path: 'today', element: <TodayView /> },
       { path: 'roadmap', element: <RoadmapPage /> },
       { path: 'technologies', element: <Technologies /> },
+      { path: 'settings', element: <Settings /> },
       { path: 'technology/:technologyId', element: <TechnologyView /> },
       { path: 'concept/:conceptId', element: <ConceptView /> },
       { path: 'exercise/:exerciseId', element: <ExerciseWorkspace /> },

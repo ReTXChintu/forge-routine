@@ -34,6 +34,7 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  aiCredentials   AICredential[]
   preferences      UserPreferences?
   refreshTokens    RefreshToken[]
   technologies     UserTechnology[]
@@ -55,6 +56,33 @@ model User {
   @@map("users")
 }
 
+/// One vendor's API key for one user.
+///
+/// The key is encrypted at rest and never leaves the server: the settings
+/// endpoint returns `configured` and the last four characters, nothing more.
+/// A key that can be read back out of an API is a key that ends up in a log,
+/// a screenshot, or a support ticket.
+model AICredential {
+  id       String         @id @default(cuid())
+  userId   String
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider AIProviderKind
+  /// AES-256-GCM, as iv:tag:ciphertext. Never returned by the API.
+  keyCipher String
+  /// For "sk-...B3kW" in the UI, so a user can tell two keys apart.
+  keyLast4  String
+  /// Vendor model ids. Null means the shipped default for that vendor.
+  modelFast      String?
+  modelReasoning String?
+  /// Set when a test call last succeeded. Null means never verified.
+  verifiedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@map("ai_credentials")
+}
+
 model UserPreferences {
   id                 String   @id @default(cuid())
   userId             String   @unique
@@ -64,6 +92,9 @@ model UserPreferences {
   interviewTarget    InterviewTarget @default(MID)
   primaryGoal        PrimaryGoal     @default(CODING)
   timezone           String   @default("UTC")
+  /// Which vendor this user's AI calls go to. Null falls back to the
+  /// server's own configuration, so an untouched account behaves as before.
+  aiProvider         AIProviderKind?
   /// Null until the first-run flow completes. Drives the onboarding redirect.
   onboardedAt        DateTime?
   /// Optional. A real date reorders everything downstream toward readiness.
@@ -999,6 +1030,14 @@ enum HintKind {
   EXPLAIN_ERROR
   SHOW_APPROACH
   SHOW_SOLUTION
+}
+
+/// Which model vendor a call goes to. Stored per user, so switching vendor is
+/// a settings change rather than a redeploy.
+enum AIProviderKind {
+  OPENAI
+  ANTHROPIC
+  GEMINI
 }
 
 enum RoutineItemKind {

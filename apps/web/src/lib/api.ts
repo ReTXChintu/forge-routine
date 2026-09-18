@@ -52,7 +52,7 @@ export const tokenStore = {
 };
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   idempotencyKey?: string;
   signal?: AbortSignal;

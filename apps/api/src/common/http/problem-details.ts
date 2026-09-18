@@ -62,6 +62,10 @@ export const Problems = {
   notFound: (resource: string) =>
     problem('not-found', `${resource} not found`, HttpStatus.NOT_FOUND),
 
+  /** A request the user can fix, with a sentence saying how. */
+  badRequest: (detail: string) =>
+    problem('bad-request', 'Bad request', HttpStatus.BAD_REQUEST, detail),
+
   emailTaken: () =>
     problem(
       'email-taken',

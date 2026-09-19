@@ -21,18 +21,27 @@ import { PROMPT_VERSION } from './policy.js';
  *   teaching and doing is the whole product.
  */
 
+/**
+ * Minimums are deliberately low.
+ *
+ * Length constraints are stripped before the schema reaches a vendor —
+ * neither Gemini's subset nor OpenAI's strict mode accepts them — so they
+ * are enforced only on the way back, where a floor the model was never
+ * told about throws away a whole generation over a short paragraph. The
+ * prompt asks for depth; these only catch an answer that is truly empty.
+ */
 export const conceptExplainerSchema = z.object({
   /** What it is and why it exists. Prose, for an experienced engineer. */
-  summary: z.string().min(80).max(1_800),
+  summary: z.string().min(1).max(4_000),
   /** Where it actually shows up in systems they have used. */
-  realWorld: z.string().min(40).max(1_200),
+  realWorld: z.string().min(1).max(2_000),
   /** Worked examples, each a short paragraph that stands alone. */
-  examples: z.array(z.string().min(20).max(600)).min(1).max(4),
+  examples: z.array(z.string().min(1).max(1_200)).max(6),
   /** Illustrative code, or null where the concept is not about code. */
-  codeExample: z.string().max(2_000).nullable(),
+  codeExample: z.string().max(4_000).nullable(),
   codeLanguage: z.string().max(24).nullable(),
   /** What people get wrong, stated as the mistake rather than the fix. */
-  pitfalls: z.array(z.string().min(10).max(300)).max(5),
+  pitfalls: z.array(z.string().min(1).max(500)).max(6),
 });
 
 export type ConceptExplainerOutput = z.infer<typeof conceptExplainerSchema>;
@@ -54,7 +63,9 @@ Write for someone who can already program. Do not define what a variable is, do 
 
 You may write code here — this is the teaching page, not an exercise. Keep it short, runnable in the head, and about the concept rather than about any particular problem.
 
-Say why the concept exists and what goes wrong without it. An explanation that only says what something does leaves the reader able to recognise it and unable to reach for it.`;
+Say why the concept exists and what goes wrong without it. An explanation that only says what something does leaves the reader able to recognise it and unable to reach for it.
+
+Length: summary two or three solid paragraphs, realWorld one, two to four examples, and up to five pitfalls. Short is worse than long here — this is the page they read before practising.`;
 
 export const conceptExplainerAgent = {
   name: 'concept-explainer' as const,

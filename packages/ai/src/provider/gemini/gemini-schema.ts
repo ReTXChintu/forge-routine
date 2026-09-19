@@ -49,6 +49,11 @@ function isObject(value: unknown): value is Json {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/** A union arm that exists only to say "or nothing". */
+function isNullBranch(node: unknown): boolean {
+  return isObject(node) && node['type'] === 'null' && Object.keys(node).length === 1;
+}
+
 export function toGeminiSchema(schema: Record<string, unknown>): Record<string, unknown> {
   return convert(schema) as Record<string, unknown>;
 }
@@ -82,7 +87,20 @@ function convert(node: unknown): unknown {
     }
 
     if (key === 'anyOf' || key === 'oneOf') {
-      out[key] = Array.isArray(value) ? value.map(convert) : convert(value);
+      const branches = Array.isArray(value) ? value.map(convert) : [convert(value)];
+
+      // `T | null` is the overwhelmingly common union here, and Gemini has
+      // a first-class spelling for it. A two-branch anyOf with a bare null
+      // is collapsed to `nullable: true` on the real branch: fewer moving
+      // parts, and it avoids relying on `{"type": "null"}` being honoured
+      // inside a union, which is the shakiest corner of the subset.
+      const real = branches.filter((b) => !isNullBranch(b));
+      if (branches.length === 2 && real.length === 1 && isObject(real[0])) {
+        Object.assign(out, real[0], { nullable: true });
+        continue;
+      }
+
+      out[key] = branches;
       continue;
     }
 

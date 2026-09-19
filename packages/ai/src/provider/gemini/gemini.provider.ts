@@ -151,12 +151,18 @@ export class GeminiProvider implements AIProvider {
         config: {
           ...(system ? { systemInstruction: system } : {}),
           temperature: req.prompt.temperature ?? 0.2,
-          // Doubled for the same reason as Claude: our budgets were sized
-          // for answer-only output, and a truncated response surfaces as a
-          // schema failure rather than as the budget problem it is.
           maxOutputTokens: Math.max(4_096, (req.prompt.maxTokens ?? 2_048) * 2),
           responseMimeType: 'application/json',
           responseJsonSchema: jsonSchema,
+          // Thinking off, and this is not an optimisation.
+          //
+          // On 2.5 and later it is on by default and its tokens come out of
+          // maxOutputTokens. Filling a JSON schema is transcription, not
+          // reasoning, so the thinking adds nothing — but it can consume
+          // the entire budget, and then `text` comes back empty and the
+          // failure presents as "not valid JSON" rather than as the budget
+          // problem it is.
+          thinkingConfig: { thinkingBudget: 0 },
           abortSignal: req.context.signal,
         },
       });
@@ -166,7 +172,21 @@ export class GeminiProvider implements AIProvider {
         promptTokens: response.usageMetadata?.promptTokenCount ?? 0,
         completionTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
       };
+
+      // Said in its own words. An empty body has several causes — a safety
+      // block, an exhausted budget, a filtered candidate — and reporting
+      // all of them as a JSON parse error sends the reader to the wrong
+      // place entirely.
+      if (raw.trim().length === 0) {
+        const finish = response.candidates?.[0]?.finishReason ?? 'no candidate';
+        throw new AIContractViolation(
+          req.context.agent,
+          [`${model} returned nothing (finish reason: ${finish})`],
+          '',
+        );
+      }
     } catch (error) {
+      if (error instanceof AIContractViolation) throw error;
       throw new AIUnavailable(req.context.agent, error);
     }
 

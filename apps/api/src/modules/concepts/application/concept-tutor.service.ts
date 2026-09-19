@@ -1,6 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
-import { conceptChatAgent, conceptExplainerAgent, type LearnerContext } from '@forgeroutine/ai';
+import {
+  conceptChatAgent,
+  conceptExplainerAgent,
+  describeAIFailure,
+  type LearnerContext,
+} from '@forgeroutine/ai';
 
 import { Problems } from '../../../common/http/problem-details.js';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
@@ -99,8 +104,12 @@ export class ConceptTutorService {
       // Degrade. The concept page has its objectives, exercises and
       // questions without this, and failing the whole page over the
       // explanation would take those away too.
+      // The real sentence, not a shrug. "Could not be written just now"
+      // sent the last two failures to the logs and left the reader with
+      // nothing to act on — the vendor almost always says what is wrong.
+      const detail = describeAIFailure(error);
       this.logger.warn({ err: error }, `Could not write the explainer for ${concept.slug}`);
-      return unavailable('The explanation could not be written just now. Try again shortly.');
+      return unavailable(`The explanation could not be written: ${detail}`);
     }
   }
 
@@ -184,7 +193,7 @@ export class ConceptTutorService {
           userId,
           conceptId,
           role: 'assistant',
-          content: 'That did not get through to the model. Ask again in a moment.',
+          content: `That did not get through to the model: ${describeAIFailure(error)}`,
         },
       });
 

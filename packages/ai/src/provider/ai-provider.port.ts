@@ -122,6 +122,63 @@ export class AIUnavailable extends AIError {
   }
 }
 
+/**
+ * The most useful sentence available for a failed AI call.
+ *
+ * Every provider wraps vendor failures in `AIUnavailable`, whose own
+ * message names the agent and nothing else — fine for a log line, useless
+ * in front of someone who has just pasted a key. The real reason is one or
+ * more levels down in `cause`, and for three of the four vendors it arrives
+ * as a JSON error envelope rather than a sentence.
+ *
+ * So: walk to the deepest cause, and if it turns out to be JSON, lift the
+ * message out of it. "API key not valid. Please pass a valid API key."
+ * tells the user exactly what to do. "AI provider unavailable" does not.
+ */
+export function describeAIFailure(error: unknown, maxLength = 300): string {
+  let current: unknown = error;
+  let best = '';
+
+  // Bounded: a malformed cause chain must not become an infinite walk.
+  for (let depth = 0; depth < 8 && current instanceof Error; depth += 1) {
+    if (current.message) best = current.message;
+    current = (current as { cause?: unknown }).cause;
+  }
+
+  const extracted = extractVendorMessage(best);
+  const clean = (extracted || best || 'Unknown error').trim();
+
+  return clean.length > maxLength ? `${clean.slice(0, maxLength - 1)}…` : clean;
+}
+
+/**
+ * Vendors answer errors with JSON, and sometimes with a status line glued
+ * to the front of it. Both OpenAI and Gemini nest the readable part under
+ * `error.message`.
+ */
+function extractVendorMessage(raw: string): string | null {
+  const start = raw.indexOf('{');
+  if (start === -1) return null;
+
+  try {
+    const parsed: unknown = JSON.parse(raw.slice(start));
+    if (typeof parsed !== 'object' || parsed === null) return null;
+
+    const error = (parsed as { error?: unknown }).error;
+    if (typeof error === 'string') return error;
+    if (typeof error === 'object' && error !== null) {
+      const message = (error as { message?: unknown }).message;
+      if (typeof message === 'string') return message;
+    }
+
+    const message = (parsed as { message?: unknown }).message;
+    return typeof message === 'string' ? message : null;
+  } catch {
+    // Not JSON after all. The raw message is still better than nothing.
+    return null;
+  }
+}
+
 /** The user's daily token budget is spent. Degrade, do not error at the user. */
 export class AIBudgetExceeded extends AIError {
   constructor(agent: string) {

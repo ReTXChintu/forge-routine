@@ -3,6 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   AI_VENDOR_PROFILES,
   buildAIProvider,
+  describeAIFailure,
   isAIVendor,
   type AIVendor,
   type ResolvedVendor,
@@ -181,8 +182,30 @@ export class AISettingsService {
    * point the failure looks like a product bug.
    */
   async test(userId: string, vendor: AIVendor): Promise<{ ok: boolean; detail: string }> {
-    const resolved = await this.resolveFor(userId, vendor);
-    if (!resolved) return { ok: false, detail: 'No key saved for this provider.' };
+    const credential = await this.prisma.aICredential.findUnique({
+      where: { userId_provider: { userId, provider: vendor } },
+    });
+    if (!credential) return { ok: false, detail: 'No key saved for this provider.' };
+
+    // Resolved here rather than through `resolveFor`, which swallows a
+    // decryption failure to keep agents degrading quietly. On this screen
+    // that silence is the wrong answer: someone who has just pasted a key
+    // and been told "no provider configured" has no idea what to do.
+    let resolved: ResolvedVendor;
+    try {
+      resolved = this.toResolved(credential);
+    } catch (error) {
+      this.logger.error(
+        `Could not decrypt the ${vendor} key for ${userId}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      return {
+        ok: false,
+        detail:
+          'This key cannot be decrypted, which means ENCRYPTION_KEY has changed since it ' +
+          'was saved. Save the key again to re-encrypt it with the current one.',
+      };
+    }
 
     const provider = buildAIProvider(resolved, {
       timeoutMs: Math.min(this.config.env.AI_REQUEST_TIMEOUT_MS, 20_000),
@@ -212,12 +235,13 @@ export class AISettingsService {
         detail: `${AI_VENDOR_PROFILES[vendor].label} answered on ${result.model}.`,
       };
     } catch (error) {
-      // The vendor's own message is the useful part — "invalid x-api-key"
-      // tells the user exactly what to fix. Truncated so a stack trace or
-      // an HTML error page cannot be rendered into the settings panel.
-      const detail = error instanceof Error ? error.message : 'Unknown error';
+      // The vendor's own sentence is the useful part — "API key not valid"
+      // tells the user exactly what to fix, where "AI provider unavailable"
+      // sends them to open a support ticket. It lives several levels down
+      // in the cause chain, inside a JSON envelope, so it has to be dug out.
+      const detail = describeAIFailure(error);
       this.logger.warn(`${vendor} key test failed for ${userId}: ${detail}`);
-      return { ok: false, detail: detail.slice(0, 300) };
+      return { ok: false, detail };
     }
   }
 
@@ -239,14 +263,12 @@ export class AISettingsService {
     });
     if (!credential) return null;
 
-    const profile = AI_VENDOR_PROFILES[vendor];
-
-    let apiKey: string;
     try {
-      apiKey = decryptSecret(credential.keyCipher, this.requireEncryptionKey());
+      return this.toResolved(credential);
     } catch (error) {
       // Almost always a changed ENCRYPTION_KEY. Degrading rather than
-      // throwing keeps the product usable; the log says what to do.
+      // throwing keeps the product usable; the log says what to do, and
+      // the settings screen reports it properly when a key is tested.
       this.logger.error(
         `Could not decrypt the ${vendor} key for ${userId}. ` +
           'If ENCRYPTION_KEY changed, saved keys must be re-entered.',
@@ -254,10 +276,21 @@ export class AISettingsService {
       );
       return null;
     }
+  }
+
+  /** Decrypts one stored credential and fills in the vendor's defaults. */
+  private toResolved(credential: {
+    provider: string;
+    keyCipher: string;
+    modelFast: string | null;
+    modelReasoning: string | null;
+  }): ResolvedVendor {
+    const vendor = credential.provider as AIVendor;
+    const profile = AI_VENDOR_PROFILES[vendor];
 
     return {
       vendor,
-      apiKey,
+      apiKey: decryptSecret(credential.keyCipher, this.requireEncryptionKey()),
       modelFast: credential.modelFast ?? profile.defaultFast,
       modelReasoning: credential.modelReasoning ?? profile.defaultReasoning,
       embeddingModel: profile.defaultEmbedding,

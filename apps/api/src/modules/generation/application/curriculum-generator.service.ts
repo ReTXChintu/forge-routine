@@ -23,6 +23,7 @@ import type { Prisma } from '@forgeroutine/database';
 
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
 import { AI_PROVIDER, type OptionalAIProvider } from '../../ai/ai.tokens.js';
+import { AISettingsService } from '../../settings/application/ai-settings.service.js';
 
 import { ExerciseVerifier } from './exercise-verifier.js';
 
@@ -75,11 +76,21 @@ export class CurriculumGeneratorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly verifier: ExerciseVerifier,
+    private readonly settings: AISettingsService,
     @Inject(AI_PROVIDER) private readonly ai: OptionalAIProvider,
   ) {}
 
-  get available(): boolean {
-    return this.ai !== null;
+  /**
+   * Whether *this user* can reach a model.
+   *
+   * It used to be a property of the server: one key in the environment,
+   * so "is the provider wired up" answered it for everyone. Keys are per
+   * user now, so the question has a different answer per user, and asking
+   * the old one queued generation for people who cannot run it.
+   */
+  async availableFor(userId: string): Promise<boolean> {
+    if (this.ai === null) return false;
+    return (await this.settings.resolveFor(userId)) !== null;
   }
 
   async generateForTechnology(

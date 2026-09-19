@@ -32,10 +32,8 @@ export interface VendorSettingView {
 }
 
 export interface AISettingsView {
-  /** The vendor this user's calls go to, or null to follow the server. */
+  /** The vendor this user's calls go to. Null means no AI for them. */
   selected: AIVendor | null;
-  /** What the server falls back to when nothing is selected. */
-  serverDefault: AIVendor | null;
   /** False when ENCRYPTION_KEY is unset: keys cannot be stored safely. */
   canStoreKeys: boolean;
   vendors: VendorSettingView[];
@@ -76,9 +74,6 @@ export class AISettingsService {
 
     return {
       selected: (preferences?.aiProvider as AIVendor | null) ?? null,
-      serverDefault: this.config.aiEnabled
-        ? (this.config.env.AI_PROVIDER.toUpperCase() as AIVendor)
-        : null,
       canStoreKeys: this.config.secretsEnabled,
       vendors: Object.values(AI_VENDOR_PROFILES).map((profile) => {
         const saved = byVendor.get(profile.id);
@@ -100,7 +95,7 @@ export class AISettingsService {
     };
   }
 
-  /** Chooses the vendor. Null hands the decision back to the server's config. */
+  /** Chooses the vendor. Null turns AI off for this user. */
   async select(userId: string, vendor: AIVendor | null): Promise<AISettingsView> {
     if (vendor !== null) {
       const credential = await this.prisma.aICredential.findUnique({
@@ -191,8 +186,9 @@ export class AISettingsService {
 
     const provider = buildAIProvider(resolved, {
       timeoutMs: Math.min(this.config.env.AI_REQUEST_TIMEOUT_MS, 20_000),
+      // No retries: a wrong key is wrong three times as well as once, and
+      // the user is watching a spinner while it finds that out.
       maxRetries: 0,
-      baseURL: this.config.env.OPENAI_BASE_URL,
     });
 
     try {
@@ -228,9 +224,9 @@ export class AISettingsService {
   /**
    * The vendor and key for a user's calls, or null for none.
    *
-   * This is what `RoutingAIProvider` calls on every request, so the order
-   * matters: the user's own choice first, then the server's configuration.
-   * Anyone who has never opened settings keeps the behaviour they had.
+   * This is what `RoutingAIProvider` calls on every request. There is no
+   * server fallback behind it: a user who has saved no key gets no AI, and
+   * every agent already handles that by taking its declared fallback.
    */
   async resolveFor(userId: string | undefined, force?: AIVendor): Promise<ResolvedVendor | null> {
     if (!userId) return null;

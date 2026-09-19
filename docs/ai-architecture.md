@@ -2,15 +2,29 @@
 
 ## Provider independence
 
-OpenAI is the only provider ForgeRoutine ships with, chosen deliberately. It is still placed
-behind an interface (§27, §45.12) because prompts, agents, and the domain must not be
-rewritten if that ever changes, and because a deterministic fake is required for tests.
+Three vendors ship — OpenAI, Claude and Gemini — all behind one interface (§27, §45.12), so
+prompts, agents and the domain never learn which one answered. The port earned its keep:
+adding the second and third vendor changed no agent and no call site.
+
+**The choice is the user's, and so is the bill.** There is no server vendor and no server
+key. Each account saves its own key in Settings → AI, encrypted at rest with
+`ENCRYPTION_KEY`, and `RoutingAIProvider` resolves the vendor per call from
+`CallContext.userId` — which every call already carried. An account with no key saved gets
+no AI, and every agent handles that through its declared fallback.
+
+That also makes "AI off" the default rather than a switch: with nothing saved, nothing is
+billed, and the product still runs. Exercises execute and are graded on their tests, the
+routine plans itself from arithmetic, and recall questions come from the seeded curriculum.
 
 ```
 packages/ai/
 ├── provider/
 │   ├── ai-provider.port.ts     the interface the application depends on
-│   ├── openai/                 the real adapter
+│   ├── routing.provider.ts     picks the vendor per call, from the user's settings
+│   ├── catalogue.ts            vendor names, defaults, where to get a key
+│   ├── openai/                 strict JSON schema + one repair round trip
+│   ├── anthropic/              system prompt split out; JSON schema output format
+│   ├── gemini/                 response schema declared up front, own subset
 │   └── testing/                deterministic fake (tests only, never shipped)
 ├── agents/
 │   ├── tutor/                  Socratic hints, concept explanation

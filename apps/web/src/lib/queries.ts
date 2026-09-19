@@ -953,8 +953,8 @@ export interface VendorSettingView {
 }
 
 export interface AISettingsView {
+  /** Null means this account has AI switched off. There is no server key. */
   selected: AIVendorId | null;
-  serverDefault: AIVendorId | null;
   canStoreKeys: boolean;
   vendors: VendorSettingView[];
 }

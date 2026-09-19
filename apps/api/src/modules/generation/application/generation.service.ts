@@ -124,8 +124,11 @@ export class GenerationService {
     userId: string,
     options: { force?: boolean } = {},
   ): Promise<GenerationJobView[]> {
-    if (!this.generator.available) {
-      this.logger.warn('AI is not configured; skipping curriculum generation');
+    if (!(await this.generator.availableFor(userId))) {
+      // Debug, not warn. With per-user keys this is the ordinary state of
+      // any account that has not set one up, and warning on every routine
+      // plan would bury the logs in something nobody needs to act on.
+      this.logger.debug(`${userId} has no AI provider configured; skipping generation`);
       return [];
     }
 

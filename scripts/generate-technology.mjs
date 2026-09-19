@@ -1,8 +1,8 @@
 /**
- * Generates one technology's curriculum for real, against OpenAI, and prints
- * what came back so its quality can actually be judged.
+ * Generates one technology's curriculum for real, against a live model, and
+ * prints what came back so its quality can actually be judged.
  *
- *   node scripts/generate-technology.mjs <technology-slug>
+ *   node scripts/generate-technology.mjs <technology-slug> [user-email]
  *
  * This spends money. It exists because no amount of testing against the
  * deterministic fake answers the only question that matters: is generated
@@ -17,18 +17,72 @@ const root = resolve(import.meta.dirname, '..');
 const { loadConfig } = require(resolve(root, 'packages/config/dist/index.cjs'));
 const ai = require(resolve(root, 'packages/ai/dist/index.cjs'));
 const sandbox = require(resolve(root, 'packages/sandbox/dist/index.cjs'));
+const { decryptSecret } = require(resolve(root, 'packages/utils/dist/index.cjs'));
 const { PrismaClient } = require('@prisma/client');
 
 const slug = process.argv[2] ?? 'docker';
+const asEmail = process.argv[3];
 
 const config = loadConfig({ cwd: root });
-if (!config.aiEnabled) {
-  console.error('OPENAI_API_KEY is not set.');
-  process.exit(1);
+const prisma = new PrismaClient();
+
+/**
+ * Borrows a user's saved key.
+ *
+ * There is no server key any more, so a script that spends money has to
+ * name whose money it is spending. Explicit rather than "the first key we
+ * find": this run appears on someone's bill.
+ */
+async function resolveProvider() {
+  if (!config.secretsEnabled) {
+    console.error('ENCRYPTION_KEY is not set, so no saved key can be read.');
+    process.exit(1);
+  }
+
+  const where = asEmail ? { user: { email: asEmail } } : {};
+  const credentials = await prisma.aICredential.findMany({
+    where,
+    include: { user: { select: { email: true } } },
+  });
+
+  if (credentials.length === 0) {
+    console.error(
+      asEmail
+        ? `${asEmail} has no provider key saved. Add one in Settings -> AI.`
+        : 'No provider keys saved anywhere. Add one in Settings -> AI.',
+    );
+    process.exit(1);
+  }
+
+  if (credentials.length > 1 && !asEmail) {
+    console.error('Several accounts have keys. Name whose to spend:');
+    for (const row of credentials) console.error(`  ${row.user.email}  (${row.provider})`);
+    console.error(`
+  node scripts/generate-technology.mjs ${slug} <email>`);
+    process.exit(1);
+  }
+
+  const credential = credentials[0];
+  const profile = ai.AI_VENDOR_PROFILES[credential.provider];
+
+  console.log(`Using ${credential.user.email}'s ${profile.label} key (••••${credential.keyLast4})`);
+
+  return ai.buildAIProvider(
+    {
+      vendor: credential.provider,
+      apiKey: decryptSecret(credential.keyCipher, config.env.ENCRYPTION_KEY),
+      modelFast: credential.modelFast ?? profile.defaultFast,
+      modelReasoning: credential.modelReasoning ?? profile.defaultReasoning,
+      embeddingModel: profile.defaultEmbedding,
+    },
+    {
+      timeoutMs: config.env.AI_REQUEST_TIMEOUT_MS,
+      maxRetries: config.env.AI_MAX_RETRIES,
+    },
+  );
 }
 
-const provider = ai.createAIProvider(config);
-const prisma = new PrismaClient();
+const provider = await resolveProvider();
 
 const usage = { promptTokens: 0, completionTokens: 0, calls: 0 };
 

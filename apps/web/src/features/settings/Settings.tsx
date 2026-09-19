@@ -98,8 +98,9 @@ function AIProviderPanel({ settings }: { settings: AISettingsView }) {
       <Card>
         <div className="t-h4 mb1">Who answers</div>
         <div className="t-small mb4">
-          Your calls go to the provider you pick here, billed to your own key. Leave it on the
-          server default and they go wherever this deployment is configured to send them.
+          Your calls go to the provider you pick here, billed to your own key. This server keeps no
+          key of its own, so nobody spends anyone else's money — and with none selected, AI is
+          simply off for you.
         </div>
 
         <div className="row g2 wrap">
@@ -108,8 +109,7 @@ function AIProviderPanel({ settings }: { settings: AISettingsView }) {
             onClick={() => select.mutate(null)}
           >
             {settings.selected === null && <Icon name="check" size={12} />}
-            Server default
-            {settings.serverDefault && ` (${settings.serverDefault.toLowerCase()})`}
+            Off
           </span>
 
           {settings.vendors.map((vendor) => (
@@ -126,10 +126,13 @@ function AIProviderPanel({ settings }: { settings: AISettingsView }) {
           ))}
         </div>
 
-        {settings.serverDefault === null && settings.selected === null && (
-          <div className="t-caption mt3" style={{ color: 'var(--warning)' }}>
-            No provider is configured anywhere, so AI features are off. Everything else works —
-            exercises run, the routine plans itself, questions are asked from seeded content.
+        {settings.selected === null && (
+          // Not framed as an error. Everything that matters still works, and
+          // saying so stops "AI off" reading as "the app is broken".
+          <div className="t-caption mt3">
+            AI is off for your account. Everything else still works — exercises run and are graded
+            on their tests, the routine plans itself, and questions come from the seeded curriculum.
+            What you lose is hints, written reviews and mock interviews.
           </div>
         )}
 

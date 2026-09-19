@@ -16,7 +16,7 @@ No Docker. PostgreSQL and Redis are reached by URL, local or remote.
 
 ```bash
 pnpm install
-cp .env.example .env          # then fill DATABASE_URL and OPENAI_API_KEY
+cp .env.example .env          # then fill DATABASE_URL and ENCRYPTION_KEY
 pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
@@ -44,11 +44,11 @@ package with a `dev` script means raising it.
 
 The repo is designed so that a missing dependency degrades rather than breaks:
 
-| Missing    | Set                          | Effect                                                          |
-| ---------- | ---------------------------- | --------------------------------------------------------------- |
-| Redis      | `REDIS_ENABLED=false`        | No-op cache, in-memory rate limiting, `inline` execution driver |
-| OpenAI key | leave `OPENAI_API_KEY` empty | AI agents return their declared fallbacks; the app stays usable |
-| PostgreSQL | —                            | Required. There is no fallback; learning state must be durable. |
+| Missing     | Set                                        | Effect                                                          |
+| ----------- | ------------------------------------------ | --------------------------------------------------------------- |
+| Redis       | `REDIS_ENABLED=false`                      | No-op cache, in-memory rate limiting, `inline` execution driver |
+| AI provider | none, until a user saves a key in Settings | AI agents return their declared fallbacks; the app stays usable |
+| PostgreSQL  | —                                          | Required. There is no fallback; learning state must be durable. |
 
 ## Layout
 

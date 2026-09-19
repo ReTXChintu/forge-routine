@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 
-import { buildAIProvider, envVendor, RoutingAIProvider } from '@forgeroutine/ai';
+import { buildAIProvider, RoutingAIProvider } from '@forgeroutine/ai';
 import type { AppConfig } from '@forgeroutine/config';
 
 import { APP_CONFIG } from '../../infrastructure/config/config.module.js';
@@ -29,31 +29,24 @@ import { RecordingAIProvider } from './infrastructure/recording-ai.provider.js';
        * every call, which is what makes per-user routing possible without
        * touching any of them.
        *
-       * Null when no real call is possible: the master switch is off, or
-       * there is neither a server vendor nor anywhere to keep a user's own
-       * key. Every agent handles a null provider already.
+       * Null when no real call is possible — which now means only one
+       * thing: this server cannot store a key, so no user can supply one.
+       * Every agent handles a null provider already.
        */
       useFactory: (config: AppConfig, prisma: PrismaService, settings: AISettingsService) => {
-        // The master switch wins over everything, including a key a user
-        // saved themselves. "Disables every model call" has to mean every
-        // one, or it is not a switch anybody can rely on to stop a bill.
-        if (!config.env.AI_ENABLED) return null;
-
-        const fallback = envVendor(config);
-
-        // No server vendor, and nowhere to put a user's own key either:
-        // there is no path to a real call, so do not pretend otherwise.
-        // Saying "available" here would have the generator queueing work
-        // that can only fail.
-        if (!fallback && !config.secretsEnabled) return null;
+        // Nowhere to put a key means no user can ever supply one, so there
+        // is no path to a real call. Saying "available" here would have the
+        // generator queueing work that can only fail.
+        if (!config.secretsEnabled) return null;
 
         const routing = new RoutingAIProvider(
-          async (userId) => (await settings.resolveFor(userId)) ?? fallback,
+          // No fallback. A user with no key saved gets no AI, which is the
+          // whole point: nobody spends anybody else's money by default.
+          (userId) => settings.resolveFor(userId),
           (resolved) =>
             buildAIProvider(resolved, {
               timeoutMs: config.env.AI_REQUEST_TIMEOUT_MS,
               maxRetries: config.env.AI_MAX_RETRIES,
-              baseURL: config.env.OPENAI_BASE_URL,
             }),
         );
 

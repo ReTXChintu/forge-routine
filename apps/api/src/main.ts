@@ -68,7 +68,9 @@ async function bootstrap(): Promise<void> {
   );
   logger.log(`Execution driver: ${env.EXECUTION_DRIVER}`);
   logger.log(
-    `AI: ${config.aiEnabled ? `enabled (${env.AI_PROVIDER})` : 'disabled — agents will use fallbacks'}`,
+    config.secretsEnabled
+      ? 'AI: per user — each account supplies its own provider and key in Settings'
+      : 'AI: unavailable — ENCRYPTION_KEY is unset, so no key can be stored',
   );
   if (!env.REDIS_ENABLED) logger.warn('Redis disabled — caching and queues are inactive');
 }

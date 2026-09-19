@@ -54,10 +54,13 @@ afterAll(async () => {
 });
 
 describe('AI provider settings', () => {
-  it('lists every vendor, none configured, following the server by default', async () => {
+  it('lists every vendor, none configured, AI off until a key is saved', async () => {
     const response = await http.get('/api/v1/settings/ai').set(auth()).expect(200);
 
+    // Null is not "follow the server" — there is no server key. It means
+    // this account has no AI at all, which is the default for everyone.
     expect(response.body.selected).toBeNull();
+    expect(response.body.serverDefault).toBeUndefined();
     expect(response.body.vendors.map((v: { id: string }) => v.id).sort()).toEqual([
       'ANTHROPIC',
       'GEMINI',

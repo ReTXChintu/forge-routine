@@ -40,31 +40,25 @@ export const envSchema = z
     BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
 
     /**
-     * The server's own vendor, used by anyone who has not chosen one in
-     * settings, and by scripts that run outside a request.
+     * AI is per user. There is no server vendor and no server key.
+     *
+     * Every model call is billed to a key its own user saved in Settings,
+     * which is why nothing below names a vendor: the server supplies the
+     * envelope — how long to wait, how often to retry, how much anyone may
+     * spend in a day — and the user supplies who answers.
      */
-    AI_PROVIDER: z.enum(['openai', 'anthropic', 'gemini']).default('openai'),
-    /**
-     * Master switch. `false` disables every model call while leaving the key
-     * in place, so turning AI back on is one character rather than finding
-     * the key again. Every agent already declares a fallback, so the product
-     * stays usable — thinner, but usable.
-     */
-    AI_ENABLED: booleanish.default(true),
-    OPENAI_API_KEY: z.string().default(''),
-    OPENAI_BASE_URL: z.string().url().default('https://api.openai.com/v1'),
-    OPENAI_MODEL_FAST: z.string().default('gpt-4o-mini'),
-    OPENAI_MODEL_REASONING: z.string().default('gpt-4o'),
-    OPENAI_EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
     AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(300_000).default(60_000),
     AI_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
+    /** Hard ceiling per user per day, across whichever vendor they chose. */
     AI_DAILY_TOKEN_BUDGET: z.coerce.number().int().min(0).default(200_000),
-    ANTHROPIC_API_KEY: z.string().default(''),
-    GEMINI_API_KEY: z.string().default(''),
     /**
-     * Encrypts the vendor keys users save in settings.
+     * Encrypts the vendor keys users save in Settings.
      *
-     * Changing it does not migrate anything: every stored key becomes
+     * Load-bearing rather than optional: with no server key, this is the
+     * only thing that makes AI possible at all. Without it the settings
+     * screen is read-only and every agent falls back.
+     *
+     * Changing it does not migrate anything — every stored key becomes
      * undecryptable and has to be re-entered. Generate once, per
      * deployment, with `openssl rand -base64 32`.
      */
@@ -135,15 +129,17 @@ export const envSchema = z
         });
       }
     }
-    // Without this, a user saving a vendor key in settings gets an error
-    // at the moment they press save. Better to refuse at boot, where an
-    // operator is watching, than in front of the user.
-    if (env.ENCRYPTION_KEY.trim().length > 0 && env.ENCRYPTION_KEY.trim().length < 16) {
+    // Required in production, not merely well-formed. Without it nobody
+    // can save a key, and with no server key that leaves the deployment
+    // with no route to a model at all. Refusing at boot, where an operator
+    // is watching, beats a settings screen that will not accept a key.
+    if (env.ENCRYPTION_KEY.trim().length < 16) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['ENCRYPTION_KEY'],
         message:
-          'ENCRYPTION_KEY must be at least 16 characters; generate one with `openssl rand -base64 32`',
+          'ENCRYPTION_KEY must be at least 16 characters — it encrypts the API keys users ' +
+          'save in Settings. Generate one with `openssl rand -base64 32`.',
       });
     }
     if (env.EXECUTION_DRIVER === 'queue' && !env.REDIS_ENABLED) {

@@ -84,7 +84,7 @@ Full reasoning in [`docs/architecture.md`](docs/architecture.md).
 
 ```bash
 pnpm install
-cp .env.example .env          # set DATABASE_URL and OPENAI_API_KEY
+cp .env.example .env          # set DATABASE_URL and ENCRYPTION_KEY
 pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
@@ -103,11 +103,11 @@ flutter run --dart-define=API_BASE_URL=http://10.0.2.2:50005/api/v1
 
 The repo is built so a missing piece degrades rather than breaks:
 
-| Missing    | Set                          | Effect                                                          |
-| ---------- | ---------------------------- | --------------------------------------------------------------- |
-| Redis      | `REDIS_ENABLED=false`        | No-op cache, in-process rate limiting, `inline` execution       |
-| OpenAI key | leave `OPENAI_API_KEY` empty | Agents use their declared fallbacks; the app stays usable       |
-| PostgreSQL | —                            | Required. Learning state must be durable; there is no fallback. |
+| Missing     | Set                          | Effect                                                          |
+| ----------- | ---------------------------- | --------------------------------------------------------------- |
+| Redis       | `REDIS_ENABLED=false`        | No-op cache, in-process rate limiting, `inline` execution       |
+| AI provider | none until a user adds a key | Agents use their declared fallbacks; the app stays usable       |
+| PostgreSQL  | —                            | Required. Learning state must be durable; there is no fallback. |
 
 ## Environment
 
@@ -120,7 +120,8 @@ DATABASE_URL          PostgreSQL connection string (source of truth)
 DIRECT_DATABASE_URL   Direct endpoint for migrations, when DATABASE_URL is a pooler
 REDIS_URL             Cache, queues, rate limiting
 REDIS_ENABLED         false disables all three cleanly
-OPENAI_API_KEY        Empty disables AI; agents fall back
+ENCRYPTION_KEY        Encrypts the provider keys users save in Settings.
+                      Unset means no AI at all: there is no server key.
 JWT_ACCESS_SECRET     ≥ 32 chars, must differ from the refresh secret
 JWT_REFRESH_SECRET
 EXECUTION_DRIVER      inline | queue — must be `queue` in production

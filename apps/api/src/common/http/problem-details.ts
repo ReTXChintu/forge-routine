@@ -101,13 +101,8 @@ export const Problems = {
       `Try again in ${retryAfterSeconds} seconds.`,
     ),
 
-  aiUnavailable: () =>
-    problem(
-      'ai-unavailable',
-      'AI assistance unavailable',
-      HttpStatus.SERVICE_UNAVAILABLE,
-      'AI is not configured or is temporarily unreachable.',
-    ),
+  aiUnavailable: (detail = 'AI is not configured or is temporarily unreachable.') =>
+    problem('ai-unavailable', 'AI assistance unavailable', HttpStatus.SERVICE_UNAVAILABLE, detail),
 
   internal: () => problem('internal', 'Internal server error', HttpStatus.INTERNAL_SERVER_ERROR),
 } as const;

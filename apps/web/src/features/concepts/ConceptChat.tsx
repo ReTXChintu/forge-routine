@@ -35,8 +35,11 @@ export function ConceptChat({
   const send = () => {
     const text = question.trim();
     if (text.length === 0) return;
-    setQuestion('');
-    ask.mutate(text);
+
+    // Cleared only once the answer is in. A transient "model is busy" used
+    // to cost the user what they had typed, which is the one thing a
+    // failure here must not do.
+    ask.mutate(text, { onSuccess: () => setQuestion('') });
   };
 
   if (isLoading) return <Spinner label="Loading your questions" />;
@@ -132,8 +135,18 @@ export function ConceptChat({
         </div>
 
         {ask.isError && (
-          <div className="t-caption" style={{ color: 'var(--error)' }}>
-            {(ask.error as Error).message}
+          <div className="row items-start g2">
+            <span style={{ color: 'var(--error)', marginTop: 1 }}>
+              <Icon name="alert" size={13} />
+            </span>
+            <div>
+              <div className="t-caption" style={{ color: 'var(--error)' }}>
+                {(ask.error as Error).message}
+              </div>
+              {/* Your question is still in the box. Say so, rather than
+                  leaving them wondering whether to retype it. */}
+              <div className="t-caption mt1">Your question is still here — press Ask again.</div>
+            </div>
           </div>
         )}
       </div>

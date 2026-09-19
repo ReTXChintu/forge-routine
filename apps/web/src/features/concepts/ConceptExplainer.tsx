@@ -107,6 +107,29 @@ export function ConceptExplainer({
         </Card>
       )}
 
+      {explainer.docsUrl && (
+        <Card>
+          <div className="row items-center justify-between g3 wrap">
+            <div>
+              <div className="t-h4">The official documentation</div>
+              {/* Offered, not summarised. The reference is more complete
+                  than this page will ever be and does not go stale. */}
+              <div className="t-small mt1">
+                Worth reading once this makes sense — it is the complete version.
+              </div>
+            </div>
+            <a
+              className="btn btn-secondary btn-sm"
+              href={explainer.docsUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open docs ↗
+            </a>
+          </div>
+        </Card>
+      )}
+
       {explainer.pitfalls.length > 0 && (
         <Card style={{ borderLeft: '2px solid var(--warning)' }}>
           <div className="t-h4 mb3">What goes wrong</div>

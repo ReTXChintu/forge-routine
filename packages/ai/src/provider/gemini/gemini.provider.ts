@@ -25,6 +25,7 @@ export interface GeminiProviderOptions {
   modelReasoning: string;
   embeddingModel: string;
   timeoutMs: number;
+  maxRetries: number;
 }
 
 /**
@@ -42,7 +43,26 @@ export class GeminiProvider implements AIProvider {
   private readonly client: GoogleGenAI;
 
   constructor(private readonly options: GeminiProviderOptions) {
-    this.client = new GoogleGenAI({ apiKey: options.apiKey });
+    this.client = new GoogleGenAI({
+      apiKey: options.apiKey,
+      // Both of these were missing, which left Gemini the only vendor with
+      // no timeout and no retries — the other two SDKs take them at
+      // construction and I passed them there. A "model is currently
+      // experiencing high demand" is precisely the transient the other two
+      // ride out silently, and here it reached the user as a dead end.
+      httpOptions: {
+        timeout: options.timeoutMs,
+        retryOptions: {
+          // attempts counts the original, so +1 to mean "retries".
+          attempts: options.maxRetries + 1,
+          initialDelay: 1,
+          maxDelay: 8,
+          // 429 rate limit, 5xx overload, 408 timeout. Not 4xx generally:
+          // a bad key is not going to become a good one on a second try.
+          httpStatusCodes: [408, 429, 500, 502, 503, 504],
+        },
+      },
+    });
   }
 
   private resolveModel(prompt: PromptSpec): string {

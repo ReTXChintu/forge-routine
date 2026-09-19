@@ -43,6 +43,7 @@ export function buildAIProvider(resolved: ResolvedVendor, options: BuildOptions)
         // a future profile without embeddings cannot crash the build.
         embeddingModel: resolved.embeddingModel ?? profile.defaultEmbedding ?? '',
         timeoutMs: options.timeoutMs,
+        maxRetries: options.maxRetries,
       });
 
     case 'OPENAI':

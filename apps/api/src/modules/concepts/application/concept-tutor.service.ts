@@ -4,6 +4,7 @@ import {
   conceptChatAgent,
   conceptExplainerAgent,
   describeAIFailure,
+  EXPLAINER_VERSION,
   type LearnerContext,
 } from '@forgeroutine/ai';
 
@@ -18,6 +19,8 @@ export interface ExplainerView {
   codeExample: string | null;
   codeLanguage: string | null;
   pitfalls: string[];
+  /** Official docs, when there is a trustworthy link. */
+  docsUrl: string | null;
   /** False when it has not been written yet and cannot be. */
   available: boolean;
   /** Said plainly when AI is off, rather than showing an empty page. */
@@ -64,7 +67,13 @@ export class ConceptTutorService {
    */
   async explainer(userId: string, conceptId: string): Promise<ExplainerView> {
     const existing = await this.prisma.conceptExplainer.findUnique({ where: { conceptId } });
-    if (existing) return toExplainerView(existing);
+
+    // Rewritten when the prompt has moved on. Without this a cached page
+    // is permanent, and every improvement to how concepts are explained
+    // would only reach concepts nobody had opened yet.
+    if (existing && existing.promptVersion === EXPLAINER_VERSION) {
+      return toExplainerView(existing);
+    }
 
     const concept = await this.prisma.concept.findUnique({
       where: { id: conceptId },
@@ -92,10 +101,21 @@ export class ConceptTutorService {
       // Upsert, not create: two people opening the same concept at the
       // same moment both generate, and the second must not 500 on the
       // unique constraint. The wasted call is cheaper than the error.
+      const row = {
+        ...written,
+        docsUrl: safeDocsUrl(written.docsUrl),
+        generatedBy: conceptExplainerAgent.name,
+        promptVersion: EXPLAINER_VERSION,
+      };
+
+      // Upsert with a real update, not an empty one: this now also runs
+      // when an older version is being replaced. Two people opening the
+      // same concept at once both generate and the second must not 500 on
+      // the unique constraint — the wasted call is cheaper than the error.
       const saved = await this.prisma.conceptExplainer.upsert({
         where: { conceptId },
-        create: { conceptId, ...written, generatedBy: conceptExplainerAgent.name },
-        update: {},
+        create: { conceptId, ...row },
+        update: row,
       });
 
       this.logger.log(`Wrote the explainer for ${concept.slug}`);
@@ -126,8 +146,11 @@ export class ConceptTutorService {
   /**
    * Answers one question, with the user's own record in front of it.
    *
-   * Both turns are stored before and after the call, so a failure leaves
-   * the question visible rather than swallowing what they typed.
+   * Nothing is written until the answer is in hand. An earlier version
+   * stored the question first and, on failure, stored the error as the
+   * reply — which left "the model is busy, try later" sitting in the
+   * transcript for good, long after it was true. A transient failure
+   * should leave no trace; the client keeps the typed question.
    */
   async ask(userId: string, conceptId: string, question: string): Promise<ChatMessageView[]> {
     const trimmed = question.trim();
@@ -157,10 +180,6 @@ export class ConceptTutorService {
       }),
     ]);
 
-    const asked = await this.prisma.conceptChatMessage.create({
-      data: { userId, conceptId, role: 'user', content: trimmed },
-    });
-
     try {
       const answer = await conceptChatAgent.run(
         this.ai,
@@ -178,26 +197,24 @@ export class ConceptTutorService {
         { userId },
       );
 
-      const replied = await this.prisma.conceptChatMessage.create({
-        data: { userId, conceptId, role: 'assistant', content: answer.message },
-      });
+      // Both at once, so a crash between them cannot leave a question
+      // with no answer permanently in the thread.
+      const [asked, replied] = await this.prisma.$transaction([
+        this.prisma.conceptChatMessage.create({
+          data: { userId, conceptId, role: 'user', content: trimmed },
+        }),
+        this.prisma.conceptChatMessage.create({
+          data: { userId, conceptId, role: 'assistant', content: answer.message },
+        }),
+      ]);
 
       return [toMessageView(asked), toMessageView(replied)];
     } catch (error) {
       this.logger.warn({ err: error }, `Concept chat failed for ${userId} on ${concept.slug}`);
 
-      // Recorded as a turn rather than thrown, so the thread shows what
-      // happened where it happened instead of a toast over an empty pane.
-      const replied = await this.prisma.conceptChatMessage.create({
-        data: {
-          userId,
-          conceptId,
-          role: 'assistant',
-          content: `That did not get through to the model: ${describeAIFailure(error)}`,
-        },
-      });
-
-      return [toMessageView(asked), toMessageView(replied)];
+      // Thrown, not stored. "High demand, try later" is true for a minute
+      // and wrong for ever after, and a transcript is not the place for it.
+      throw Problems.aiUnavailable(describeAIFailure(error));
     }
   }
 
@@ -259,6 +276,56 @@ export class ConceptTutorService {
   }
 }
 
+/**
+ * Keeps a documentation link only if it is plainly a documentation link.
+ *
+ * A model asked for a URL will produce a plausible one whether or not it
+ * exists. This cannot tell a live page from a dead one, but it can refuse
+ * the categories that are never right — a non-https scheme, or a host
+ * nobody publishes reference material on — which is most of the damage.
+ */
+function safeDocsUrl(value: string | null): string | null {
+  if (!value) return null;
+
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+
+  if (url.protocol !== 'https:') return null;
+
+  const host = url.hostname.toLowerCase();
+  return DOCS_HOSTS.some((allowed) => host === allowed || host.endsWith(`.${allowed}`))
+    ? url.toString()
+    : null;
+}
+
+/** Hosts whose links are reference documentation rather than someone's blog. */
+const DOCS_HOSTS = [
+  'developer.mozilla.org',
+  'nodejs.org',
+  'typescriptlang.org',
+  'react.dev',
+  'nextjs.org',
+  'docs.nestjs.com',
+  'postgresql.org',
+  'mongodb.com',
+  'prisma.io',
+  'typeorm.io',
+  'redis.io',
+  'docs.docker.com',
+  'nginx.org',
+  'doc.traefik.io',
+  'docs.github.com',
+  'jenkins.io',
+  'git-scm.com',
+  'doc.rust-lang.org',
+  'kernel.org',
+  'man7.org',
+];
+
 function unavailable(reason: string): ExplainerView {
   return {
     summary: '',
@@ -267,6 +334,7 @@ function unavailable(reason: string): ExplainerView {
     codeExample: null,
     codeLanguage: null,
     pitfalls: [],
+    docsUrl: null,
     available: false,
     unavailableReason: reason,
   };
@@ -279,6 +347,7 @@ function toExplainerView(row: {
   codeExample: string | null;
   codeLanguage: string | null;
   pitfalls: string[];
+  docsUrl: string | null;
 }): ExplainerView {
   return { ...row, available: true, unavailableReason: null };
 }

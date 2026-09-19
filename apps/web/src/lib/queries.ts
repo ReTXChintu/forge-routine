@@ -1067,6 +1067,7 @@ export interface ExplainerView {
   codeExample: string | null;
   codeLanguage: string | null;
   pitfalls: string[];
+  docsUrl: string | null;
   available: boolean;
   unavailableReason: string | null;
 }

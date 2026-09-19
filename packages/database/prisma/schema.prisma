@@ -723,8 +723,14 @@ model ConceptExplainer {
   /// What people get wrong, in the author's words rather than the seed's.
   pitfalls     String[] @default([])
 
+  /// Official documentation for this concept, when one exists.
+  docsUrl     String?
   /// Which model wrote it, so a bad batch can be found and regenerated.
   generatedBy String
+  /// The prompt that produced it. Bumping the prompt rewrites every page
+  /// on next open, which is the only way an improvement reaches material
+  /// that was already generated and cached.
+  promptVersion String @default("v1")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

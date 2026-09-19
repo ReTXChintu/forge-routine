@@ -42,7 +42,23 @@ export const conceptExplainerSchema = z.object({
   codeLanguage: z.string().max(24).nullable(),
   /** What people get wrong, stated as the mistake rather than the fix. */
   pitfalls: z.array(z.string().min(1).max(500)).max(6),
+  /**
+   * Official documentation, or null.
+   *
+   * Nullable and validated by the caller rather than trusted. A model
+   * asked for a URL will produce a plausible one whether or not it exists,
+   * and a 404 dressed as a reference is worse than no link at all.
+   */
+  docsUrl: z.string().max(300).nullable(),
 });
+
+/**
+ * Bump when the prompt below changes in a way that should reach pages
+ * already written. Explainers are generated once and cached for ever, so
+ * without this an improvement only ever reaches concepts nobody has
+ * opened yet.
+ */
+export const EXPLAINER_VERSION = 'v2';
 
 export type ConceptExplainerOutput = z.infer<typeof conceptExplainerSchema>;
 
@@ -57,15 +73,21 @@ export interface ConceptExplainerInput {
   language: string | null;
 }
 
-const EXPLAINER_SYSTEM = `You are writing the reference explanation for one concept, for an experienced engineer who is rebuilding skills they once had.
+const EXPLAINER_SYSTEM = `You are writing the page someone reads to understand one concept properly, before they practise it.
 
-Write for someone who can already program. Do not define what a variable is, do not pad, and do not open with "In this article". Get to the idea.
+Write plainly. Short sentences, one idea each. Prefer the ordinary word to the technical one, and when a technical term is unavoidable, say what it means the first time you use it. Never stack four ideas into one sentence joined by commas — split it up.
 
-You may write code here — this is the teaching page, not an exercise. Keep it short, runnable in the head, and about the concept rather than about any particular problem.
+Your reader can already program. That means you can skip what a function or a variable is. It does not mean you should compress: they are here because they do not yet have this concept, and density is what made it hard the first time.
 
-Say why the concept exists and what goes wrong without it. An explanation that only says what something does leaves the reader able to recognise it and unable to reach for it.
+Be generous with length. Build the idea up in order: what problem it solves, what it actually does, then how it behaves in the cases that surprise people. Show the reader the mechanism, not just the name of it.
 
-Length: summary two or three solid paragraphs, realWorld one, two to four examples, and up to five pitfalls. Short is worse than long here — this is the page they read before practising.`;
+You may write code here — this is the teaching page, not an exercise. Make the example small and complete enough to run in your head, and about the concept rather than about any particular problem.
+
+Say what goes wrong without the concept. An explanation that only says what something does leaves the reader able to recognise it and unable to reach for it.
+
+For docsUrl, give the canonical documentation page only if you are certain of the exact URL — MDN for JavaScript and web APIs, otherwise the project's own documentation. If you are not certain, return null. A wrong link is worse than none.
+
+Length: summary three or four unhurried paragraphs, realWorld one or two, three or four examples, and up to five pitfalls.`;
 
 export const conceptExplainerAgent = {
   name: 'concept-explainer' as const,

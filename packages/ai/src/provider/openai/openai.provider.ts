@@ -5,10 +5,12 @@ import {
   AIContractViolation,
   AIUnavailable,
   type AIProvider,
+  type CallContext,
   type EmbedRequest,
   type EmbedResult,
   type GenerateRequest,
   type GenerateResult,
+  type ModelOption,
   type PromptSpec,
   type StreamChunk,
   type StructuredRequest,
@@ -124,7 +126,7 @@ export class OpenAIProvider implements AIProvider {
 
     // jsonSchema7, not openApi3: strict mode expresses nullability as
     // `type: [..., "null"]` rather than OpenAPI's `nullable: true`.
-    // No `name`: that option wraps the result in a root \ plus a
+    // No `name`: that option wraps the result in a root $ref plus a
     // definitions block, and strict mode wants the schema itself. The name
     // is passed to OpenAI separately below.
     const generated = zodToJsonSchema(req.schema, {
@@ -206,6 +208,21 @@ export class OpenAIProvider implements AIProvider {
     }
 
     throw new AIContractViolation(req.context.agent, lastIssues, lastRaw);
+  }
+
+  async listModels(context: CallContext): Promise<ModelOption[]> {
+    try {
+      const response = await this.client.models.list();
+
+      // The listing is everything the account can touch — image, audio,
+      // moderation, embeddings, fine-tunes. Only the chat families belong
+      // in a picker for a chat model.
+      return response.data
+        .filter((model) => /^(gpt|o\d|chatgpt)/.test(model.id))
+        .map((model) => ({ id: model.id, label: model.id }));
+    } catch (error) {
+      throw new AIUnavailable(context.agent, error);
+    }
   }
 
   async embed(req: EmbedRequest): Promise<EmbedResult> {

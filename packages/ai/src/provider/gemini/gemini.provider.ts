@@ -5,10 +5,12 @@ import {
   AIContractViolation,
   AIUnavailable,
   type AIProvider,
+  type CallContext,
   type EmbedRequest,
   type EmbedResult,
   type GenerateRequest,
   type GenerateResult,
+  type ModelOption,
   type PromptSpec,
   type StreamChunk,
   type StructuredRequest,
@@ -200,6 +202,27 @@ export class GeminiProvider implements AIProvider {
       latencyMs: Date.now() - startedAt,
       repairAttempts: 0,
     };
+  }
+
+  async listModels(context: CallContext): Promise<ModelOption[]> {
+    try {
+      const models: ModelOption[] = [];
+
+      for await (const model of await this.client.models.list()) {
+        // Filter to what can answer a prompt. The same listing carries
+        // embedding and tuning-only models, and offering those as a
+        // reasoning model would be offering a guaranteed failure.
+        const actions = model.supportedActions ?? [];
+        if (actions.length > 0 && !actions.includes('generateContent')) continue;
+
+        const id = (model.name ?? '').replace(/^models\//, '');
+        if (id) models.push({ id, label: model.displayName ?? id });
+      }
+
+      return models;
+    } catch (error) {
+      throw new AIUnavailable(context.agent, error);
+    }
   }
 
   async embed(req: EmbedRequest): Promise<EmbedResult> {

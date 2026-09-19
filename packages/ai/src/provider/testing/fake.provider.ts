@@ -7,6 +7,7 @@ import type {
   StreamChunk,
   StructuredRequest,
   StructuredResult,
+  ModelOption,
 } from '../ai-provider.port.js';
 
 /**
@@ -102,5 +103,12 @@ export class FakeAIProvider implements AIProvider {
       usage: { promptTokens: 10, completionTokens: 0 },
       model: 'fake-embedding',
     };
+  }
+  listModels(): Promise<ModelOption[]> {
+    // Two, so a picker has something to pick between offline.
+    return Promise.resolve([
+      { id: 'fake-fast', label: 'Fake (fast)' },
+      { id: 'fake-reasoning', label: 'Fake (reasoning)' },
+    ]);
   }
 }

@@ -1,10 +1,12 @@
 import {
   AIUnavailable,
   type AIProvider,
+  type CallContext,
   type EmbedRequest,
   type EmbedResult,
   type GenerateRequest,
   type GenerateResult,
+  type ModelOption,
   type StreamChunk,
   type StructuredRequest,
   type StructuredResult,
@@ -94,6 +96,11 @@ export class RoutingAIProvider implements AIProvider {
   async structured<T>(req: StructuredRequest<T>): Promise<StructuredResult<T>> {
     const provider = await this.providerFor(req.context.userId, req.context.agent);
     return provider.structured(req);
+  }
+
+  async listModels(context: CallContext): Promise<ModelOption[]> {
+    const provider = await this.providerFor(context.userId, context.agent);
+    return provider.listModels(context);
   }
 
   async embed(req: EmbedRequest): Promise<EmbedResult> {

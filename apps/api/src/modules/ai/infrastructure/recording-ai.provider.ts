@@ -2,10 +2,12 @@ import { Logger } from '@nestjs/common';
 
 import type {
   AIProvider,
+  CallContext,
   EmbedRequest,
   EmbedResult,
   GenerateRequest,
   GenerateResult,
+  ModelOption,
   StreamChunk,
   StructuredRequest,
   StructuredResult,
@@ -82,6 +84,15 @@ export class RecordingAIProvider implements AIProvider {
       void this.record(request, null, null, Date.now() - started, 'ERROR', error);
       throw error;
     }
+  }
+
+  /**
+   * Not recorded. Listing models spends nothing and answers no question
+   * about a user's learning, so a row here would be noise in a table that
+   * exists to account for spend.
+   */
+  listModels(context: CallContext): Promise<ModelOption[]> {
+    return this.inner.listModels(context);
   }
 
   async embed(request: EmbedRequest): Promise<EmbedResult> {

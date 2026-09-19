@@ -8,7 +8,9 @@ import {
   useSaveAIKey,
   useSelectAIProvider,
   useTestAIKey,
+  useVendorModels,
   type AISettingsView,
+  type ModelOption,
   type VendorSettingView,
 } from '~/lib/queries';
 
@@ -152,9 +154,6 @@ function AIProviderPanel({ settings }: { settings: AISettingsView }) {
 
 function VendorCard({ vendor, disabled }: { vendor: VendorSettingView; disabled: boolean }) {
   const [apiKey, setApiKey] = useState('');
-  const [showModels, setShowModels] = useState(false);
-  const [modelFast, setModelFast] = useState(vendor.modelFast);
-  const [modelReasoning, setModelReasoning] = useState(vendor.modelReasoning);
 
   const save = useSaveAIKey();
   const remove = useRemoveAIKey();
@@ -162,11 +161,10 @@ function VendorCard({ vendor, disabled }: { vendor: VendorSettingView; disabled:
 
   const looksWrong = apiKey.length > 0 && !apiKey.trim().startsWith(vendor.keyPrefix);
 
+  // Key only. Models are saved separately, by ModelPicker, so that
+  // changing one never requires pasting the other.
   const submit = () => {
-    save.mutate(
-      { provider: vendor.id, apiKey, modelFast, modelReasoning },
-      { onSuccess: () => setApiKey('') },
-    );
+    save.mutate({ provider: vendor.id, apiKey }, { onSuccess: () => setApiKey('') });
   };
 
   return (
@@ -254,40 +252,155 @@ function VendorCard({ vendor, disabled }: { vendor: VendorSettingView; disabled:
 
       <div className="divider mt4 mb3" />
 
-      <Button variant="ghost" size="sm" onClick={() => setShowModels((open) => !open)}>
-        <Icon name={showModels ? 'chevronDown' : 'chevronRight'} size={13} />
-        Models
-      </Button>
-
-      {showModels && (
-        <div className="grid grid-2 g3 mt3 cq-grid-2">
-          <div>
-            <label className="field-label">Fast</label>
-            <input
-              className="input mono"
-              value={modelFast}
-              onChange={(event) => setModelFast(event.target.value)}
-            />
-            {/* Which tier does what, so the choice is not made blind. */}
-            <div className="field-hint">
-              Hints, concept detail, grading prose. Default{' '}
-              <span className="mono">{vendor.defaultFast}</span>.
-            </div>
-          </div>
-          <div>
-            <label className="field-label">Reasoning</label>
-            <input
-              className="input mono"
-              value={modelReasoning}
-              onChange={(event) => setModelReasoning(event.target.value)}
-            />
-            <div className="field-hint">
-              Curriculum, reviews, interviews. Default{' '}
-              <span className="mono">{vendor.defaultReasoning}</span>.
-            </div>
-          </div>
+      {vendor.configured ? (
+        <ModelPicker vendor={vendor} />
+      ) : (
+        <div className="t-caption">
+          Save a key to choose models. Until then these are used:{' '}
+          <span className="mono">{vendor.defaultFast}</span> and{' '}
+          <span className="mono">{vendor.defaultReasoning}</span>.
         </div>
       )}
     </Card>
   );
 }
+
+/**
+ * Chooses the two models, from what the vendor says the key can reach.
+ *
+ * A free-text box over a hard-coded default was the old shape, and it had
+ * two faults at once: the defaults went stale when a vendor retired a
+ * model, and the Save button required an API key, so editing a model name
+ * alone silently did nothing and calls kept going to the retired one.
+ *
+ * The list is fetched from the vendor, and saving models no longer needs
+ * the key. Free text stays available underneath, because a brand-new model
+ * can reach the API before it reaches any listing.
+ */
+function ModelPicker({ vendor }: { vendor: VendorSettingView }) {
+  const [open, setOpen] = useState(false);
+  const [fast, setFast] = useState(vendor.modelFast);
+  const [reasoning, setReasoning] = useState(vendor.modelReasoning);
+
+  const { data: models, isLoading, error } = useVendorModels(vendor.id, open);
+  const save = useSaveAIKey();
+
+  const dirty = fast !== vendor.modelFast || reasoning !== vendor.modelReasoning;
+
+  return (
+    <>
+      <Button variant="ghost" size="sm" onClick={() => setOpen((value) => !value)}>
+        <Icon name={open ? 'chevronDown' : 'chevronRight'} size={13} />
+        Models · <span className="mono">{vendor.modelFast}</span> /{' '}
+        <span className="mono">{vendor.modelReasoning}</span>
+      </Button>
+
+      {open && (
+        <div className="mt3">
+          {isLoading && <div className="t-caption">Asking {vendor.label} what it offers…</div>}
+
+          {error && (
+            // The vendor's own sentence. Usually the key, occasionally a
+            // permission, and either way not something to paper over.
+            <div className="t-small mb3" style={{ color: 'var(--error)' }}>
+              Could not list models: {(error as Error).message}
+            </div>
+          )}
+
+          <div className="grid grid-2 g3 cq-grid-2">
+            <ModelField
+              label="Fast"
+              hint="Hints, concept detail, grading prose."
+              value={fast}
+              options={models}
+              onChange={setFast}
+            />
+            <ModelField
+              label="Reasoning"
+              hint="Curriculum, reviews, interviews."
+              value={reasoning}
+              options={models}
+              onChange={setReasoning}
+            />
+          </div>
+
+          <div className="row items-center g3 mt3">
+            <Button
+              size="sm"
+              disabled={!dirty || save.isPending}
+              onClick={() =>
+                save.mutate({ provider: vendor.id, modelFast: fast, modelReasoning: reasoning })
+              }
+            >
+              {save.isPending ? 'Saving…' : 'Save models'}
+            </Button>
+
+            {dirty && <span className="t-caption">Unsaved</span>}
+            {save.isError && (
+              <span className="t-caption" style={{ color: 'var(--error)' }}>
+                {(save.error as Error).message}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function ModelField({
+  label,
+  hint,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+  options: ModelOption[] | undefined;
+  onChange: (value: string) => void;
+}) {
+  // A configured model the vendor no longer lists is the exact failure that
+  // started this — say so on the screen rather than at the next call.
+  const retired = options !== undefined && value !== '' && !options.some((m) => m.id === value);
+
+  return (
+    <div>
+      <label className="field-label">{label}</label>
+
+      {options && options.length > 0 && (
+        <select
+          className="select mb2"
+          value={options.some((m) => m.id === value) ? value : ''}
+          onChange={(event) => onChange(event.target.value)}
+        >
+          <option value="" disabled>
+            Choose a model…
+          </option>
+          {options.map((model) => (
+            <option key={model.id} value={model.id}>
+              {model.label === model.id ? model.id : `${model.label} — ${model.id}`}
+            </option>
+          ))}
+        </select>
+      )}
+
+      <input
+        className={`input mono ${retired ? 'has-error' : ''}`}
+        value={value}
+        spellCheck={false}
+        onChange={(event) => onChange(event.target.value)}
+      />
+
+      {retired ? (
+        <div className="field-error">{vendorRetiredMessage}</div>
+      ) : (
+        <div className="field-hint">{hint}</div>
+      )}
+    </div>
+  );
+}
+
+const vendorRetiredMessage =
+  'Not in this key’s model list. It may have been retired — calls using it will fail.';

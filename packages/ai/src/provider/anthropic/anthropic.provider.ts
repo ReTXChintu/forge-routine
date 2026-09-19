@@ -5,10 +5,12 @@ import {
   AIContractViolation,
   AIUnavailable,
   type AIProvider,
+  type CallContext,
   type EmbedRequest,
   type EmbedResult,
   type GenerateRequest,
   type GenerateResult,
+  type ModelOption,
   type PromptSpec,
   type StreamChunk,
   type StructuredRequest,
@@ -262,6 +264,22 @@ export class AnthropicProvider implements AIProvider {
       // Zero rather than absent, so the telemetry column stays comparable.
       repairAttempts: 0,
     };
+  }
+
+  async listModels(context: CallContext): Promise<ModelOption[]> {
+    try {
+      const models: ModelOption[] = [];
+
+      // Auto-paginates. Every model listed here answers messages, so
+      // unlike the other two there is nothing to filter out.
+      for await (const model of this.client.models.list({ limit: 100 })) {
+        models.push({ id: model.id, label: model.display_name ?? model.id });
+      }
+
+      return models;
+    } catch (error) {
+      throw new AIUnavailable(context.agent, error);
+    }
   }
 
   async embed(req: EmbedRequest): Promise<EmbedResult> {

@@ -140,6 +140,37 @@ describe('AI provider settings', () => {
     expect(anthropic.modelReasoning).toBe(anthropic.defaultReasoning);
   });
 
+  it('saves a model change without re-entering the key', async () => {
+    // The bug this covers: the endpoint required an apiKey, and the Save
+    // button was disabled without one, so editing a model name alone
+    // silently did nothing and calls kept going to the old model.
+    const response = await http
+      .put('/api/v1/settings/ai/keys/ANTHROPIC')
+      .set(auth())
+      .send({ modelFast: 'claude-opus-5' })
+      .expect(200);
+
+    const anthropic = response.body.vendors.find((v: { id: string }) => v.id === 'ANTHROPIC');
+    expect(anthropic.modelFast).toBe('claude-opus-5');
+    // Still configured — the stored key was kept, not wiped.
+    expect(anthropic.configured).toBe(true);
+    expect(anthropic.keyLast4).toBe('TAIL');
+  });
+
+  it('will not create a credential from models alone', async () => {
+    // Saving models for a vendor with no key would leave a row that looks
+    // configured but cannot make a call.
+    await http
+      .put('/api/v1/settings/ai/keys/OPENAI')
+      .set(auth())
+      .send({ modelFast: 'gpt-4o' })
+      .expect(400);
+  });
+
+  it('refuses to list models for a provider with no key', async () => {
+    await http.get('/api/v1/settings/ai/keys/OPENAI/models').set(auth()).expect(400);
+  });
+
   it('rejects a provider that does not exist', async () => {
     await http
       .put('/api/v1/settings/ai/keys/DEEPMIND')

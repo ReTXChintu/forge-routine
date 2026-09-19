@@ -81,12 +81,28 @@ export interface EmbedRequest {
   context: CallContext;
 }
 
+/** One model this key can actually reach, as the vendor reports it. */
+export interface ModelOption {
+  /** The id to send. This is what gets stored. */
+  id: string;
+  /** The vendor's own display name, where it gives one. */
+  label: string;
+}
+
 export interface AIProvider {
   readonly name: string;
   generate(req: GenerateRequest): Promise<GenerateResult>;
   stream(req: GenerateRequest): AsyncIterable<StreamChunk>;
   structured<T>(req: StructuredRequest<T>): Promise<StructuredResult<T>>;
   embed(req: EmbedRequest): Promise<EmbedResult>;
+  /**
+   * The models this key can use, straight from the vendor.
+   *
+   * Exists because a hard-coded list goes stale silently and the user finds
+   * out through a failed call naming a model they never chose. Vendors
+   * retire models on their own schedule; only they know the current set.
+   */
+  listModels(context: CallContext): Promise<ModelOption[]>;
 }
 
 // -- Errors -----------------------------------------------------------------

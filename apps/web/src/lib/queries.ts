@@ -987,18 +987,43 @@ export function useSelectAIProvider() {
   );
 }
 
+export interface ModelOption {
+  id: string;
+  label: string;
+}
+
+/**
+ * The models a saved key can actually reach.
+ *
+ * Fetched on demand rather than listed on load: it is a real call to the
+ * vendor, and most visits to this page do not open the model picker.
+ */
+export function useVendorModels(
+  provider: AIVendorId,
+  enabled: boolean,
+): UseQueryResult<ModelOption[]> {
+  return useQuery({
+    queryKey: ['settings', 'ai', 'models', provider] as const,
+    queryFn: () => apiRequest<ModelOption[]>(`/settings/ai/keys/${provider}/models`),
+    enabled,
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+}
+
 export function useSaveAIKey() {
   return useAISettingsMutation(
     (input: {
       provider: AIVendorId;
-      apiKey: string;
+      /** Omit to change only the models and keep the stored key. */
+      apiKey?: string | null;
       modelFast?: string | null;
       modelReasoning?: string | null;
     }) =>
       apiRequest<AISettingsView>(`/settings/ai/keys/${input.provider}`, {
         method: 'PUT',
         body: {
-          apiKey: input.apiKey,
+          apiKey: input.apiKey?.trim() ? input.apiKey.trim() : null,
           modelFast: input.modelFast ?? null,
           modelReasoning: input.modelReasoning ?? null,
         },

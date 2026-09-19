@@ -5,6 +5,7 @@ import {
   buildAIProvider,
   describeAIFailure,
   isAIVendor,
+  type ModelOption,
   type AIVendor,
   type ResolvedVendor,
 } from '@forgeroutine/ai';
@@ -123,37 +124,95 @@ export class AISettingsService {
     return this.view(userId);
   }
 
+  /**
+   * Saves a key, models, or both.
+   *
+   * `apiKey` is optional on purpose. It used to be required, which meant
+   * changing a model name was impossible without pasting the key again —
+   * so a model edit silently did nothing and calls kept going to the old
+   * one. Anything omitted here keeps the value already stored.
+   */
   async saveKey(
     userId: string,
     vendor: AIVendor,
-    input: { apiKey: string; modelFast?: string | null; modelReasoning?: string | null },
+    input: { apiKey?: string | null; modelFast?: string | null; modelReasoning?: string | null },
   ): Promise<AISettingsView> {
-    const passphrase = this.requireEncryptionKey();
-    const apiKey = input.apiKey.trim();
-
-    if (apiKey.length < 8) throw Problems.badRequest('That does not look like an API key.');
-
+    const apiKey = input.apiKey?.trim() ?? '';
     const profile = AI_VENDOR_PROFILES[vendor];
-    const data = {
-      keyCipher: encryptSecret(apiKey, passphrase),
-      keyLast4: lastFour(apiKey),
+
+    const existing = await this.prisma.aICredential.findUnique({
+      where: { userId_provider: { userId, provider: vendor } },
+      select: { id: true },
+    });
+
+    if (apiKey.length === 0 && !existing) {
+      throw Problems.badRequest(`Add a ${profile.label} API key first.`);
+    }
+    if (apiKey.length > 0 && apiKey.length < 8) {
+      throw Problems.badRequest('That does not look like an API key.');
+    }
+
+    const models = {
       modelFast: blankToNull(input.modelFast),
       modelReasoning: blankToNull(input.modelReasoning),
-      // A new key is unverified until it is tested, even if the old one
-      // worked. Carrying the tick over would vouch for a key nobody tried.
+      // Cleared on a model change as well as a key change. A tick earned
+      // by a different model vouches for nothing about this one.
       verifiedAt: null,
     };
 
-    await this.prisma.aICredential.upsert({
-      where: { userId_provider: { userId, provider: vendor } },
-      create: { userId, provider: vendor, ...data },
-      update: data,
-    });
+    const credentials = apiKey
+      ? {
+          keyCipher: encryptSecret(apiKey, this.requireEncryptionKey()),
+          keyLast4: lastFour(apiKey),
+        }
+      : {};
+
+    if (existing) {
+      await this.prisma.aICredential.update({
+        where: { id: existing.id },
+        data: { ...models, ...credentials },
+      });
+    } else {
+      await this.prisma.aICredential.create({
+        data: { userId, provider: vendor, ...models, ...credentials } as never,
+      });
+    }
 
     // Never the key, never the cipher. Enough to answer "did my save land".
-    this.logger.log(`${profile.label} key saved for ${userId} (••••${data.keyLast4})`);
+    this.logger.log(`${profile.label} ${apiKey ? 'key and models' : 'models'} saved for ${userId}`);
 
     return this.view(userId);
+  }
+
+  /**
+   * The models this user's key can actually reach.
+   *
+   * Asked of the vendor rather than kept in a list here. A hard-coded set
+   * goes stale the moment a vendor retires something, and the user finds
+   * out through a failed call naming a model they never picked — which is
+   * exactly how `gemini-2.5-flash` outlived its own support window here.
+   */
+  async listModels(userId: string, vendor: AIVendor): Promise<ModelOption[]> {
+    const credential = await this.prisma.aICredential.findUnique({
+      where: { userId_provider: { userId, provider: vendor } },
+    });
+    if (!credential) throw Problems.badRequest('Add a key for this provider first.');
+
+    const provider = buildAIProvider(this.toResolved(credential), {
+      timeoutMs: Math.min(this.config.env.AI_REQUEST_TIMEOUT_MS, 20_000),
+      maxRetries: 0,
+    });
+
+    try {
+      const models = await provider.listModels({
+        userId,
+        agent: 'settings-models',
+        promptVersion: 'v1',
+      });
+      return [...models].sort((a, b) => a.id.localeCompare(b.id));
+    } catch (error) {
+      throw Problems.badRequest(describeAIFailure(error));
+    }
   }
 
   async removeKey(userId: string, vendor: AIVendor): Promise<AISettingsView> {

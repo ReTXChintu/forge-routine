@@ -13,6 +13,8 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 
+import type { ModelOption } from '@forgeroutine/ai';
+
 import {
   CurrentUser,
   type AuthenticatedUser,
@@ -31,7 +33,8 @@ const selectSchema = z.object({
 });
 
 const keySchema = z.object({
-  apiKey: z.string().min(8).max(400),
+  /** Optional: omit it to change only the models and keep the stored key. */
+  apiKey: z.string().max(400).nullish(),
   modelFast: z.string().max(120).nullish(),
   modelReasoning: z.string().max(120).nullish(),
 });
@@ -68,8 +71,17 @@ export class AISettingsController {
     return this.settings.select(user.userId, body.provider);
   }
 
+  @Get('keys/:provider/models')
+  @ApiOperation({ summary: 'The models this key can reach, asked of the vendor' })
+  listModels(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('provider') provider: string,
+  ): Promise<ModelOption[]> {
+    return this.settings.listModels(user.userId, parseVendor(provider));
+  }
+
   @Put('keys/:provider')
-  @ApiOperation({ summary: 'Save an API key. Encrypted at rest; never returned.' })
+  @ApiOperation({ summary: 'Save a key and/or models. Keys are encrypted; never returned.' })
   saveKey(
     @CurrentUser() user: AuthenticatedUser,
     @Param('provider') provider: string,

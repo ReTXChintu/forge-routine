@@ -35,6 +35,7 @@ model User {
   updatedAt    DateTime  @updatedAt
 
   aiCredentials   AICredential[]
+  conceptChats    ConceptChatMessage[]
   preferences      UserPreferences?
   refreshTokens    RefreshToken[]
   technologies     UserTechnology[]
@@ -243,6 +244,8 @@ model Concept {
   dependents      ConceptPrerequisite[] @relation("PrerequisiteToConcepts")
   exercises       Exercise[]
   questions       ConceptQuestion[]
+  explainer       ConceptExplainer?
+  chatMessages    ConceptChatMessage[]
   skills          Skill[]
   reviewSchedules ReviewSchedule[]
   sessions        LearningSession[]
@@ -637,6 +640,10 @@ model RoutineItem {
   /// than counted at read time so the plan says the same thing all day, even
   /// if the concept gains questions while the user is working through it.
   questionCount Int   @default(0)
+  /// The day this item was originally planned for, when it has been carried
+  /// forward. Shown to the user, because "three days late" is information
+  /// they are entitled to and a silent backlog is not.
+  carriedFrom DateTime?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -693,6 +700,58 @@ model ReviewSchedule {
 /// Two jobs: they are the only practice available for technologies the sandbox
 /// cannot execute, and they are the source for the recall prompts that feed
 /// `recallStrength` and `retention` (docs/learning-path.md).
+/// The teaching material for one concept, generated once and shared.
+///
+/// Per concept rather than per user: the explanation of a closure does not
+/// depend on who is reading it, and generating it per user would multiply
+/// the bill by the user count for identical text. The chat beside it is
+/// where the per-person part happens.
+model ConceptExplainer {
+  id        String  @id @default(cuid())
+  conceptId String  @unique
+  concept   Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  /// Plain-English explanation of what it is and why it exists.
+  summary      String
+  /// Where this actually shows up in real systems.
+  realWorld    String
+  /// Worked examples, each a short paragraph.
+  examples     String[] @default([])
+  /// Illustrative code, or null for concepts that are not about code.
+  codeExample  String?
+  codeLanguage String?
+  /// What people get wrong, in the author's words rather than the seed's.
+  pitfalls     String[] @default([])
+
+  /// Which model wrote it, so a bad batch can be found and regenerated.
+  generatedBy String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("concept_explainers")
+}
+
+/// One turn of a user's doubt-clearing conversation about a concept.
+///
+/// Per user, unlike the explainer: the whole value is that it knows what
+/// this person has already failed at.
+model ConceptChatMessage {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conceptId String
+  concept   Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  /// "user" or "assistant". Not an enum: this is a transcript, and a third
+  /// role would be a migration for no gain.
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([userId, conceptId, createdAt])
+  @@map("concept_chat_messages")
+}
+
 model ConceptQuestion {
   id          String   @id @default(cuid())
   conceptId   String
@@ -1059,6 +1118,11 @@ enum RoutineItemStatus {
   PENDING
   IN_PROGRESS
   DONE
+  /// Moved to a later day because it was not finished. Nothing is ever
+  /// dropped: the work is compulsory, so an unfinished day pushes forward
+  /// rather than disappearing.
+  CARRIED
+  /// Historical only. Skipping is no longer possible — see CARRIED.
   SKIPPED
 }
 

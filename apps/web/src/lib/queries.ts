@@ -607,6 +607,8 @@ export interface RoutineItemView {
   exerciseId: string | null;
   /** RECALL items: how many questions this item covers. */
   questionCount: number;
+  /** Set when this is unfinished work moved forward from an earlier day. */
+  carriedFrom: string | null;
 }
 
 export interface RoutineView {
@@ -616,6 +618,8 @@ export interface RoutineView {
   completedMinutes: number;
   items: RoutineItemView[];
   recallDue: number;
+  /** How many of today's items were carried from an earlier day. */
+  carriedCount: number;
 }
 
 export function useTodayRoutine(): UseQueryResult<RoutineView | null> {
@@ -647,7 +651,9 @@ export function useUpdateRoutineItem() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
+    // No SKIPPED. Every routine item is compulsory, and an unfinished one
+    // carries to the next day rather than being dropped.
+    mutationFn: ({ id, status }: { id: string; status: 'IN_PROGRESS' | 'DONE' }) =>
       apiRequest<RoutineItemView>(`/routines/items/${id}`, { method: 'PATCH', body: { status } }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.routineToday });
@@ -1048,6 +1054,72 @@ export function useTestAIKey() {
     onSuccess: () => {
       // A successful test stamps verifiedAt server-side.
       void queryClient.invalidateQueries({ queryKey: ['settings', 'ai'] });
+    },
+  });
+}
+
+// -- Concept tutor -----------------------------------------------------------
+
+export interface ExplainerView {
+  summary: string;
+  realWorld: string;
+  examples: string[];
+  codeExample: string | null;
+  codeLanguage: string | null;
+  pitfalls: string[];
+  available: boolean;
+  unavailableReason: string | null;
+}
+
+export interface ChatMessageView {
+  id: string;
+  role: string;
+  content: string;
+  createdAt: string;
+}
+
+/**
+ * The written explanation for a concept.
+ *
+ * Generated on the server the first time anyone opens it and shared from
+ * then on, so this is a slow first call and instant afterwards. No retry:
+ * a failure here already degrades to a readable message, and retrying
+ * would be a second generation.
+ */
+export function useConceptExplainer(conceptId: string | undefined) {
+  return useQuery({
+    queryKey: ['concepts', conceptId, 'explainer'] as const,
+    queryFn: () => apiRequest<ExplainerView>(`/concepts/${conceptId}/explainer`),
+    enabled: Boolean(conceptId),
+    staleTime: Infinity,
+    retry: false,
+  });
+}
+
+export function useConceptChat(conceptId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['concepts', conceptId, 'chat'] as const,
+    queryFn: () => apiRequest<ChatMessageView[]>(`/concepts/${conceptId}/chat`),
+    enabled: enabled && Boolean(conceptId),
+  });
+}
+
+export function useAskConcept(conceptId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (question: string) =>
+      apiRequest<ChatMessageView[]>(`/concepts/${conceptId}/chat`, {
+        method: 'POST',
+        body: { question },
+      }),
+    onSuccess: (turns) => {
+      // Appended rather than refetched: the answer is already here, and a
+      // refetch would blank the thread while it reloads.
+      queryClient.setQueryData<ChatMessageView[]>(['concepts', conceptId, 'chat'], (existing) => [
+        ...(existing ?? []),
+        ...turns,
+      ]);
     },
   });
 }

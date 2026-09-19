@@ -183,6 +183,28 @@ export function TodayView() {
         />
       )}
 
+      {routine.carriedCount > 0 && (
+        <Card className="mb6" style={{ borderLeft: '2px solid var(--warning)' }}>
+          <div className="row items-start g3">
+            <span style={{ color: 'var(--warning)', marginTop: 2 }}>
+              <Icon name="clock" size={16} />
+            </span>
+            <div>
+              <div className="t-h4">
+                {routine.carriedCount} {routine.carriedCount === 1 ? 'item' : 'items'} carried
+                forward
+              </div>
+              {/* Not an admonishment. The plan simply does not forget, and
+                  saying so once is more useful than a streak that breaks. */}
+              <div className="t-small mt1">
+                Nothing is ever dropped, so unfinished work moves to today and new material waits
+                until it is cleared. Finishing ahead is fine; skipping is not a thing.
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <div className="row items-center justify-between mb3 g4">
         <span className="t-h3">Today</span>
         <div style={{ flex: 1, maxWidth: 320 }}>
@@ -197,7 +219,6 @@ export function TodayView() {
             item={item}
             onOpen={() => open(item)}
             onComplete={() => complete(item)}
-            onSkip={() => updateItem.mutate({ id: item.id, status: 'SKIPPED' })}
           />
         ))}
       </div>
@@ -282,16 +303,16 @@ function RoutineRow({
   item,
   onOpen,
   onComplete,
-  onSkip,
 }: {
   item: RoutineItemView;
   onOpen: () => void;
   onComplete: () => void;
-  onSkip: () => void;
 }) {
   const done = item.status === 'DONE';
-  const skipped = item.status === 'SKIPPED';
-  const settled = done || skipped;
+  // No skipped state any more. Unfinished work moves to tomorrow, so the
+  // only settled state is done.
+  const settled = done;
+  const lateBy = item.carriedFrom ? daysLate(item.carriedFrom) : 0;
   const openable = Boolean(item.exerciseId || item.conceptId);
 
   const desk =
@@ -331,6 +352,13 @@ function RoutineRow({
           <div className="t-caption">
             {item.kind} · {item.minutes} min · {item.rationale}
           </div>
+          {lateBy > 0 && (
+            // Stated, not hidden. A backlog you cannot see is one you
+            // never clear, and this is the whole point of carrying work.
+            <div className="t-caption mt1" style={{ color: 'var(--warning)' }}>
+              Carried from {lateBy} {lateBy === 1 ? 'day' : 'days'} ago
+            </div>
+          )}
         </div>
       </div>
 
@@ -342,13 +370,9 @@ function RoutineRow({
         )}
 
         {done && <Badge variant="success">Done</Badge>}
-        {skipped && <Badge variant="neutral">Skipped</Badge>}
 
         {!settled && (
           <>
-            <Button variant="ghost" size="sm" onClick={onSkip}>
-              Skip
-            </Button>
             {openable && (
               <Button variant="secondary" size="sm" onClick={onOpen}>
                 Open
@@ -362,4 +386,14 @@ function RoutineRow({
       </div>
     </Card>
   );
+}
+
+/** Whole days between a carried item's original day and today. */
+function daysLate(carriedFrom: string): number {
+  const then = new Date(carriedFrom);
+  then.setHours(0, 0, 0, 0);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  return Math.max(0, Math.round((now.getTime() - then.getTime()) / 86_400_000));
 }

@@ -19,6 +19,8 @@ export interface RoutineItemView {
   exerciseId: string | null;
   /** RECALL items: how many questions are waiting on that concept. */
   questionCount: number;
+  /** The day this was first planned for, when it has been carried forward. */
+  carriedFrom: string | null;
 }
 
 export interface RoutineView {
@@ -29,6 +31,8 @@ export interface RoutineView {
   items: RoutineItemView[];
   /** Prompts due today. Surfaced between items, never during one. */
   recallDue: number;
+  /** How many of today's items are unfinished work from an earlier day. */
+  carriedCount: number;
 }
 
 /**
@@ -46,10 +50,17 @@ export interface RoutineView {
  * into a plan whose whole value is that it is predictable.
  *
  * Composition, in priority order:
- *   1. Reviews that are due — decay undoes everything else.
- *   2. DSA — one concept and one problem, every single day.
- *   3. The next roadmap concept, its questions, then its exercises.
- *   4. Nothing else. A routine padded to fill the time is busywork.
+ *   1. Whatever was not finished on an earlier day. Nothing is ever
+ *      dropped, so this comes first and can fill the day on its own.
+ *   2. Reviews that are due — decay undoes everything else.
+ *   3. DSA — one concept and one problem, every single day.
+ *   4. The next roadmap concept, its questions, then its exercises.
+ *   5. Nothing else. A routine padded to fill the time is busywork.
+ *
+ * The backlog throttles new material rather than stacking on top of it: a
+ * user three days behind gets three days of unfinished work and no new
+ * ground until it is cleared. That is the point — the alternative is a
+ * plan that quietly forgives, which is the habit this exists to replace.
  */
 @Injectable()
 export class RoutinesService {
@@ -97,17 +108,30 @@ export class RoutinesService {
     const planned: PlannedItem[] = [];
     const claimed = new Set<string>();
 
-    const [dueReviews, dsa, roadmapItems] = await Promise.all([
+    const [carried, dueReviews, dsa, roadmapItems] = await Promise.all([
+      this.unfinishedBefore(userId, date),
       this.dueReviews(userId),
       this.dsaBlock(userId),
       this.nextRoadmapItems(userId),
     ]);
 
+    // -- 0. Yesterday, and every day before it ----------------------------
+    // Ahead of the budget check and never dropped. This is what makes the
+    // work compulsory: an unfinished day pushes forward, so falling behind
+    // costs new ground rather than costing the material itself.
+    let used = 0;
+    for (const item of carried) {
+      planned.push(item);
+      used += item.minutes;
+      if (item.conceptId) claimed.add(item.conceptId);
+      if (item.exerciseId) claimed.add(item.exerciseId);
+    }
+
     // -- 1. Reviews -------------------------------------------------------
     // A concept that decays takes the work that built it with it, so review
     // outranks new ground even when new ground is more interesting.
-    let used = 0;
     for (const review of dueReviews) {
+      if (claimed.has(review.conceptId)) continue;
       if (used + REVIEW_MINUTES > budget) break;
       planned.push({
         kind: 'REVIEW',
@@ -120,6 +144,7 @@ export class RoutinesService {
         conceptId: review.conceptId,
         exerciseId: null,
         questionCount: 0,
+        carriedFrom: null,
       });
       used += REVIEW_MINUTES;
     }
@@ -129,6 +154,11 @@ export class RoutinesService {
     // The point of a daily problem is that it is daily; a plan that skips it
     // on a busy day is a plan that skips it most days.
     for (const item of dsa) {
+      // Already carried from an earlier day; planning it twice would show
+      // the same problem in two rows.
+      if (item.exerciseId && claimed.has(item.exerciseId)) continue;
+      if (item.conceptId && item.kind === 'LEARN' && claimed.has(item.conceptId)) continue;
+
       planned.push(item);
       used += item.minutes;
       if (item.conceptId) claimed.add(item.conceptId);
@@ -168,6 +198,7 @@ export class RoutinesService {
         conceptId: item.conceptId,
         exerciseId: item.exerciseId,
         questionCount: 0,
+        carriedFrom: null,
       });
       used += item.estimatedMinutes;
 
@@ -186,6 +217,7 @@ export class RoutinesService {
           conceptId: item.conceptId,
           exerciseId: null,
           questionCount: Math.min(count, QUESTIONS_PER_ITEM),
+          carriedFrom: null,
         });
         used += QUESTION_MINUTES;
       }
@@ -200,10 +232,19 @@ export class RoutinesService {
     return this.toView(userId, routine);
   }
 
+  /**
+   * Marks an item started or finished. There is no third option.
+   *
+   * Skipping used to be one. It was removed because a plan you can skip is
+   * a plan you skip: the item vanished, the concept behind it stayed
+   * unlearned, and nothing downstream noticed. Unfinished work now carries
+   * to the next day instead, which is slower to escape and honest about
+   * what is outstanding.
+   */
   async setItemStatus(
     userId: string,
     itemId: string,
-    status: 'IN_PROGRESS' | 'DONE' | 'SKIPPED',
+    status: 'IN_PROGRESS' | 'DONE',
   ): Promise<RoutineItemView> {
     const item = await this.prisma.routineItem.findUnique({
       where: { id: itemId },
@@ -224,6 +265,63 @@ export class RoutinesService {
   }
 
   // -- Composition ----------------------------------------------------------
+
+  /**
+   * Everything still outstanding from any earlier day.
+   *
+   * Marked CARRIED at the source rather than left PENDING, so the same
+   * item cannot be picked up twice and yesterday's routine reads
+   * truthfully — it was not finished, and it was not skipped either.
+   *
+   * Oldest first: the thing that has been waiting longest goes at the top
+   * of today, which is both fair and the order that clears a backlog.
+   */
+  private async unfinishedBefore(userId: string, today: Date): Promise<PlannedItem[]> {
+    const stale = await this.prisma.routineItem.findMany({
+      where: {
+        routine: { userId, date: { lt: today } },
+        status: { in: ['PENDING', 'IN_PROGRESS'] },
+      },
+      orderBy: [{ routine: { date: 'asc' } }, { orderIndex: 'asc' }],
+      include: { routine: { select: { date: true } } },
+    });
+
+    if (stale.length === 0) return [];
+
+    await this.prisma.routineItem.updateMany({
+      where: { id: { in: stale.map((item) => item.id) } },
+      data: { status: 'CARRIED' },
+    });
+
+    const seen = new Set<string>();
+
+    return stale.flatMap((item) => {
+      // The same concept can be outstanding from several days. Carrying
+      // every copy would show one task three times; carrying the oldest
+      // keeps the age honest.
+      const key = `${item.kind}:${item.conceptId ?? ''}:${item.exerciseId ?? ''}`;
+      if (seen.has(key)) return [];
+      seen.add(key);
+
+      const kind = toRoutineKind(item.kind);
+      if (!kind) return [];
+
+      return [
+        {
+          kind,
+          minutes: item.minutes,
+          title: item.title,
+          rationale: item.rationale,
+          conceptId: item.conceptId,
+          exerciseId: item.exerciseId,
+          questionCount: item.questionCount,
+          // Preserved across repeated carries, so a task late by a week
+          // still says a week rather than resetting to yesterday.
+          carriedFrom: item.carriedFrom ?? item.routine.date,
+        },
+      ];
+    });
+  }
 
   private async dueReviews(userId: string) {
     const schedules = await this.prisma.reviewSchedule.findMany({
@@ -310,6 +408,7 @@ export class RoutinesService {
         conceptId: concept.id,
         exerciseId: null,
         questionCount: 0,
+        carriedFrom: null,
       },
     ];
 
@@ -322,6 +421,7 @@ export class RoutinesService {
         conceptId: concept.id,
         exerciseId: null,
         questionCount: Math.min(concept._count.questions, QUESTIONS_PER_ITEM),
+        carriedFrom: null,
       });
     }
 
@@ -337,6 +437,7 @@ export class RoutinesService {
         conceptId: concept.id,
         exerciseId: exercise.id,
         questionCount: 0,
+        carriedFrom: null,
       });
     }
 
@@ -431,6 +532,7 @@ export class RoutinesService {
             conceptId: item.conceptId,
             exerciseId: item.exerciseId,
             questionCount: item.questionCount,
+            carriedFrom: item.carriedFrom,
           })),
         });
       }
@@ -482,6 +584,7 @@ export class RoutinesService {
       completedMinutes: routine.completedMinutes,
       items: routine.items.map(toItemView),
       recallDue,
+      carriedCount: routine.items.filter((item) => item.carriedFrom !== null).length,
     };
   }
 }
@@ -494,6 +597,8 @@ interface PlannedItem {
   conceptId: string | null;
   exerciseId: string | null;
   questionCount: number;
+  /** Set only on work moved forward from an earlier day. */
+  carriedFrom: Date | null;
 }
 
 type RoutineKind =
@@ -552,6 +657,7 @@ function toItemView(item: {
   conceptId: string | null;
   exerciseId: string | null;
   questionCount: number;
+  carriedFrom: Date | null;
 }): RoutineItemView {
   return {
     id: item.id,
@@ -563,5 +669,6 @@ function toItemView(item: {
     conceptId: item.conceptId,
     exerciseId: item.exerciseId,
     questionCount: item.questionCount,
+    carriedFrom: item.carriedFrom?.toISOString() ?? null,
   };
 }

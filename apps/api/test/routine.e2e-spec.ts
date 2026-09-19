@@ -180,6 +180,55 @@ describe("today's routine", () => {
     expect(after.body.completedMinutes).toBe(first.minutes);
   });
 
+  it('carries unfinished work forward instead of dropping it', async () => {
+    // Backdate today's routine so the next plan sees it as yesterday's,
+    // then leave one item unfinished and replan.
+    const account = await prisma.user.findUnique({ where: { email: user.email } });
+    const yesterday = new Date();
+    yesterday.setHours(0, 0, 0, 0);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const todays = await prisma.routine.findFirst({
+      where: { userId: account!.id },
+      orderBy: { date: 'desc' },
+      include: { items: true },
+    });
+
+    const unfinished = todays!.items.filter((item) => item.status === 'PENDING');
+    expect(unfinished.length).toBeGreaterThan(0);
+
+    await prisma.routine.update({ where: { id: todays!.id }, data: { date: yesterday } });
+
+    const replanned = await http.get('/api/v1/routines/today').set(auth()).expect(200);
+
+    expect(replanned.body.carriedCount).toBeGreaterThan(0);
+
+    const carried = replanned.body.items.filter(
+      (item: Item & { carriedFrom: string | null }) => item.carriedFrom !== null,
+    );
+    // The same titles, on a new day, marked with where they came from.
+    expect(carried.map((item: Item) => item.title)).toEqual(
+      expect.arrayContaining([unfinished[0]!.title]),
+    );
+
+    // And yesterday's copies are CARRIED, so they cannot be picked up twice.
+    const after = await prisma.routineItem.findMany({ where: { routineId: todays!.id } });
+    expect(after.filter((item) => item.status === 'PENDING')).toHaveLength(0);
+    expect(after.some((item) => item.status === 'CARRIED')).toBe(true);
+  });
+
+  it('refuses to skip an item', async () => {
+    const latest = await http.get('/api/v1/routines/today').set(auth()).expect(200);
+    const item = latest.body.items[0];
+
+    // Skipping is not a transition any more: unfinished work carries.
+    await http
+      .patch(`/api/v1/routines/items/${item.id}`)
+      .set(auth())
+      .send({ status: 'SKIPPED' })
+      .expect(400);
+  });
+
   it('costs nothing — no model call is made planning a day', async () => {
     const since = new Date(Date.now() - 10 * 60_000);
     const calls = await prisma.aIInteraction.count({

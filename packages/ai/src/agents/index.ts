@@ -8,3 +8,4 @@ export * from './question.agent.js';
 export * from './project.agent.js';
 export * from './interviewer.agent.js';
 export * from './engineering.agent.js';
+export * from './concept.agent.js';

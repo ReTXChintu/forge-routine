@@ -210,5 +210,9 @@ export const generateRoutineSchema = z.object({
 });
 
 export const updateRoutineItemSchema = z.object({
-  status: z.enum(['IN_PROGRESS', 'DONE', 'SKIPPED']),
+  /**
+   * No SKIPPED. Every item is compulsory, and an unfinished one carries to
+   * the next day rather than being dropped — see RoutinesService.
+   */
+  status: z.enum(['IN_PROGRESS', 'DONE']),
 });

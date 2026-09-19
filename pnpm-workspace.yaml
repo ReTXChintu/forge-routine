@@ -14,5 +14,9 @@ allowBuilds:
   msgpackr-extract: true
   # Analytics postinstall only; nothing needs it to build.
   '@scarf/scarf': false
-  '@google/genai': set this to true or false
-  protobufjs: set this to true or false
+  # Its only install script is `prepare`, and `scripts/` is not in the
+  # published tarball — there is nothing to run. `dist/` ships prebuilt.
+  '@google/genai': false
+  # postinstall prints a version-scheme warning to stderr and writes
+  # nothing. Skipping it loses a message nobody reads.
+  protobufjs: false

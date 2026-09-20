@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { Icon } from '~/components/Icon';
+import { Markdown } from '~/components/Markdown';
 import { AiTag, Button, Card, Spinner } from '~/components/ui';
 import { useAskConcept, useConceptChat } from '~/lib/queries';
 
@@ -82,15 +83,19 @@ export function ConceptChat({
               <Icon name={message.role === 'user' ? 'name' : 'zap'} size={13} />
             </span>
 
-            <div
-              className="t-body"
-              style={{
-                whiteSpace: 'pre-wrap',
-                color: message.role === 'user' ? 'var(--text-secondary)' : 'var(--text-primary)',
-                minWidth: 0,
-              }}
-            >
-              {message.content}
+            <div style={{ minWidth: 0, flex: 1 }}>
+              {message.role === 'user' ? (
+                // Left as typed. A question is not markdown, and rendering
+                // it as such would mangle any code the user pasted in.
+                <div
+                  className="t-body"
+                  style={{ whiteSpace: 'pre-wrap', color: 'var(--text-secondary)' }}
+                >
+                  {message.content}
+                </div>
+              ) : (
+                <Markdown content={message.content} />
+              )}
             </div>
           </div>
         ))}

@@ -1,3 +1,5 @@
+import { CodeBlock } from '~/components/CodeBlock';
+import { Markdown } from '~/components/Markdown';
 import { AiTag, Card, Spinner } from '~/components/ui';
 import { useConceptExplainer } from '~/lib/queries';
 
@@ -60,19 +62,14 @@ export function ConceptExplainer({
     <div className="col g4">
       <Card>
         <AiTag>Explanation</AiTag>
-        <div
-          className="t-body mt3"
-          style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}
-        >
-          {explainer.summary}
+        <div className="mt3">
+          <Markdown content={explainer.summary} />
         </div>
       </Card>
 
       <Card>
         <div className="t-h4 mb2">Where this shows up</div>
-        <div className="t-body" style={{ whiteSpace: 'pre-wrap' }}>
-          {explainer.realWorld}
-        </div>
+        <Markdown content={explainer.realWorld} />
       </Card>
 
       {explainer.examples.length > 0 && (
@@ -84,8 +81,8 @@ export function ConceptExplainer({
                 <span className="t-code" style={{ color: 'var(--primary)', fontWeight: 700 }}>
                   {index + 1}
                 </span>
-                <div className="t-body" style={{ whiteSpace: 'pre-wrap' }}>
-                  {example}
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <Markdown content={example} />
                 </div>
               </div>
             ))}
@@ -95,15 +92,8 @@ export function ConceptExplainer({
 
       {explainer.codeExample && (
         <Card>
-          <div className="row items-center justify-between mb3">
-            <span className="t-h4">In code</span>
-            {explainer.codeLanguage && (
-              <span className="t-caption mono">{explainer.codeLanguage}</span>
-            )}
-          </div>
-          <div className="code-block">
-            <pre style={{ fontSize: 12.5 }}>{explainer.codeExample}</pre>
-          </div>
+          <div className="t-h4 mb3">In code</div>
+          <CodeBlock code={explainer.codeExample} language={explainer.codeLanguage} />
         </Card>
       )}
 

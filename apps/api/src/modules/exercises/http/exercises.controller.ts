@@ -6,13 +6,19 @@ import {
   HttpStatus,
   Param,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import type { ExerciseView, StartAttemptResponse } from '@forgeroutine/shared-types';
-import { startAttemptSchema, type StartAttemptInput } from '@forgeroutine/validation';
+import {
+  saveDraftSchema,
+  startAttemptSchema,
+  type SaveDraftInput,
+  type StartAttemptInput,
+} from '@forgeroutine/validation';
 
 import {
   CurrentUser,
@@ -51,6 +57,17 @@ export class ExercisesController {
     @Body(new ZodValidationPipe(startAttemptSchema)) body: StartAttemptInput,
   ): Promise<StartAttemptResponse> {
     return this.exercises.startAttempt(user.userId, id, body);
+  }
+
+  @Put('attempts/:attemptId/draft')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Autosave the editor’s contents for an attempt' })
+  saveDraft(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('attemptId') attemptId: string,
+    @Body(new ZodValidationPipe(saveDraftSchema)) body: SaveDraftInput,
+  ): Promise<void> {
+    return this.exercises.saveDraft(user.userId, attemptId, body.code);
   }
 
   @Post('attempts/:attemptId/first-code')

@@ -89,6 +89,15 @@ export class ExercisesService {
       orderBy: { createdAt: 'desc' },
     });
 
+    // The last time they got this right, if they ever did. A solved
+    // exercise reopened must say so — the alternative is a user redoing
+    // work the system already knows they finished.
+    const solved = await this.prisma.exerciseAttempt.findFirst({
+      where: { userId, exerciseId, outcome: 'PASSED' },
+      orderBy: { completedAt: 'asc' },
+      select: { completedAt: true, draftCode: true },
+    });
+
     const attempt =
       existing ??
       (await this.prisma.exerciseAttempt.create({
@@ -99,6 +108,11 @@ export class ExercisesService {
           assistanceLevel: level,
           blindMode: input.blindMode,
           openedAt: new Date(),
+          // A new attempt on already-solved work opens with what they
+          // wrote last time, not with the starter code. Starting over from
+          // scratch is a choice they can make; it should not be the
+          // default consequence of clicking back into something.
+          draftCode: existing ? undefined : (solved?.draftCode ?? undefined),
         },
       }));
 
@@ -109,7 +123,34 @@ export class ExercisesService {
         blindMode: attempt.blindMode,
       }),
       openedAt: attempt.openedAt.toISOString(),
+      draftCode: attempt.draftCode,
+      draftSavedAt: attempt.draftSavedAt?.toISOString() ?? null,
+      solvedAt: solved?.completedAt?.toISOString() ?? null,
     };
+  }
+
+  /**
+   * Saves what is in the editor, without submitting it.
+   *
+   * Called on a debounce as the user types. Deliberately cheap and
+   * deliberately silent: it writes two columns, touches none of the
+   * assistance counters or timing fields, and never fails the workspace.
+   * The first keystroke is recorded by `markFirstCode`, which owns that
+   * measurement — an autosave must not be able to move it.
+   */
+  async saveDraft(userId: string, attemptId: string, code: string): Promise<void> {
+    const attempt = await this.prisma.exerciseAttempt.findUnique({
+      where: { id: attemptId },
+      select: { userId: true },
+    });
+
+    // 404 rather than 403: confirming someone else's attempt exists is a leak.
+    if (!attempt || attempt.userId !== userId) throw Problems.notFound('Attempt');
+
+    await this.prisma.exerciseAttempt.update({
+      where: { id: attemptId },
+      data: { draftCode: code, draftSavedAt: new Date() },
+    });
   }
 
   /**

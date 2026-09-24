@@ -264,6 +264,44 @@ export class RoutinesService {
     return toItemView(updated);
   }
 
+  /**
+   * Ticks off the work an exercise was assigned for, once it passes.
+   *
+   * Asking someone to press "done" on an exercise whose tests just went
+   * green is asking them to tell the system something it already knows —
+   * and the one time they forget, the item carries to tomorrow and they
+   * solve it again. So passing *is* finishing, and it applies to every
+   * outstanding item pointing at this exercise, not just today's: work
+   * carried forward from earlier days is the case where redoing it hurts
+   * most.
+   *
+   * Nothing here is allowed to fail a submission; the caller treats it as
+   * bookkeeping.
+   */
+  async markExerciseDone(userId: string, exerciseId: string): Promise<void> {
+    const outstanding = await this.prisma.routineItem.findMany({
+      where: {
+        exerciseId,
+        status: { in: ['PENDING', 'IN_PROGRESS'] },
+        routine: { userId },
+      },
+      select: { id: true, routineId: true },
+    });
+
+    if (outstanding.length === 0) return;
+
+    await this.prisma.routineItem.updateMany({
+      where: { id: { in: outstanding.map((item) => item.id) } },
+      data: { status: 'DONE' },
+    });
+
+    // Sequential, and de-duplicated: two items of the same routine would
+    // otherwise recompute the same total twice, racing each other.
+    for (const routineId of new Set(outstanding.map((item) => item.routineId))) {
+      await this.recomputeCompleted(routineId);
+    }
+  }
+
   // -- Composition ----------------------------------------------------------
 
   /**

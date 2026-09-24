@@ -394,6 +394,9 @@ export function useSubmitCode() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.overview });
       void queryClient.invalidateQueries({ queryKey: queryKeys.independence });
       void queryClient.invalidateQueries({ queryKey: queryKeys.weakest });
+      // A passing run ticks off the routine item server-side, so today's
+      // plan is stale the moment this returns.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.routineToday });
     },
   });
 }

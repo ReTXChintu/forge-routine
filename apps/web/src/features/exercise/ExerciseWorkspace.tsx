@@ -22,11 +22,42 @@ import {
   useStartAttempt,
   useSubmitCode,
 } from '~/lib/queries';
+import { useDraftAutosave, type DraftSaveState } from '~/lib/useDraftAutosave';
 import { useLearningSession } from '~/lib/useLearningSession';
 
 import { AssistancePanel, type HintEntry } from './AssistancePanel';
 import { DiagnosisPanel } from './DiagnosisPanel';
 import { ResultsPanel } from './ResultsPanel';
+
+/**
+ * Whether the work on screen is safe.
+ *
+ * Small, and never a modal: the point is that saving is not something the
+ * user has to think about, so this only has to be glanceable enough to
+ * answer "did that get kept?" without being asked. Failure is the one state
+ * worth colouring, because it is the only one that calls for action.
+ */
+function DraftStatus({ state }: { state: DraftSaveState }) {
+  if (state === 'idle') return null;
+
+  if (state === 'error') {
+    return (
+      <span className="t-caption row items-center g1" style={{ color: 'var(--error)' }}>
+        <Icon name="alert" size={11} />
+        Not saved
+      </span>
+    );
+  }
+
+  if (state === 'saving') return <span className="t-caption">Saving…</span>;
+
+  return (
+    <span className="t-caption row items-center g1">
+      <Icon name="check" size={11} />
+      Saved
+    </span>
+  );
+}
 
 /**
  * The primary coding environment (§3), in the prototype's workspace layout.
@@ -53,6 +84,13 @@ export function ExerciseWorkspace() {
   const [diagnosis, setDiagnosis] = useState('');
   const [diagnosisResult, setDiagnosisResult] = useState<DiagnosisResult | null>(null);
   const [consoleTab, setConsoleTab] = useState('Results');
+  /**
+   * When this exercise was first passed, if it ever was. Set from the
+   * server on open and again the moment a run goes green, so the header
+   * stops asking for work that is already finished.
+   */
+  const [solvedAt, setSolvedAt] = useState<string | null>(null);
+  const [restored, setRestored] = useState(false);
 
   // Advisory signals only. They never reach the Independent Coding Score —
   // the server counts what matters.
@@ -70,6 +108,12 @@ export function ExerciseWorkspace() {
   // when the tab is hidden or the keyboard goes quiet, ends on unmount.
   const session = useLearningSession(view?.conceptId);
 
+  const started = Boolean(attemptId);
+
+  // Keeps the editor's contents on the server while they type. Only once an
+  // attempt is open: before that there is nothing to save against.
+  const draftState = useDraftAutosave(attemptId, code, started);
+
   const begin = useCallback(
     async (blind: boolean) => {
       if (!exerciseId) return;
@@ -78,8 +122,14 @@ export function ExerciseWorkspace() {
       setAttemptId(result.attemptId);
       setServedExercise(result.exercise);
       setBlindMode(blind);
-      // A debugging exercise starts from the faulty code: that is the problem.
-      setCode(result.exercise.brokenCode ?? result.exercise.starterCode ?? '');
+      setSolvedAt(result.solvedAt);
+      // Their own work first, if there is any. A debugging exercise falls
+      // back to the faulty code, because that is the problem, and a fresh
+      // one to the starter.
+      setCode(
+        result.draftCode ?? result.exercise.brokenCode ?? result.exercise.starterCode ?? '',
+      );
+      setRestored(result.draftCode !== null);
       setDiagnosis('');
       setDiagnosisResult(null);
       setExecution(null);
@@ -126,6 +176,11 @@ export function ExerciseWorkspace() {
     setEvaluation(result.evaluation);
     setDiagnosisResult(result.diagnosis);
     setNextHint(result.nextActionHint);
+
+    // Passing is the completion. The server has already ticked off the
+    // routine item this exercise was planned for; the header says so here
+    // rather than leaving the user hunting for a button to press.
+    if (result.attemptOutcome === 'PASSED') setSolvedAt(new Date().toISOString());
   };
 
   const handleHint = async (kind: HintKind, overrideGate = false) => {
@@ -174,7 +229,6 @@ export function ExerciseWorkspace() {
 
   if (!view) return <StateBlock icon="alert" title="Exercise not found" />;
 
-  const started = Boolean(attemptId);
   const diagnosisTooShort =
     view.requiresDiagnosis && diagnosis.trim().split(/\s+/).filter(Boolean).length < 5;
 
@@ -208,6 +262,14 @@ export function ExerciseWorkspace() {
         <div className="row items-center g3">
           <SessionClock durationMs={session.durationMs} counting={session.counting} />
 
+          {started && <DraftStatus state={draftState} />}
+
+          {solvedAt && (
+            <Badge variant="success" icon="check">
+              Solved
+            </Badge>
+          )}
+
           {blindMode && (
             <Badge variant="primary" icon="eye">
               Blind
@@ -233,6 +295,7 @@ export function ExerciseWorkspace() {
               >
                 Start
               </Button>
+
             </>
           ) : (
             <Button
@@ -320,6 +383,13 @@ export function ExerciseWorkspace() {
               <Icon name="code" size={13} />
               solution.{view.language === 'typescript' ? 'ts' : 'js'}
             </div>
+
+            {restored && (
+              <span className="t-caption row items-center g1" style={{ padding: '0 10px' }}>
+                <Icon name="refresh" size={11} />
+                Picked up where you left off
+              </span>
+            )}
           </div>
 
           <div style={{ flex: 1, minHeight: 0 }}>

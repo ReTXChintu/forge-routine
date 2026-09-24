@@ -34,6 +34,18 @@ export interface StartAttemptResponse {
   attemptId: string;
   exercise: ExerciseView;
   openedAt: string;
+  /**
+   * Whatever was last in the editor, autosaved. Null on a genuinely fresh
+   * start, in which case the client shows the exercise's starter code.
+   */
+  draftCode: string | null;
+  draftSavedAt: string | null;
+  /**
+   * When this user first passed this exercise, if they ever did. Reopening
+   * solved work should say so rather than presenting a blank start and
+   * inviting them to do it twice.
+   */
+  solvedAt: string | null;
 }
 
 export interface SubmitCodeRequest {

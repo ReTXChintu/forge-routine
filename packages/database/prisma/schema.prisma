@@ -488,6 +488,15 @@ model ExerciseAttempt {
   /// PROJECT attempts: which step the user is on. Steps unlock in order.
   currentStep       Int      @default(0)
 
+  /// What is in the editor right now, saved as it is typed.
+  ///
+  /// Distinct from CodeSubmission, which records what the user chose to
+  /// submit. Without this, closing a tab threw away everything since the
+  /// last submit — and an editor that quietly discards work is one nobody
+  /// trusts twice.
+  draftCode         String?
+  draftSavedAt      DateTime?
+
   /// Advisory only, client-reported, never scored.
   keystrokeCount    Int?
   largePasteEvents  Int?

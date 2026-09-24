@@ -157,6 +157,21 @@ export const startAttemptSchema = z.object({
 
 export type StartAttemptInput = z.infer<typeof startAttemptSchema>;
 
+/**
+ * An autosave of whatever is in the editor.
+ *
+ * Empty is allowed, unlike a submission: clearing the editor and walking
+ * away is a state the user chose, and restoring deleted code on their next
+ * visit would be its own kind of data loss. The ceiling matches
+ * `submitCodeSchema` — a draft that could not be submitted is not worth
+ * storing.
+ */
+export const saveDraftSchema = z.object({
+  code: z.string().max(65_536),
+});
+
+export type SaveDraftInput = z.infer<typeof saveDraftSchema>;
+
 // -- Submissions -------------------------------------------------------------
 
 export const clientSignalsSchema = z.object({

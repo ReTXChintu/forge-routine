@@ -26,6 +26,7 @@ import type { SubmitCodeInput } from '@forgeroutine/validation';
 import { Problems } from '../../../common/http/problem-details.js';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
 import { AI_PROVIDER, type OptionalAIProvider } from '../../ai/ai.tokens.js';
+import { RoutinesService } from '../../routines/application/routines.service.js';
 import { SkillsService } from '../../skills/application/skills.service.js';
 import { CODE_EXECUTION_PORT, type CodeExecutionPort } from '../ports/code-execution.port.js';
 
@@ -46,6 +47,7 @@ export class SubmitSolutionUseCase {
   constructor(
     private readonly prisma: PrismaService,
     private readonly skills: SkillsService,
+    private readonly routines: RoutinesService,
     @Inject(CODE_EXECUTION_PORT) private readonly execution: CodeExecutionPort,
     @Inject(AI_PROVIDER) private readonly ai: OptionalAIProvider,
   ) {}
@@ -98,6 +100,19 @@ export class SubmitSolutionUseCase {
       evaluation,
       submissionId: submission.id,
     });
+
+    if (executionResult.passed && !INTERNAL_EXECUTION_FAILURES.includes(executionResult.status)) {
+      // Green tests are the completion. There is no separate "mark as
+      // finished" button to forget, and forgetting one used to mean the
+      // item carried to tomorrow and got solved a second time.
+      await this.routines
+        .markExerciseDone(userId, attempt.exerciseId)
+        .catch((error: unknown) =>
+          // Bookkeeping. The submission stands either way, and losing the
+          // user's passing run over a routine write would be the worse bug.
+          this.logger.warn({ err: error }, 'Could not tick off the routine item for this exercise'),
+        );
+    }
 
     return {
       submissionId: submission.id,
@@ -315,6 +330,12 @@ export class SubmitSolutionUseCase {
         where: { id: attempt.id },
         data: {
           submissionCount: { increment: ourFault ? 0 : 1 },
+          // Submitting is the strongest possible statement of what is in
+          // the editor, and it costs nothing to keep. Without it, a user
+          // who submits within the autosave debounce and then closes the
+          // tab still loses the version they ran.
+          draftCode: input.code,
+          draftSavedAt: now,
           ...(executionResult.passed && !ourFault
             ? {
                 outcome: 'PASSED',

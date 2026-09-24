@@ -5,11 +5,14 @@
  * localhost. ForgeRoutine is served over plain HTTP from an IP address,
  * which is not one, so `crypto.randomUUID` and `navigator.clipboard` are
  * simply absent in the deployed app while working perfectly in local
- * development. That gap is exactly the kind that ships.
+ * development. That gap is exactly the kind that ships, and it did.
  *
- * Everything here degrades instead of throwing. Serving the app over
- * HTTPS would make all of it unnecessary, and none of it does any harm
- * once that happens.
+ * This is not a stopgap. Plain HTTP is the deployment, by decision, so
+ * these fallbacks are the normal path rather than a bridge to something
+ * later. Anything else reaching for a secure-context API belongs here
+ * too, behind the same kind of check — the list is longer than it looks
+ * and includes service workers, notifications, media devices and
+ * `crypto.subtle`.
  */
 
 /**

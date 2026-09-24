@@ -22,7 +22,8 @@ export function CodeBlock({ code, language }: { code: string; language?: string 
 
   const copy = () => {
     // `navigator.clipboard` is secure-context-only and this app is served
-    // over plain HTTP, so the helper falls back rather than doing nothing.
+    // over plain HTTP, so the helper falls back to execCommand rather than
+    // silently doing nothing.
     void copyText(code).then((ok) => {
       if (!ok) return;
       setCopied(true);

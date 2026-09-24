@@ -5,22 +5,23 @@ PostgreSQL and Redis are external managed services reached by connection string.
 
 ## Topology
 
+Plain HTTP, no TLS, no reverse proxy. Browsers and the mobile app reach the
+two PM2 processes on their own ports directly.
+
 ```
-                      ┌──────────────┐
-   internet ──443──▶  │    nginx     │  TLS, static web, reverse proxy
-                      └──┬───────┬───┘
-                         │       │
-        /api/*  ─────────┘       └──────────  /  (static SPA from apps/web/dist)
-           │
-           ▼
-   ┌───────────────────┐        ┌────────────────────┐
+   ┌───────────────────┐        ┌─────────────────────┐
    │ forgeroutine-api  │        │ forgeroutine-sandbox│
    │ PM2 fork × 1      │        │ PM2 fork × 1        │
-   └─────┬─────────┬───┘        └──────────┬─────────┘
+   │ http :50005       │        │ (no listener)       │
+   └─────┬─────────┬───┘        └──────────┬──────────┘
          │         │                       │
          ▼         ▼                       ▼
    PostgreSQL    Redis ◀───── execution queue ─────┘
    (external)   (external)
+
+   ┌───────────────────┐
+   │ forgeroutine-web  │  static bundle, http :50004
+   └───────────────────┘
 ```
 
 ## Ports
@@ -30,8 +31,40 @@ PostgreSQL and Redis are external managed services reached by connection string.
 | Web (static bundle) | 50004 |
 | API                 | 50005 |
 
-Both are bound locally and reached through nginx, which is the only thing
-listening on 80 and 443.
+Both listen directly. Nothing is bound to 80 or 443.
+
+## This deployment is plain HTTP, on purpose
+
+That is a decision, not an oversight, and it has consequences the code has
+to carry rather than wish away.
+
+**Several browser APIs simply do not exist.** A page served over anything
+but HTTPS or localhost is not a _secure context_, and `crypto.randomUUID`,
+`navigator.clipboard`, service workers, notifications, media devices and
+`crypto.subtle` are all withheld there. They work in local development and
+vanish in production, which is the worst shape a gap can have — it did
+ship once, as `crypto.randomUUID is not a function` on every submit.
+
+`apps/web/src/lib/browser.ts` holds the fallbacks. Anything new that
+reaches for a secure-context API belongs behind the same kind of check.
+
+**Android blocks cleartext by default** from API 28 onwards, so the app
+manifest sets `usesCleartextTraffic="true"`. Without it a release APK
+fails every request and looks broken rather than misconfigured. The iOS
+project has no equivalent App Transport Security exception — iOS is not
+built or shipped, and a blanket exception is something App Store review
+asks about, so it is left for whoever ships it.
+
+**Tokens travel in the clear.** Anyone on the network path can read a
+session. For a handful of users on a machine they control that is a
+trade rather than a mistake, but it is the reason to keep the audience
+small.
+
+`infrastructure/nginx/forgeroutine.conf` describes the TLS setup this
+does _not_ currently use: certificates, an HTTP→HTTPS redirect and HSTS.
+Adopting it removes every caveat above — but adopt it whole, because its
+HSTS header commits browsers to HTTPS for a year, and half of it applied
+to an HTTP-only host locks people out.
 
 ## PM2 processes
 

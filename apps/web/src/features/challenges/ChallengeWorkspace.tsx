@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { Icon } from '~/components/Icon';
+import { SessionClock } from '~/components/SessionClock';
 import { Badge, Button, SkillMeter, Spinner, StateBlock } from '~/components/ui';
 import {
   useChallenge,
@@ -9,6 +10,7 @@ import {
   useSubmitWritten,
   type WrittenReviewResult,
 } from '~/lib/queries';
+import { useLearningSession } from '~/lib/useLearningSession';
 
 import { TerminalPane } from './TerminalPane';
 
@@ -29,6 +31,9 @@ export function ChallengeWorkspace() {
 
   const [text, setText] = useState('');
   const [review, setReview] = useState<WrittenReviewResult | null>(null);
+
+  // Times this stretch of work, the same way the exercise workspace does.
+  const session = useLearningSession(challenge?.conceptId);
 
   if (isLoading) return <Spinner label="Loading challenge" />;
   if (!challenge) return <StateBlock icon="alert" title="This challenge could not be loaded" />;
@@ -73,7 +78,10 @@ export function ChallengeWorkspace() {
           </div>
         </div>
 
-        <Badge variant="primary">{challenge.kind.replace('_', ' ').toLowerCase()}</Badge>
+        <div className="row items-center g3">
+          <SessionClock durationMs={session.durationMs} counting={session.counting} />
+          <Badge variant="primary">{challenge.kind.replace('_', ' ').toLowerCase()}</Badge>
+        </div>
       </div>
 
       <div className="row flex-1" style={{ minHeight: 0 }}>

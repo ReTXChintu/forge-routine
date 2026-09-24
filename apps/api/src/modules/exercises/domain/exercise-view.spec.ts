@@ -9,6 +9,7 @@ import { type StoredExercise, projectExercise } from './exercise-view.js';
  */
 const exercise: StoredExercise = {
   id: 'ex1',
+  conceptId: 'concept1',
   slug: 'debounce',
   title: 'Implement debounce',
   kind: 'CODING',

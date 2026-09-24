@@ -22,6 +22,8 @@ export interface ChallengeSummary {
   objective: string;
   difficulty: number;
   estimatedMinutes: number;
+  /** What this challenge practises. Attributes a timed session to a concept. */
+  conceptId: string;
   conceptName: string;
   technologyName: string;
   completed: boolean;
@@ -93,7 +95,7 @@ export class ChallengesService {
       },
       orderBy: [{ difficulty: 'asc' }, { title: 'asc' }],
       include: {
-        concept: { select: { name: true, technology: { select: { name: true } } } },
+        concept: { select: { id: true, name: true, technology: { select: { name: true } } } },
         attempts: {
           where: { userId, outcome: 'PASSED' },
           select: { id: true },
@@ -120,6 +122,7 @@ export class ChallengesService {
           objective: row.objective,
           difficulty: row.difficulty,
           estimatedMinutes: row.estimatedMinutes,
+          conceptId: row.concept.id,
           conceptName: row.concept.name,
           technologyName: row.concept.technology.name,
           completed: row.attempts.length > 0,
@@ -149,6 +152,7 @@ export class ChallengesService {
       objective: row.objective,
       difficulty: row.difficulty,
       estimatedMinutes: row.estimatedMinutes,
+      conceptId: row.concept.id,
       conceptName: row.concept.name,
       technologyName: row.concept.technology.name,
       completed: passed > 0,

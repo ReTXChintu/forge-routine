@@ -45,6 +45,15 @@ export class SessionsController {
     return this.sessions.get(user.userId, id);
   }
 
+  @Post(':id/beat')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Still working — banks the time since the last beat',
+  })
+  beat(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string): Promise<LearningSession> {
+    return this.sessions.beat(user.userId, id);
+  }
+
   @Post(':id/complete')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'End a session and record its duration' })

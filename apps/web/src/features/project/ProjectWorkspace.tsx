@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { Icon } from '~/components/Icon';
+import { SessionClock } from '~/components/SessionClock';
 import { Badge, Button, Card, Spinner, StateBlock, metricColor } from '~/components/ui';
 import {
   useProject,
@@ -12,6 +13,7 @@ import {
   type ReviewIssue,
   type StepSubmissionResult,
 } from '~/lib/queries';
+import { useLearningSession } from '~/lib/useLearningSession';
 
 /**
  * The project workspace (§14), in the prototype's workspace layout.
@@ -32,6 +34,7 @@ export function ProjectWorkspace() {
   const start = useStartProject();
   const submit = useSubmitProjectStep();
   const navigate = useNavigate();
+  const session = useLearningSession(project?.conceptId);
 
   const [code, setCode] = useState('');
   const [result, setResult] = useState<StepSubmissionResult | null>(null);
@@ -87,6 +90,8 @@ export function ProjectWorkspace() {
         </div>
 
         <div className="row items-center g3">
+          <SessionClock durationMs={session.durationMs} counting={session.counting} />
+
           <Badge variant="primary" icon="layers">
             Project
           </Badge>

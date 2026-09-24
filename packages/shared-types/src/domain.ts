@@ -172,6 +172,8 @@ export interface Exercise extends Identified, Timestamped {
 /** What the user is actually allowed to see, after the assistance level is applied. */
 export interface ExerciseView {
   id: string;
+  /** What this exercise practises. Attributes a timed session to a concept. */
+  conceptId: string;
   slug: string;
   title: string;
   kind: ExerciseKind;

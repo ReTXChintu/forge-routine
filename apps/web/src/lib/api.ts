@@ -56,12 +56,20 @@ interface RequestOptions {
   body?: unknown;
   idempotencyKey?: string;
   signal?: AbortSignal;
+  /**
+   * Lets the request outlive the page that started it.
+   *
+   * For the one call that has to land while navigating away — ending a
+   * learning session. `sendBeacon` would be the usual tool and cannot
+   * carry the Authorization header.
+   */
+  keepalive?: boolean;
   /** Internal: prevents an infinite refresh loop. */
   isRetry?: boolean;
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, idempotencyKey, signal, isRetry = false } = options;
+  const { method = 'GET', body, idempotencyKey, signal, keepalive, isRetry = false } = options;
 
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -75,6 +83,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     headers,
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     ...(signal ? { signal } : {}),
+    ...(keepalive ? { keepalive: true } : {}),
   });
 
   // One transparent refresh attempt. Without the isRetry guard an expired

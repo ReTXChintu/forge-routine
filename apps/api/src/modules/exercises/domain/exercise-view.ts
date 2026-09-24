@@ -11,6 +11,7 @@ import type { AssistanceLevel, ExerciseView } from '@forgeroutine/shared-types';
 
 export interface StoredExercise {
   id: string;
+  conceptId: string;
   slug: string;
   title: string;
   /**
@@ -70,6 +71,7 @@ export function projectExercise(
 
   return {
     id: exercise.id,
+    conceptId: exercise.conceptId,
     slug: exercise.slug,
     title: exercise.title,
     kind: exercise.kind,

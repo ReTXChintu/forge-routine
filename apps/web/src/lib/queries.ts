@@ -458,6 +458,8 @@ export interface ProjectStepView {
 
 export interface ProjectView {
   exerciseId: string;
+  /** What this project practises. Attributes a timed session to a concept. */
+  conceptId: string;
   attemptId: string | null;
   title: string;
   objective: string;
@@ -824,6 +826,8 @@ export interface ChallengeSummary {
   objective: string;
   difficulty: number;
   estimatedMinutes: number;
+  /** What this challenge practises. Attributes a timed session to a concept. */
+  conceptId: string;
   conceptName: string;
   technologyName: string;
   completed: boolean;

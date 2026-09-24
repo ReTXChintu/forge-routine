@@ -12,6 +12,7 @@ import type {
 } from '@forgeroutine/shared-types';
 
 import { Icon } from '~/components/Icon';
+import { SessionClock } from '~/components/SessionClock';
 import { Badge, Button, Spinner, StateBlock, Tabs } from '~/components/ui';
 import { ApiError } from '~/lib/api';
 import {
@@ -21,6 +22,7 @@ import {
   useStartAttempt,
   useSubmitCode,
 } from '~/lib/queries';
+import { useLearningSession } from '~/lib/useLearningSession';
 
 import { AssistancePanel, type HintEntry } from './AssistancePanel';
 import { DiagnosisPanel } from './DiagnosisPanel';
@@ -63,6 +65,10 @@ export function ExerciseWorkspace() {
   const requestHint = useRequestHint();
 
   const view = servedExercise ?? exercise ?? null;
+
+  // Times this stretch of work. Starts once the exercise is known, pauses
+  // when the tab is hidden or the keyboard goes quiet, ends on unmount.
+  const session = useLearningSession(view?.conceptId);
 
   const begin = useCallback(
     async (blind: boolean) => {
@@ -200,6 +206,8 @@ export function ExerciseWorkspace() {
         </div>
 
         <div className="row items-center g3">
+          <SessionClock durationMs={session.durationMs} counting={session.counting} />
+
           {blindMode && (
             <Badge variant="primary" icon="eye">
               Blind

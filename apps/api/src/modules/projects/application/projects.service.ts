@@ -22,6 +22,8 @@ export interface ProjectStepView {
 
 export interface ProjectView {
   exerciseId: string;
+  /** What this project practises. Attributes a timed session to a concept. */
+  conceptId: string;
   attemptId: string | null;
   title: string;
   objective: string;
@@ -98,6 +100,7 @@ export class ProjectsService {
 
     return {
       exerciseId: exercise.id,
+      conceptId: exercise.conceptId,
       attemptId: attempt?.id ?? null,
       title: exercise.title,
       objective: exercise.objective,

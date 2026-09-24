@@ -663,7 +663,13 @@ model LearningSession {
   concept       Concept? @relation(fields: [conceptId], references: [id])
   startedAt     DateTime @default(now())
   endedAt       DateTime?
-  durationMs    Int?
+  /// When the client last said "still working".
+  ///
+  /// Time is banked as it passes rather than computed at the end, so a
+  /// closed laptop keeps what it earned instead of losing the session, and
+  /// a tab left open earns nothing because the beats stop.
+  lastBeatAt    DateTime?
+  durationMs    Int?     @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

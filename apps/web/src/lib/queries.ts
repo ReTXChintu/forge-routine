@@ -16,6 +16,7 @@ import type {
 } from '@forgeroutine/shared-types';
 
 import { apiRequest, tokenStore } from './api.js';
+import { randomId } from './browser.js';
 
 /**
  * One place for every server interaction, so cache invalidation is decided here
@@ -387,7 +388,7 @@ export function useSubmitCode() {
         method: 'POST',
         body: input,
         // A double-clicked submit must not create two attempts.
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: randomId(),
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.overview });
@@ -513,7 +514,7 @@ export function useSubmitProjectStep() {
       apiRequest<StepSubmissionResult>('/projects/steps/submit', {
         method: 'POST',
         body: { attemptId: input.attemptId, code: input.code },
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: randomId(),
       }),
     onSuccess: (_result, input) => {
       // The step may have unlocked, which changes what the workspace shows.
@@ -779,7 +780,7 @@ export function useAnswerInterview() {
         body: { questionId: input.questionId, text: input.text },
         // The next question costs a model call; a double submit must not
         // burn two of them or desynchronise the transcript.
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: randomId(),
       }),
     onSuccess: (interview) => {
       queryClient.setQueryData(queryKeys.interview(interview.id), interview);
@@ -909,7 +910,7 @@ export function useSubmitTerminal() {
       apiRequest<TerminalRunResult>('/challenges/terminal/submit', {
         method: 'POST',
         body: { attemptId: input.attemptId, commands: input.commands },
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: randomId(),
       }),
     onSuccess: (_result, input) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.challenge(input.exerciseId) });
@@ -927,7 +928,7 @@ export function useSubmitWritten() {
       apiRequest<WrittenReviewResult>('/challenges/written/submit', {
         method: 'POST',
         body: { attemptId: input.attemptId, text: input.text },
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: randomId(),
       }),
     onSuccess: (_result, input) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.challenge(input.exerciseId) });

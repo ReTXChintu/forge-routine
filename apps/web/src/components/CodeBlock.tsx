@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react';
 
+import { copyText } from '~/lib/browser.js';
+
 import { Icon } from './Icon';
 
 /**
@@ -19,7 +21,10 @@ export function CodeBlock({ code, language }: { code: string; language?: string 
   const [copied, setCopied] = useState(false);
 
   const copy = () => {
-    void navigator.clipboard?.writeText(code).then(() => {
+    // `navigator.clipboard` is secure-context-only and this app is served
+    // over plain HTTP, so the helper falls back rather than doing nothing.
+    void copyText(code).then((ok) => {
+      if (!ok) return;
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1_500);
     });

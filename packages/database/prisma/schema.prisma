@@ -36,6 +36,7 @@ model User {
 
   aiCredentials   AICredential[]
   conceptChats    ConceptChatMessage[]
+  theoryAnswers   ConceptTheoryAnswer[]
   preferences      UserPreferences?
   refreshTokens    RefreshToken[]
   technologies     UserTechnology[]
@@ -246,6 +247,7 @@ model Concept {
   questions       ConceptQuestion[]
   explainer       ConceptExplainer?
   chatMessages    ConceptChatMessage[]
+  theoryAnswers   ConceptTheoryAnswer[]
   skills          Skill[]
   reviewSchedules ReviewSchedule[]
   sessions        LearningSession[]
@@ -777,19 +779,66 @@ model ConceptQuestion {
   id          String   @id @default(cuid())
   conceptId   String
   concept     Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  kind        ConceptQuestionKind @default(MCQ)
   prompt      String
-  /// Multiple choice. Two to five options; exactly one is correct.
+  /// MCQ only. Two to five options; exactly one is correct. Empty for THEORY.
   options     String[] @default([])
   correctIndex Int     @default(0)
   /// Shown after answering, right or wrong. This is where the learning is.
   explanation String   @default("")
+  /// THEORY only: what a good answer says. Never sent before one arrives —
+  /// a written answer compared against a model answer you have already read
+  /// measures nothing.
+  modelAnswer String?
+  /// THEORY only: the points a complete answer covers, so "did I get it?"
+  /// is a checklist rather than a feeling.
+  keyPoints   String[] @default([])
   difficulty  Int      @default(3)
+  /// Which agent and model wrote it. Null for the hand-authored seed.
+  generatedBy String?
+  /// Bumped when the prompt improves, so a cached set is rewritten rather
+  /// than frozen at whatever the first version produced.
+  promptVersion String?
   archivedAt  DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  theoryAnswers ConceptTheoryAnswer[]
+
   @@index([conceptId])
+  @@index([conceptId, kind])
   @@map("concept_questions")
+}
+
+/// One written answer to a THEORY question, and how the user judged it.
+///
+/// Stored because otherwise the written half of practice leaves no trace:
+/// the whole point of answering in prose is that it surfaces what you
+/// cannot yet put into words, and that is worth having a record of.
+///
+/// `selfRating` is self-reported, which is why it feeds the review schedule
+/// at a low learning rate and never touches coding ability. It is the same
+/// bargain every spaced-repetition system makes — only the person who wrote
+/// the answer can say whether they actually knew it — and it holds only
+/// because the model answer is withheld until after they commit.
+model ConceptTheoryAnswer {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId String
+  question   ConceptQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  conceptId  String
+  concept    Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  /// What they wrote, before seeing the model answer.
+  answer     String
+  /// 0 missed it, 1 partly, 2 got it. Null until they have judged it.
+  selfRating Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, conceptId, createdAt])
+  @@map("concept_theory_answers")
 }
 
 // ===========================================================================
@@ -1118,6 +1167,17 @@ enum AIProviderKind {
   OPENAI
   ANTHROPIC
   GEMINI
+}
+
+/// What a concept question asks for.
+///
+/// Both exist because they catch different failures. Multiple choice
+/// catches a missing distinction cheaply and at scale; a written answer
+/// catches the far more common case of recognising an idea while being
+/// unable to state it, which no list of options will ever reveal.
+enum ConceptQuestionKind {
+  MCQ
+  THEORY
 }
 
 enum RoutineItemKind {

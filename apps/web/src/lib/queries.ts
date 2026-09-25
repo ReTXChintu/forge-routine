@@ -1132,3 +1132,71 @@ export function useAskConcept(conceptId: string | undefined) {
     },
   });
 }
+
+// -- Practice sets -----------------------------------------------------------
+
+export interface PracticeQuestionView {
+  id: string;
+  kind: 'MCQ' | 'THEORY';
+  prompt: string;
+  /** MCQ only, and never the answer: the client cannot mark its own homework. */
+  options: string[];
+  difficulty: number;
+  previousAnswer: string | null;
+}
+
+export interface PracticeSetView {
+  questions: PracticeQuestionView[];
+  available: boolean;
+  unavailableReason: string | null;
+}
+
+export interface TheoryAnswerResult {
+  modelAnswer: string;
+  keyPoints: string[];
+}
+
+/**
+ * The questions on one concept.
+ *
+ * `staleTime: Infinity` because the set is generated once per concept and
+ * shared: refetching it mid-session would reshuffle the questions under
+ * someone halfway through answering them.
+ */
+export function usePracticeSet(conceptId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['concepts', conceptId, 'practice-set'] as const,
+    queryFn: () => apiRequest<PracticeSetView>(`/concepts/${conceptId}/practice-set`),
+    enabled: enabled && Boolean(conceptId),
+    staleTime: Infinity,
+    retry: false,
+  });
+}
+
+/** Submits a written answer, and only then receives the model answer. */
+export function useAnswerTheory() {
+  return useMutation({
+    mutationFn: ({ questionId, answer }: { questionId: string; answer: string }) =>
+      apiRequest<TheoryAnswerResult>(`/concepts/questions/${questionId}/answer`, {
+        method: 'POST',
+        body: { answer },
+      }),
+  });
+}
+
+/** Their own verdict on what they wrote. Feeds the review schedule. */
+export function useRateTheory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ questionId, selfRating }: { questionId: string; selfRating: number }) =>
+      apiRequest<{ nextDueAt: string }>(`/concepts/questions/${questionId}/rating`, {
+        method: 'POST',
+        body: { selfRating },
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.recallDue });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.weakest });
+    },
+  });
+}

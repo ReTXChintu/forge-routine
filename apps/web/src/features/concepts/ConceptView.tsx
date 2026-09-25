@@ -16,6 +16,7 @@ import { useConceptDetail, useExercises } from '~/lib/queries';
 
 import { ConceptChat } from './ConceptChat';
 import { ConceptExplainer } from './ConceptExplainer';
+import { ConceptPractice } from './ConceptPractice';
 
 /**
  * One concept: what it covers, what blocks it, and what to practise.
@@ -143,17 +144,16 @@ export function ConceptView() {
               </Card>
             )}
 
-            <Card>
-              <div className="t-h3 mb3">Practice</div>
+            <ConceptPractice conceptId={conceptId} exercises={exercises ?? []} locked={locked} />
 
-              {(exercises ?? []).length === 0 ? (
-                <div className="t-small">
-                  No exercises for this concept. Some subjects cannot be graded by running
-                  JavaScript — those get concept questions instead.
-                </div>
-              ) : (
+            {(exercises ?? []).length > 2 && (
+              <Card>
+                <div className="t-h3 mb3">The rest of the exercises</div>
+                {/* The set uses the first two. These are here because
+                    somebody working through a concept properly will want
+                    the others, not because the set was wrong to stop. */}
                 <div className="grid grid-2 g3 cq-grid-2">
-                  {(exercises ?? []).map((exercise) => (
+                  {(exercises ?? []).slice(2).map((exercise) => (
                     <div
                       key={exercise.id}
                       className="card p3"
@@ -176,8 +176,8 @@ export function ConceptView() {
                     </div>
                   ))}
                 </div>
-              )}
-            </Card>
+              </Card>
+            )}
           </div>
 
           <div className="col g5">
@@ -222,8 +222,15 @@ export function ConceptView() {
             )}
 
             {!locked && (exercises ?? []).length > 0 && (
-              <Button block icon="play" onClick={() => navigate(`/exercise/${exercises![0]!.id}`)}>
-                Start practising
+              <Button
+                block
+                variant="secondary"
+                icon="code"
+                onClick={() => navigate(`/exercise/${exercises![0]!.id}`)}
+              >
+                {/* The set ends in code. This is for someone who already
+                    knows the concept and only wants the exercise. */}
+                Skip to the code
               </Button>
             )}
           </div>

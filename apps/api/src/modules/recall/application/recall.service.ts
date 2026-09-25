@@ -83,7 +83,10 @@ export class RecallService {
     if (conceptIds.length === 0) return [];
 
     const questions = await this.prisma.conceptQuestion.findMany({
-      where: { conceptId: { in: conceptIds }, archivedAt: null },
+      // Multiple choice only. A recall prompt is answered in fifteen
+      // seconds between activities; a written question needs a page and a
+      // model answer, and belongs in the practice set rather than here.
+      where: { conceptId: { in: conceptIds }, kind: 'MCQ', archivedAt: null },
       include: {
         concept: {
           select: { id: true, name: true, technology: { select: { name: true } } },
@@ -117,7 +120,7 @@ export class RecallService {
    */
   private async forConcept(conceptId: string, limit: number): Promise<RecallPromptView[]> {
     const questions = await this.prisma.conceptQuestion.findMany({
-      where: { conceptId, archivedAt: null },
+      where: { conceptId, kind: 'MCQ', archivedAt: null },
       orderBy: { difficulty: 'asc' },
       take: limit,
       include: {
@@ -147,6 +150,7 @@ export class RecallService {
       select: {
         id: true,
         conceptId: true,
+        kind: true,
         correctIndex: true,
         explanation: true,
         options: true,
@@ -154,6 +158,11 @@ export class RecallService {
     });
 
     if (!question) throw Problems.notFound('Question');
+    // A written question has no options, so an index into them means
+    // nothing — and defaulting to correctIndex 0 would mark it right.
+    if (question.kind !== 'MCQ') {
+      throw Problems.badRequest('That question is answered in writing, not by picking an option.');
+    }
 
     const correct = selectedIndex === question.correctIndex;
 

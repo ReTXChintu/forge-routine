@@ -11,6 +11,6 @@ import { GenerationController } from './http/generation.controller.js';
   imports: [RoadmapModule],
   controllers: [GenerationController],
   providers: [GenerationService, CurriculumGeneratorService, ExerciseVerifier],
-  exports: [GenerationService, CurriculumGeneratorService],
+  exports: [GenerationService, CurriculumGeneratorService, ExerciseVerifier],
 })
 export class GenerationModule {}

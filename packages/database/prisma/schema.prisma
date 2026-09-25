@@ -36,7 +36,8 @@ model User {
 
   aiCredentials   AICredential[]
   conceptChats    ConceptChatMessage[]
-  theoryAnswers   ConceptTheoryAnswer[]
+  questionAnswers ConceptQuestionAnswer[]
+  assignments     PracticeAssignment[]
   preferences      UserPreferences?
   refreshTokens    RefreshToken[]
   technologies     UserTechnology[]
@@ -247,7 +248,8 @@ model Concept {
   questions       ConceptQuestion[]
   explainer       ConceptExplainer?
   chatMessages    ConceptChatMessage[]
-  theoryAnswers   ConceptTheoryAnswer[]
+  questionAnswers ConceptQuestionAnswer[]
+  assignments     PracticeAssignment[]
   skills          Skill[]
   reviewSchedules ReviewSchedule[]
   sessions        LearningSession[]
@@ -410,6 +412,7 @@ model Exercise {
   attempts  ExerciseAttempt[]
   routineItems RoutineItem[]
   roadmapItems RoadmapItem[]
+  assignments  PracticeAssignment[]
 
   @@unique([conceptId, slug])
   @@index([conceptId, kind])
@@ -803,25 +806,27 @@ model ConceptQuestion {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  theoryAnswers ConceptTheoryAnswer[]
+  answers     ConceptQuestionAnswer[]
+  assignments PracticeAssignment[]
 
   @@index([conceptId])
   @@index([conceptId, kind])
   @@map("concept_questions")
 }
 
-/// One written answer to a THEORY question, and how the user judged it.
+/// One answer a user gave to a concept question, of either kind.
 ///
-/// Stored because otherwise the written half of practice leaves no trace:
-/// the whole point of answering in prose is that it surfaces what you
-/// cannot yet put into words, and that is worth having a record of.
+/// Stored because completion depends on it: a concept's practice is finished
+/// when every question the user was *served* has an answer here. Nothing
+/// recorded the multiple-choice ones before, so there was no way to tell a
+/// finished set from an untouched one.
 ///
-/// `selfRating` is self-reported, which is why it feeds the review schedule
-/// at a low learning rate and never touches coding ability. It is the same
-/// bargain every spaced-repetition system makes — only the person who wrote
-/// the answer can say whether they actually knew it — and it holds only
-/// because the model answer is withheld until after they commit.
-model ConceptTheoryAnswer {
+/// For THEORY, `selfRating` is self-reported, which is why it feeds the
+/// review schedule at a low learning rate and never touches coding ability.
+/// It is the same bargain every spaced-repetition system makes — only the
+/// person who wrote the answer can say whether they actually knew it — and it
+/// holds because the model answer is withheld until after they commit.
+model ConceptQuestionAnswer {
   id         String   @id @default(cuid())
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -830,15 +835,53 @@ model ConceptTheoryAnswer {
   conceptId  String
   concept    Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
 
-  /// What they wrote, before seeing the model answer.
-  answer     String
-  /// 0 missed it, 1 partly, 2 got it. Null until they have judged it.
+  /// MCQ: which option they picked, and whether it was the right one.
+  selectedIndex Int?
+  correct       Boolean?
+
+  /// THEORY: what they wrote, before seeing the model answer.
+  answer     String?
+  /// THEORY: 0 missed it, 1 partly, 2 got it. Null until they have judged it.
   selfRating Int?
+
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   @@index([userId, conceptId, createdAt])
-  @@map("concept_theory_answers")
+  @@map("concept_question_answers")
+}
+
+/// A pool item handed to one user.
+///
+/// Questions and exercises are a pool **shared per concept** — whatever
+/// anyone has generated is there for everyone, so the second person through a
+/// concept works the existing questions rather than paying to invent new
+/// ones. What is per-user is which of them you were handed, and that is what
+/// completion is measured against: the batches you actually pulled, not a
+/// pool that grows behind you for ever.
+model PracticeAssignment {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conceptId  String
+  concept    Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  /// Exactly one of these is set.
+  questionId String?
+  question   ConceptQuestion? @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  exerciseId String?
+  exercise   Exercise? @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  /// Which pull it arrived in, so the page can group and order batches.
+  batch      Int      @default(0)
+  servedAt   DateTime @default(now())
+
+  /// Nothing is served to the same person twice. Postgres counts NULLs as
+  /// distinct, so the exercise rows do not collide on the question index.
+  @@unique([userId, questionId])
+  @@unique([userId, exerciseId])
+  @@index([userId, conceptId, batch])
+  @@map("practice_assignments")
 }
 
 // ===========================================================================

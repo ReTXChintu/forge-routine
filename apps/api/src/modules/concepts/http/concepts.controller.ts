@@ -29,9 +29,9 @@ import {
 import { ConceptsService, type ConceptDetail } from '../application/concepts.service.js';
 import {
   PracticeSetService,
-  type PracticeSetView,
+  type McqAnswerResult,
+  type PracticeView,
   type TheoryAnswerResult,
-  type TheoryRatingResult,
 } from '../application/practice-set.service.js';
 
 const askSchema = z.object({ question: z.string().min(1).max(2_000) });
@@ -44,6 +44,9 @@ type TheoryAnswerInput = z.infer<typeof theoryAnswerSchema>;
 const theoryRatingSchema = z.object({ selfRating: z.number().int().min(0).max(2) });
 type TheoryRatingInput = z.infer<typeof theoryRatingSchema>;
 
+const mcqAnswerSchema = z.object({ selectedIndex: z.number().int().min(0).max(4) });
+type McqAnswerInput = z.infer<typeof mcqAnswerSchema>;
+
 @ApiTags('concepts')
 @Controller('concepts')
 @UseGuards(JwtAuthGuard)
@@ -51,7 +54,7 @@ export class ConceptsController {
   constructor(
     private readonly concepts: ConceptsService,
     private readonly tutor: ConceptTutorService,
-    private readonly practice: PracticeSetService,
+    private readonly practiceSet: PracticeSetService,
   ) {}
 
   @Get()
@@ -97,15 +100,40 @@ export class ConceptsController {
     return this.tutor.ask(user.userId, id, body.question);
   }
 
-  @Get(':id/practice-set')
+  @Get(':id/practice')
   @ApiOperation({
-    summary: 'Questions on the concept — multiple choice and written, never the answers',
+    summary: 'The questions and exercises this user was handed, and what is left',
   })
-  practiceSet(
+  practice(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string): Promise<PracticeView> {
+    return this.practiceSet.view(user.userId, id);
+  }
+
+  @Post(':id/practice/questions')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Five more questions, from the shared pool or the model' })
+  moreQuestions(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
-  ): Promise<PracticeSetView> {
-    return this.practice.set(user.userId, id);
+  ): Promise<PracticeView> {
+    return this.practiceSet.moreQuestions(user.userId, id);
+  }
+
+  @Post(':id/practice/code')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'One more coding exercise, from the curriculum or the model' })
+  moreCode(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string): Promise<PracticeView> {
+    return this.practiceSet.moreCode(user.userId, id);
+  }
+
+  @Post('questions/:questionId/choice')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Answer a multiple-choice question' })
+  answerMcq(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('questionId') questionId: string,
+    @Body(new ZodValidationPipe(mcqAnswerSchema)) body: McqAnswerInput,
+  ): Promise<McqAnswerResult> {
+    return this.practiceSet.answerMcq(user.userId, questionId, body.selectedIndex);
   }
 
   @Post('questions/:questionId/answer')
@@ -118,7 +146,7 @@ export class ConceptsController {
     @Param('questionId') questionId: string,
     @Body(new ZodValidationPipe(theoryAnswerSchema)) body: TheoryAnswerInput,
   ): Promise<TheoryAnswerResult> {
-    return this.practice.answerTheory(user.userId, questionId, body.answer);
+    return this.practiceSet.answerTheory(user.userId, questionId, body.answer);
   }
 
   @Post('questions/:questionId/rating')
@@ -128,8 +156,8 @@ export class ConceptsController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('questionId') questionId: string,
     @Body(new ZodValidationPipe(theoryRatingSchema)) body: TheoryRatingInput,
-  ): Promise<TheoryRatingResult> {
-    return this.practice.rateTheory(user.userId, questionId, body.selfRating);
+  ) {
+    return this.practiceSet.rateTheory(user.userId, questionId, body.selfRating);
   }
 
   @Get(':id/weakness-trace')

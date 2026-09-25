@@ -3,6 +3,7 @@ import { Module, type Provider } from '@nestjs/common';
 import type { AppConfig } from '@forgeroutine/config';
 
 import { APP_CONFIG } from '../../infrastructure/config/config.module.js';
+import { ConceptsModule } from '../concepts/concepts.module.js';
 import { RoutinesModule } from '../routines/routines.module.js';
 import { SkillsModule } from '../skills/skills.module.js';
 
@@ -27,7 +28,7 @@ const executionProvider: Provider = {
 };
 
 @Module({
-  imports: [SkillsModule, RoutinesModule],
+  imports: [SkillsModule, RoutinesModule, ConceptsModule],
   controllers: [SubmissionsController],
   providers: [SubmitSolutionUseCase, SubmissionsQueryService, executionProvider],
   exports: [SubmitSolutionUseCase],

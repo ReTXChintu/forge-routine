@@ -26,6 +26,7 @@ import type { SubmitCodeInput } from '@forgeroutine/validation';
 import { Problems } from '../../../common/http/problem-details.js';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
 import { AI_PROVIDER, type OptionalAIProvider } from '../../ai/ai.tokens.js';
+import { PracticeSetService } from '../../concepts/application/practice-set.service.js';
 import { RoutinesService } from '../../routines/application/routines.service.js';
 import { SkillsService } from '../../skills/application/skills.service.js';
 import { CODE_EXECUTION_PORT, type CodeExecutionPort } from '../ports/code-execution.port.js';
@@ -48,6 +49,7 @@ export class SubmitSolutionUseCase {
     private readonly prisma: PrismaService,
     private readonly skills: SkillsService,
     private readonly routines: RoutinesService,
+    private readonly practice: PracticeSetService,
     @Inject(CODE_EXECUTION_PORT) private readonly execution: CodeExecutionPort,
     @Inject(AI_PROVIDER) private readonly ai: OptionalAIProvider,
   ) {}
@@ -103,15 +105,21 @@ export class SubmitSolutionUseCase {
 
     if (executionResult.passed && !INTERNAL_EXECUTION_FAILURES.includes(executionResult.status)) {
       // Green tests are the completion. There is no separate "mark as
-      // finished" button to forget, and forgetting one used to mean the
-      // item carried to tomorrow and got solved a second time.
-      await this.routines
-        .markExerciseDone(userId, attempt.exerciseId)
-        .catch((error: unknown) =>
-          // Bookkeeping. The submission stands either way, and losing the
-          // user's passing run over a routine write would be the worse bug.
-          this.logger.warn({ err: error }, 'Could not tick off the routine item for this exercise'),
-        );
+      // finished" button to forget, and forgetting one used to mean the row
+      // carried to tomorrow and got solved a second time.
+      //
+      // Two different rows can be waiting on this. A row that names the
+      // exercise — a project, a standalone problem — is finished by passing
+      // it. A row that names the *concept* covers its questions as well, so
+      // that one is settled by the completion rule rather than here.
+      await Promise.all([
+        this.routines.markExerciseDone(userId, attempt.exerciseId),
+        this.practice.onExercisePassed(userId, attempt.exerciseId),
+      ]).catch((error: unknown) =>
+        // Bookkeeping. The submission stands either way, and losing the
+        // user's passing run over a routine write would be the worse bug.
+        this.logger.warn({ err: error }, 'Could not tick off the routine rows for this exercise'),
+      );
     }
 
     return {

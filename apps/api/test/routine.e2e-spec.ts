@@ -113,42 +113,43 @@ describe("today's routine", () => {
     expect(owned!.status).toBe('ACTIVE');
   });
 
-  it('puts a DSA concept and exactly one DSA problem on the plan', async () => {
+  it('puts DSA on the plan as a single row', async () => {
     const dsaItems = items.filter((item) => item.title.startsWith('DSA'));
 
-    expect(dsaItems.some((item) => item.kind === 'LEARN')).toBe(true);
-
-    // Exactly one. Two problems a day is a different product, and the thing
-    // that makes a daily habit survive a bad day is that it is small.
-    const problems = dsaItems.filter((item) => item.kind === 'CODE');
-    expect(problems).toHaveLength(1);
-    expect(problems[0]!.exerciseId).toBeTruthy();
+    // One row, not three. The technique, the questions on it and the day's
+    // problem all live on the concept's own page — a routine that listed
+    // them separately was showing the inside of a task rather than the task.
+    expect(dsaItems).toHaveLength(1);
+    expect(dsaItems[0]!.kind).toBe('LEARN');
+    expect(dsaItems[0]!.conceptId).toBeTruthy();
+    // And it is budgeted for both halves, or the day's minutes would
+    // under-count every concept on it.
+    expect(dsaItems[0]!.minutes).toBeGreaterThan(10);
   });
 
-  it('asks questions on the concepts it just taught', async () => {
-    const recall = items.filter((item) => item.kind === 'RECALL');
+  it('never shows the inside of a task as its own row', async () => {
+    // The rule the routine tab turns on: a row is a thing to open, never a
+    // step within one. Question batches and individual exercises used to get
+    // their own rows, which is what made the plan unreadable.
+    expect(items.filter((item) => item.kind === 'RECALL')).toHaveLength(0);
 
-    expect(recall.length).toBeGreaterThan(0);
-    for (const item of recall) {
-      expect(item.conceptId).toBeTruthy();
-      expect(item.questionCount).toBeGreaterThan(0);
+    for (const item of items) {
+      expect(item.title).not.toMatch(/\d+ questions on /i);
     }
   });
 
-  it('serves the questions behind a RECALL item', async () => {
-    const recall = items.find((item) => item.kind === 'RECALL')!;
+  it('points a concept row at the concept, not at one exercise', async () => {
+    // What makes a row openable onto the whole concept page — both halves of
+    // it — rather than straight into one exercise. Deliberately asserted from
+    // the row's shape rather than by fetching the practice set: opening a set
+    // for the first time generates questions, and this suite's last test
+    // proves that planning a day spends nothing.
+    const concepts = items.filter((item) => item.kind === 'LEARN');
 
-    const response = await http
-      .get(`/api/v1/recall/due?conceptId=${recall.conceptId}&limit=${recall.questionCount}`)
-      .set(auth())
-      .expect(200);
-
-    expect(response.body.length).toBeGreaterThan(0);
-    expect(response.body.length).toBeLessThanOrEqual(recall.questionCount);
-
-    for (const prompt of response.body) {
-      expect(prompt.conceptId).toBe(recall.conceptId);
-      expect(prompt.options.length).toBeGreaterThanOrEqual(2);
+    expect(concepts.length).toBeGreaterThan(0);
+    for (const item of concepts) {
+      expect(item.conceptId).toBeTruthy();
+      expect(item.exerciseId).toBeNull();
     }
   });
 

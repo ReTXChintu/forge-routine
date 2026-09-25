@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { currentConcept } from '@forgeroutine/curriculum';
+import type { Prisma } from '@forgeroutine/database';
 import { dayKey } from '@forgeroutine/utils';
 
 import { Problems } from '../../../common/http/problem-details.js';
@@ -166,11 +167,6 @@ export class RoutinesService {
     }
 
     // -- 3. The roadmap ---------------------------------------------------
-    const questionCounts = await this.questionCounts(
-      roadmapItems.map((item) => item.conceptId).filter((id): id is string => id !== null),
-    );
-    const recalled = new Set<string>();
-
     for (const item of roadmapItems) {
       if (used >= budget) break;
       if (item.exerciseId && claimed.has(item.exerciseId)) continue;
@@ -190,37 +186,27 @@ export class RoutinesService {
         continue;
       }
 
+      // A concept is one row covering both halves of its page — read it,
+      // then answer questions and write code about it. It used to be up to
+      // three rows, and a routine listing "5 questions on closures" as its
+      // own line was showing the user the inside of a task rather than the
+      // task. Practice minutes are folded in here for the same reason.
+      const practising = kind === 'LEARN' && item.conceptId !== null;
+      const minutes = item.estimatedMinutes + (practising ? PRACTICE_MINUTES : 0);
+
       planned.push({
         kind,
-        minutes: item.estimatedMinutes,
+        minutes,
         title: item.title,
-        rationale: item.rationale,
+        rationale: practising
+          ? `${item.rationale} Read it, then answer the questions and write the code.`
+          : item.rationale,
         conceptId: item.conceptId,
         exerciseId: item.exerciseId,
         questionCount: 0,
         carriedFrom: null,
       });
-      used += item.estimatedMinutes;
-
-      // Reading a concept and then being asked about it is the whole
-      // difference between studying and revising, so the questions follow
-      // the concept immediately rather than waiting for the review to fall
-      // due days later.
-      const count = item.conceptId ? (questionCounts.get(item.conceptId) ?? 0) : 0;
-      if (item.kind === 'LEARN' && count > 0 && !recalled.has(item.conceptId!)) {
-        recalled.add(item.conceptId!);
-        planned.push({
-          kind: 'RECALL',
-          minutes: QUESTION_MINUTES,
-          title: `${Math.min(count, QUESTIONS_PER_ITEM)} questions on ${stripPrefix(item.title)}`,
-          rationale: 'Answering beats rereading. This is what fixes it.',
-          conceptId: item.conceptId,
-          exerciseId: null,
-          questionCount: Math.min(count, QUESTIONS_PER_ITEM),
-          carriedFrom: null,
-        });
-        used += QUESTION_MINUTES;
-      }
+      used += minutes;
     }
 
     const routine = await this.persist(userId, date, planned, existing?.id);
@@ -265,26 +251,39 @@ export class RoutinesService {
   }
 
   /**
-   * Ticks off the work an exercise was assigned for, once it passes.
+   * Finishing work by doing it, rather than by saying so.
    *
-   * Asking someone to press "done" on an exercise whose tests just went
-   * green is asking them to tell the system something it already knows —
-   * and the one time they forget, the item carries to tomorrow and they
-   * solve it again. So passing *is* finishing, and it applies to every
-   * outstanding item pointing at this exercise, not just today's: work
-   * carried forward from earlier days is the case where redoing it hurts
-   * most.
+   * Asking someone to press "done" on an exercise whose tests just went green
+   * is asking them to tell the system something it already watched happen —
+   * and the one time they forget, the row carries to tomorrow and they do it
+   * again. So passing *is* finishing.
    *
-   * Nothing here is allowed to fail a submission; the caller treats it as
-   * bookkeeping.
+   * A concept row covers reading, questions and code, so it is ticked off by
+   * `PracticeSetService` once the whole of its practice is done; an exercise
+   * row — a project, a standalone problem — is ticked off by passing it.
    */
+  async markConceptDone(userId: string, conceptId: string): Promise<void> {
+    await this.finish({ conceptId, routine: { userId } });
+  }
+
   async markExerciseDone(userId: string, exerciseId: string): Promise<void> {
+    await this.finish({ exerciseId, routine: { userId } });
+  }
+
+  /**
+   * Ticks off every outstanding row matching a filter, and fixes the totals.
+   *
+   * Every outstanding row, not just today's: work carried forward from
+   * earlier days is where doing it twice hurts most, and the same concept can
+   * sit on three days at once after a backlog.
+   *
+   * Nothing here may fail the thing that triggered it — the caller treats it
+   * as bookkeeping, because losing a passing submission or an answer over a
+   * routine write would be the worse bug.
+   */
+  private async finish(where: Prisma.RoutineItemWhereInput): Promise<void> {
     const outstanding = await this.prisma.routineItem.findMany({
-      where: {
-        exerciseId,
-        status: { in: ['PENDING', 'IN_PROGRESS'] },
-        routine: { userId },
-      },
+      where: { ...where, status: { in: ['PENDING', 'IN_PROGRESS'] } },
       select: { id: true, routineId: true },
     });
 
@@ -295,7 +294,7 @@ export class RoutinesService {
       data: { status: 'DONE' },
     });
 
-    // Sequential, and de-duplicated: two items of the same routine would
+    // Sequential and de-duplicated: two rows of the same routine would
     // otherwise recompute the same total twice, racing each other.
     for (const routineId of new Set(outstanding.map((item) => item.routineId))) {
       await this.recomputeCompleted(routineId);
@@ -410,10 +409,8 @@ export class RoutinesService {
         orderIndex: true,
         exercises: {
           where: { archivedAt: null, kind: { in: ['CODING', 'DEBUGGING'] } },
-          orderBy: [{ difficulty: 'asc' }, { createdAt: 'asc' }],
-          select: { id: true, title: true, estimatedMinutes: true },
+          select: { id: true },
         },
-        _count: { select: { questions: { where: { archivedAt: null } } } },
       },
     });
 
@@ -437,73 +434,23 @@ export class RoutinesService {
     const concept = concepts.find((candidate) => candidate.id === currentId);
     if (!concept) return [];
 
-    const items: PlannedItem[] = [
+    // One row, like every other concept: the technique, the questions on it
+    // and the day's problem all live on the concept's own page. It used to be
+    // three rows, which put the inside of the task in the routine.
+    return [
       {
         kind: 'LEARN',
-        minutes: DSA_LEARN_MINUTES,
+        minutes: DSA_LEARN_MINUTES + PRACTICE_MINUTES,
         title: `DSA: ${concept.name}`,
-        rationale: 'Today’s technique. Read it, then use it on the problem below.',
+        rationale:
+          'Today’s technique. Read it, then answer the questions and solve the problem. ' +
+          'One problem a day is the part that compounds.',
         conceptId: concept.id,
         exerciseId: null,
         questionCount: 0,
         carriedFrom: null,
       },
     ];
-
-    if (concept._count.questions > 0) {
-      items.push({
-        kind: 'RECALL',
-        minutes: QUESTION_MINUTES,
-        title: `${Math.min(concept._count.questions, QUESTIONS_PER_ITEM)} questions on ${concept.name}`,
-        rationale: 'Checks you can state it, not just recognise it.',
-        conceptId: concept.id,
-        exerciseId: null,
-        questionCount: Math.min(concept._count.questions, QUESTIONS_PER_ITEM),
-        carriedFrom: null,
-      });
-    }
-
-    // Exactly one. Two problems is a different product, and the thing that
-    // makes this work is that it is small enough to do on a bad day.
-    const exercise = await this.unsolvedExercise(userId, concept.exercises);
-    if (exercise) {
-      items.push({
-        kind: 'CODE',
-        minutes: exercise.estimatedMinutes,
-        title: `DSA problem: ${exercise.title}`,
-        rationale: 'One problem, every day. This is the part that compounds.',
-        conceptId: concept.id,
-        exerciseId: exercise.id,
-        questionCount: 0,
-        carriedFrom: null,
-      });
-    }
-
-    return items;
-  }
-
-  /** The easiest exercise the user has not already passed, else the easiest. */
-  private async unsolvedExercise(
-    userId: string,
-    exercises: readonly { id: string; title: string; estimatedMinutes: number }[],
-  ) {
-    if (exercises.length === 0) return null;
-
-    const passed = await this.prisma.exerciseAttempt.findMany({
-      where: {
-        userId,
-        outcome: 'PASSED',
-        exerciseId: { in: exercises.map((exercise) => exercise.id) },
-      },
-      select: { exerciseId: true },
-    });
-
-    const solved = new Set(passed.map((attempt) => attempt.exerciseId));
-
-    // Falling back to the first rather than returning nothing: re-solving a
-    // problem you have done before is a worse day than a new one, and a
-    // better day than no problem at all.
-    return exercises.find((exercise) => !solved.has(exercise.id)) ?? exercises[0]!;
   }
 
   private async clearedConceptIds(
@@ -516,18 +463,6 @@ export class RoutinesService {
     });
 
     return new Set(passed.map((attempt) => attempt.exercise.conceptId));
-  }
-
-  private async questionCounts(conceptIds: readonly string[]): Promise<Map<string, number>> {
-    if (conceptIds.length === 0) return new Map();
-
-    const grouped = await this.prisma.conceptQuestion.groupBy({
-      by: ['conceptId'],
-      where: { conceptId: { in: [...conceptIds] }, archivedAt: null },
-      _count: { _all: true },
-    });
-
-    return new Map(grouped.map((row) => [row.conceptId, row._count._all]));
   }
 
   private async nextRoadmapItems(userId: string) {
@@ -670,14 +605,16 @@ function toRoutineKind(kind: string): RoutineKind | null {
 
 const DSA_SLUG = 'dsa';
 const REVIEW_MINUTES = 8;
-const QUESTION_MINUTES = 5;
 const DSA_LEARN_MINUTES = 8;
-const QUESTIONS_PER_ITEM = 3;
 
-/** Roadmap titles arrive as "Learn closures"; the verb is already in the row. */
-function stripPrefix(title: string): string {
-  return title.replace(/^(Learn|Practise|Practice|Study)\s+/i, '');
-}
+/**
+ * The practice half of a concept row: a batch of questions and one exercise.
+ *
+ * An estimate, and the only part of a row's minutes that is. Questions can be
+ * generated without limit, so the honest number is what the first batch costs
+ * rather than what somebody might choose to do.
+ */
+const PRACTICE_MINUTES = 15;
 
 function startOfToday(): Date {
   const date = new Date();

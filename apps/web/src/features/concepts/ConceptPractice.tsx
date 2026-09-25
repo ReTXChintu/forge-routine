@@ -1,211 +1,232 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-import type { ExerciseView } from '@forgeroutine/shared-types';
 
 import { Icon } from '~/components/Icon';
 import { Markdown } from '~/components/Markdown';
 import { Badge, Button, Card, ProgressBar, Spinner } from '~/components/ui';
 import {
-  useAnswerRecall,
+  useAnswerMcq,
   useAnswerTheory,
-  usePracticeSet,
+  useGeneratePractice,
+  usePractice,
   useRateTheory,
   type PracticeQuestionView,
-  type RecallAnswerResult,
-  type TheoryAnswerResult,
+  type PracticeView,
 } from '~/lib/queries';
 
 /**
- * Practice on one concept, as a set rather than a single exercise.
+ * Practice on one concept: questions, then code.
  *
- * One coding exercise proves you can produce a working function. It says
- * nothing about whether you could explain why it works, spot the case that
- * breaks it, or choose it over the alternative — and those are the things
- * that decide whether a concept survives contact with real code. So a set
- * asks in three ways that fail differently:
+ * Both sections are on the page at once rather than behind a wizard, because
+ * a set whose shape you can see is one you can decide to finish. Batches
+ * accumulate — pressing "five more" appends below, and what you already
+ * answered stays visible with its explanation.
  *
- *   Multiple choice, for the distinctions. Cheap, fast, and it catches
- *   someone who has half the idea, because the wrong options are the
- *   half-ideas.
- *
- *   Written answers, for what multiple choice cannot reach: recognising an
- *   idea fluently while being unable to state it. The model answer arrives
- *   only after theirs is submitted — reading a good answer and then judging
- *   your own against it measures nothing.
- *
- *   Code, from the curriculum's own exercises, one or two. More than that
- *   turns a study session into an afternoon and gets abandoned.
- *
- * One question at a time, with the progress visible. A wall of ten
- * questions is something to skim; one question is something to answer.
+ * Neither section has a "mark as done" button, and that is the point. The
+ * concept finishes when every question you were handed has an answer and
+ * every exercise you were handed has passed, which the server watched
+ * happen. Asking someone to then report it is how work got lost.
  */
-
-/** Enough code to make the ideas real, few enough to finish in one sitting. */
-const CODING_QUESTIONS = 2;
-
 export function ConceptPractice({
   conceptId,
-  exercises,
+  conceptName,
   locked,
+  onScreenText,
 }: {
   conceptId: string | undefined;
-  exercises: ExerciseView[];
+  conceptName: string;
   locked: boolean;
+  /** Feeds the assistant what is on this tab. It reads; it never writes. */
+  onScreenText?: (text: string) => void;
 }) {
-  const [started, setStarted] = useState(false);
-  const [index, setIndex] = useState(0);
-  const [answered, setAnswered] = useState<Record<string, boolean>>({});
+  const { data: view, isLoading, isError } = usePractice(conceptId, !locked);
 
-  const { data: set, isLoading, isError } = usePracticeSet(conceptId, started);
-
-  const coding = useMemo(() => exercises.slice(0, CODING_QUESTIONS), [exercises]);
-  const questions = set?.questions ?? [];
-  // The coding exercises are the last step, so they count towards the total
-  // the progress bar is measured against.
-  const total = questions.length + (coding.length > 0 ? 1 : 0);
-
-  if (!started) {
+  if (locked) {
     return (
-      <Opening
-        counts={{ coding: coding.length }}
-        onStart={() => setStarted(true)}
-        disabled={locked}
-      />
+      <Card>
+        <div className="t-h3 mb2">Locked</div>
+        <div className="t-small">Finish what comes before this concept first.</div>
+      </Card>
     );
   }
 
-  if (isLoading) return <Spinner label="Writing your questions" />;
+  // The first visit writes a batch, which can mean waiting on a model.
+  if (isLoading) return <Spinner label="Setting your questions" />;
 
-  if (isError || !set) {
+  if (isError || !view) {
     return (
       <Card>
-        <div className="t-h3 mb2">The questions could not be loaded</div>
+        <div className="t-h3 mb2">Practice could not be loaded</div>
         <div className="t-small">Try again in a moment.</div>
       </Card>
     );
   }
 
-  if (!set.available && coding.length === 0) {
-    return (
-      <Card>
-        <div className="t-h3 mb2">Nothing to practise here yet</div>
-        <div className="t-small">{set.unavailableReason}</div>
-      </Card>
+  return (
+    <div className="col g5">
+      <Summary view={view} conceptName={conceptName} />
+
+      {view.problem && (
+        <Card style={{ borderLeft: '2px solid var(--warning)' }}>
+          <div className="row items-start g3">
+            <span style={{ color: 'var(--warning)', marginTop: 2 }}>
+              <Icon name="alert" size={16} />
+            </span>
+            {/* The real sentence. "Something went wrong" leaves the reader
+                with nothing to act on. */}
+            <div className="t-small">{view.problem}</div>
+          </div>
+        </Card>
+      )}
+
+      <Questions view={view} conceptId={conceptId} onScreenText={onScreenText} />
+      <CodeSection view={view} conceptId={conceptId} />
+    </div>
+  );
+}
+
+function Summary({ view, conceptName }: { view: PracticeView; conceptName: string }) {
+  const { completion } = view;
+  const total = completion.questionsServed + completion.exercisesServed;
+  const done = completion.questionsAnswered + completion.exercisesPassed;
+
+  return (
+    <Card
+      style={{
+        borderLeft: `2px solid ${completion.complete ? 'var(--success)' : 'var(--primary)'}`,
+      }}
+    >
+      <div className="row items-center justify-between g4 mb3">
+        <div className="row items-center g2">
+          <span className="t-h3">{completion.complete ? 'Finished' : 'In progress'}</span>
+          {view.routineDone && (
+            <Badge variant="success" icon="check">
+              Ticked off your routine
+            </Badge>
+          )}
+        </div>
+
+        <span className="t-caption">
+          {done} of {total} done
+        </span>
+      </div>
+
+      <ProgressBar thin pct={total === 0 ? 0 : (done / total) * 100} />
+
+      <div className="t-small mt3">
+        {completion.complete ? (
+          // Said once, plainly. Nothing to press, which is the improvement.
+          <>
+            {conceptName} is done — every question answered and every exercise passed. Anything more
+            you do here is extra practice and will not un-finish it.
+          </>
+        ) : (
+          <>
+            {describeOutstanding(completion.outstanding)} This finishes itself when they are done;
+            there is nothing to mark.
+          </>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function describeOutstanding(outstanding: { questions: number; exercises: number }): string {
+  const parts: string[] = [];
+
+  if (outstanding.questions > 0) {
+    parts.push(
+      `${outstanding.questions} ${outstanding.questions === 1 ? 'question' : 'questions'} left`,
+    );
+  }
+  if (outstanding.exercises > 0) {
+    parts.push(
+      `${outstanding.exercises} ${
+        outstanding.exercises === 1 ? 'exercise' : 'exercises'
+      } still to pass`,
     );
   }
 
-  const question = questions[index] ?? null;
-  const onCodingStep = question === null;
+  return parts.length === 0 ? 'Nothing outstanding.' : `${parts.join(' and ')}.`;
+}
+
+function Questions({
+  view,
+  conceptId,
+  onScreenText,
+}: {
+  view: PracticeView;
+  conceptId: string | undefined;
+  onScreenText?: (text: string) => void;
+}) {
+  const generate = useGeneratePractice(conceptId);
+  const writing = generate.isPending && generate.variables === 'questions';
 
   return (
-    <div className="col g4">
-      <Card flush className="p4">
-        <div className="row items-center justify-between mb3">
-          <div className="row items-center g2">
-            <span className="t-caption">
-              {onCodingStep ? `Step ${total} of ${total}` : `Question ${index + 1} of ${total}`}
-            </span>
-            {question && (
-              <Badge variant={question.kind === 'THEORY' ? 'primary' : 'neutral'}>
-                {question.kind === 'THEORY' ? 'in your own words' : 'multiple choice'}
-              </Badge>
-            )}
-          </div>
+    <div className="col g3">
+      <div className="row items-center justify-between g4">
+        <span className="t-h3">Questions</span>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon="plus"
+          onClick={() => generate.mutate('questions')}
+          disabled={generate.isPending}
+        >
+          {writing ? 'Writing…' : '5 more questions'}
+        </Button>
+      </div>
 
-          <span className="t-caption">
-            {Object.values(answered).filter(Boolean).length} answered
-          </span>
-        </div>
-
-        <ProgressBar thin pct={total === 0 ? 0 : (index / total) * 100} />
-      </Card>
-
-      {question ? (
-        <QuestionCard
-          // Keyed so every piece of per-question state — the selection, the
-          // typed answer, whether it has been revealed — is discarded when
-          // the question changes. Without this the next question opens
-          // already showing the previous one's verdict.
-          key={question.id}
-          question={question}
-          onAnswered={() => setAnswered((current) => ({ ...current, [question.id]: true }))}
-          onNext={() => setIndex((current) => current + 1)}
-          isLast={index === questions.length - 1 && coding.length === 0}
-        />
+      {view.questions.length === 0 ? (
+        <Card>
+          <div className="t-small">No questions on this concept yet.</div>
+        </Card>
       ) : (
-        <CodingStep exercises={coding} locked={locked} onBack={() => setIndex(0)} />
+        view.questions.map((question, index) => (
+          <QuestionCard
+            key={question.id}
+            index={index}
+            question={question}
+            conceptId={conceptId}
+            onScreenText={onScreenText}
+          />
+        ))
       )}
     </div>
   );
 }
 
-/**
- * What the set contains, before it is fetched.
- *
- * Deliberately a click rather than a page load. Generating the questions
- * costs a model call, and spending one every time somebody glances at a
- * concept would be paying for practice nobody asked for.
- */
-function Opening({
-  counts,
-  onStart,
-  disabled,
-}: {
-  counts: { coding: number };
-  onStart: () => void;
-  disabled: boolean;
-}) {
-  return (
-    <Card>
-      <div className="t-h3 mb2">Test yourself on this</div>
-      <div className="t-body mb4" style={{ maxWidth: '72ch' }}>
-        A mixed set: multiple choice for the distinctions people get wrong, written questions where
-        you have to explain the idea in your own words, and{' '}
-        {counts.coding > 0
-          ? `${counts.coding === 1 ? 'one coding exercise' : `${counts.coding} coding exercises`} to finish.`
-          : 'no coding for this concept — it is not one you practise by writing code.'}{' '}
-        One question at a time.
-      </div>
-
-      <Button icon="play" onClick={onStart} disabled={disabled}>
-        {disabled ? 'Locked' : 'Start'}
-      </Button>
-    </Card>
-  );
-}
-
 function QuestionCard({
+  index,
   question,
-  onAnswered,
-  onNext,
-  isLast,
+  conceptId,
+  onScreenText,
 }: {
+  index: number;
   question: PracticeQuestionView;
-  onAnswered: () => void;
-  onNext: () => void;
-  isLast: boolean;
+  conceptId: string | undefined;
+  onScreenText?: (text: string) => void;
 }) {
   return (
-    <Card>
-      <div className="t-h3 mb4" style={{ lineHeight: 1.6, maxWidth: '78ch' }}>
-        {question.prompt}
+    <Card
+      // Clicking a question is how the assistant learns which one you mean.
+      onClick={onScreenText ? () => onScreenText(describeQuestion(index, question)) : undefined}
+      style={{ borderLeft: question.given ? '2px solid var(--border-strong)' : undefined }}
+    >
+      <div className="row items-start justify-between g3 mb3">
+        <div className="t-h4" style={{ lineHeight: 1.6, maxWidth: '78ch' }}>
+          <span className="t-caption mono mr2">{index + 1}.</span>
+          {question.prompt}
+        </div>
+        <Badge variant={question.kind === 'THEORY' ? 'primary' : 'neutral'}>
+          {question.kind === 'THEORY' ? 'in your own words' : 'multiple choice'}
+        </Badge>
       </div>
 
       {question.kind === 'MCQ' ? (
-        <MultipleChoice
-          question={question}
-          onAnswered={onAnswered}
-          onNext={onNext}
-          isLast={isLast}
-        />
+        <MultipleChoice question={question} conceptId={conceptId} />
       ) : (
-        <WrittenAnswer
-          question={question}
-          onAnswered={onAnswered}
-          onNext={onNext}
-          isLast={isLast}
-        />
+        <WrittenAnswer question={question} conceptId={conceptId} />
       )}
     </Card>
   );
@@ -213,26 +234,14 @@ function QuestionCard({
 
 function MultipleChoice({
   question,
-  onAnswered,
-  onNext,
-  isLast,
+  conceptId,
 }: {
   question: PracticeQuestionView;
-  onAnswered: () => void;
-  onNext: () => void;
-  isLast: boolean;
+  conceptId: string | undefined;
 }) {
-  const [selected, setSelected] = useState<number | null>(null);
-  const [result, setResult] = useState<RecallAnswerResult | null>(null);
-  const answer = useAnswerRecall();
-
-  const submit = async (choice: number) => {
-    if (result) return;
-    setSelected(choice);
-    const outcome = await answer.mutateAsync({ questionId: question.id, selectedIndex: choice });
-    setResult(outcome);
-    onAnswered();
-  };
+  const answer = useAnswerMcq(conceptId);
+  const given = question.given;
+  const settled = given !== null && given.selectedIndex !== null;
 
   return (
     <div className="col g3">
@@ -242,18 +251,17 @@ function MultipleChoice({
             key={option}
             type="button"
             className="card p3"
-            disabled={answer.isPending || result !== null}
-            onClick={() => void submit(optionIndex)}
+            disabled={answer.isPending || settled}
+            onClick={() => answer.mutate({ questionId: question.id, selectedIndex: optionIndex })}
             style={{
               textAlign: 'left',
               width: '100%',
-              cursor: result ? 'default' : 'pointer',
+              cursor: settled ? 'default' : 'pointer',
               background: 'var(--surface-2)',
-              borderColor: optionBorder(optionIndex, selected, result),
-              // Only the chosen wrong answer and the right one are marked.
-              // Greying the rest would tell them which options were never
-              // in contention, which is half the question.
-              opacity: result && !isMarked(optionIndex, selected, result) ? 0.55 : 1,
+              borderColor: optionBorder(optionIndex, given),
+              // Only the chosen answer is marked. Greying the rest would say
+              // which were never in contention, which is half the question.
+              opacity: settled && optionIndex !== given.selectedIndex ? 0.5 : 1,
             }}
           >
             <span className="row items-center g2">
@@ -261,14 +269,14 @@ function MultipleChoice({
                 {String.fromCharCode(65 + optionIndex)}
               </span>
               <span className="t-body">{option}</span>
-              {result && optionIndex === result.correctIndex && (
-                <span style={{ color: 'var(--success)', marginLeft: 'auto' }}>
-                  <Icon name="check" size={14} />
-                </span>
-              )}
-              {result && optionIndex === selected && !result.correct && (
-                <span style={{ color: 'var(--error)', marginLeft: 'auto' }}>
-                  <Icon name="x" size={14} />
+              {settled && optionIndex === given.selectedIndex && (
+                <span
+                  style={{
+                    color: given.correct ? 'var(--success)' : 'var(--error)',
+                    marginLeft: 'auto',
+                  }}
+                >
+                  <Icon name={given.correct ? 'check' : 'x'} size={14} />
                 </span>
               )}
             </span>
@@ -276,23 +284,19 @@ function MultipleChoice({
         ))}
       </div>
 
-      {result && (
-        <>
-          <div
-            className="card p3"
-            style={{
-              background: 'var(--surface-2)',
-              borderLeft: `2px solid ${result.correct ? 'var(--success)' : 'var(--error)'}`,
-            }}
-          >
-            <div className="t-h4 mb2">{result.correct ? 'Right' : 'Not quite'}</div>
-            {/* Shown either way. Being right for the wrong reason is still
-                worth correcting, and this is where the learning is. */}
-            <Markdown content={result.explanation} />
-          </div>
-
-          <NextButton onNext={onNext} isLast={isLast} />
-        </>
+      {settled && given.explanation && (
+        <div
+          className="card p3"
+          style={{
+            background: 'var(--surface-2)',
+            borderLeft: `2px solid ${given.correct ? 'var(--success)' : 'var(--error)'}`,
+          }}
+        >
+          <div className="t-h4 mb2">{given.correct ? 'Right' : 'Not quite'}</div>
+          {/* Shown either way. Being right for the wrong reason is still
+              worth correcting, and this is where the learning is. */}
+          <Markdown content={given.explanation} />
+        </div>
       )}
     </div>
   );
@@ -300,67 +304,55 @@ function MultipleChoice({
 
 function WrittenAnswer({
   question,
-  onAnswered,
-  onNext,
-  isLast,
+  conceptId,
 }: {
   question: PracticeQuestionView;
-  onAnswered: () => void;
-  onNext: () => void;
-  isLast: boolean;
+  conceptId: string | undefined;
 }) {
-  const [draft, setDraft] = useState(question.previousAnswer ?? '');
-  const [revealed, setRevealed] = useState<TheoryAnswerResult | null>(null);
-  const [rated, setRated] = useState<number | null>(null);
+  const given = question.given;
+  const [draft, setDraft] = useState(given?.answer ?? '');
 
-  const submit = useAnswerTheory();
-  const rate = useRateTheory();
+  const submit = useAnswerTheory(conceptId);
+  const rate = useRateTheory(conceptId);
 
-  const commit = async () => {
-    const result = await submit.mutateAsync({ questionId: question.id, answer: draft });
-    setRevealed(result);
-    onAnswered();
-  };
-
-  const judge = async (selfRating: number) => {
-    setRated(selfRating);
-    await rate.mutateAsync({ questionId: question.id, selfRating });
-  };
+  // Both null-checked rather than truthy: an empty answer is not a state the
+  // server allows, but a self-rating of 0 is "missed it" and must count.
+  const revealed = given?.answer !== null && given?.answer !== undefined;
+  const judged = given?.selfRating !== null && given?.selfRating !== undefined;
 
   return (
     <div className="col g3">
       <textarea
         className="textarea"
-        rows={6}
+        rows={5}
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
-        disabled={revealed !== null}
+        disabled={revealed}
         placeholder="Explain it as you would to someone on your team. A few sentences."
       />
 
       {!revealed ? (
         <div className="row items-center g3">
           <Button
-            onClick={() => void commit()}
+            onClick={() => submit.mutate({ questionId: question.id, answer: draft })}
             disabled={draft.trim().length === 0 || submit.isPending}
           >
             {submit.isPending ? 'Submitting…' : 'Submit answer'}
           </Button>
-          {/* Said plainly, because it is the reason the box has to be filled
-              in before anything is shown. */}
+          {/* Said plainly, because it is why the box must be filled first. */}
           <span className="t-caption">The model answer appears once yours is in.</span>
         </div>
       ) : (
         <>
           <div className="card p4" style={{ background: 'var(--surface-2)' }}>
             <div className="t-h4 mb3">A good answer</div>
-            <Markdown content={revealed.modelAnswer} />
+            <Markdown content={given.modelAnswer ?? ''} />
 
-            {revealed.keyPoints.length > 0 && (
+            {given.keyPoints.length > 0 && (
               <>
                 <div className="t-h4 mt4 mb2">Did yours cover these?</div>
                 <div className="col g2">
-                  {revealed.keyPoints.map((point) => (
+                  {given.keyPoints.map((point) => (
                     <div key={point} className="row items-start g2">
                       <span style={{ color: 'var(--text-secondary)', marginTop: 3 }}>
                         <Icon name="check" size={13} />
@@ -373,7 +365,12 @@ function WrittenAnswer({
             )}
           </div>
 
-          {rated === null ? (
+          {judged ? (
+            <div className="t-caption row items-center g1">
+              <Icon name="check" size={12} />
+              You marked this “{RATINGS.find((r) => r.value === given.selfRating)?.label}”
+            </div>
+          ) : (
             <div className="col g2">
               <div className="t-small">How did yours compare?</div>
               <div className="row g2">
@@ -382,7 +379,9 @@ function WrittenAnswer({
                     key={rating.value}
                     variant="secondary"
                     size="sm"
-                    onClick={() => void judge(rating.value)}
+                    onClick={() =>
+                      rate.mutate({ questionId: question.id, selfRating: rating.value })
+                    }
                     disabled={rate.isPending}
                   >
                     {rating.label}
@@ -390,8 +389,6 @@ function WrittenAnswer({
                 ))}
               </div>
             </div>
-          ) : (
-            <NextButton onNext={onNext} isLast={isLast} />
           )}
         </>
       )}
@@ -402,9 +399,8 @@ function WrittenAnswer({
 /**
  * Three rungs, not five.
  *
- * Any scale finer than this asks the user to distinguish grades they cannot
- * actually tell apart, and the extra precision is invented rather than
- * measured.
+ * Any finer scale asks the user to distinguish grades they cannot actually
+ * tell apart, and the extra precision is invented rather than measured.
  */
 const RATINGS = [
   { value: 0, label: 'Missed it' },
@@ -412,81 +408,93 @@ const RATINGS = [
   { value: 2, label: 'Got it' },
 ] as const;
 
-function CodingStep({
-  exercises,
-  locked,
-  onBack,
-}: {
-  exercises: ExerciseView[];
-  locked: boolean;
-  onBack: () => void;
-}) {
+function CodeSection({ view, conceptId }: { view: PracticeView; conceptId: string | undefined }) {
   const navigate = useNavigate();
+  const generate = useGeneratePractice(conceptId);
+  const writing = generate.isPending && generate.variables === 'code';
 
   return (
-    <Card>
-      <div className="t-h3 mb2">Now write it</div>
-      <div className="t-body mb4" style={{ maxWidth: '72ch' }}>
-        Explaining a concept and using it are different skills, and only this one is graded by
-        running your code.
-      </div>
-
-      <div className="grid grid-2 g3 cq-grid-2">
-        {exercises.map((exercise) => (
-          <div
-            key={exercise.id}
-            className="card p3"
-            style={{
-              background: 'var(--surface-2)',
-              cursor: locked ? 'not-allowed' : 'pointer',
-              opacity: locked ? 0.5 : 1,
-            }}
-            onClick={() => !locked && navigate(`/exercise/${exercise.id}`)}
-          >
-            <div className="row justify-between items-center mb2">
-              <Badge variant="neutral" icon="practice">
-                {exercise.kind.toLowerCase().replace('_', ' ')}
-              </Badge>
-              <span className="t-caption">{exercise.estimatedMinutes} min</span>
-            </div>
-            <div className="t-h4" style={{ fontSize: 13 }}>
-              {exercise.title}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="row g2 mt4">
-        <Button variant="ghost" size="sm" icon="chevronLeft" onClick={onBack}>
-          Back to the questions
+    <div className="col g3">
+      <div className="row items-center justify-between g4">
+        <span className="t-h3">Code</span>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon="plus"
+          onClick={() => generate.mutate('code')}
+          disabled={generate.isPending}
+        >
+          {/* Slower than a question batch: a generated exercise is run
+              against its own tests before it is handed over. */}
+          {writing ? 'Writing and checking…' : 'Another exercise'}
         </Button>
       </div>
-    </Card>
-  );
-}
 
-function NextButton({ onNext, isLast }: { onNext: () => void; isLast: boolean }) {
-  return (
-    <div>
-      <Button icon={isLast ? 'check' : 'arrowRight'} onClick={onNext}>
-        {isLast ? 'Finish' : 'Next question'}
-      </Button>
+      {view.exercises.length === 0 ? (
+        <Card>
+          <div className="t-small">
+            No coding exercise here yet. Some subjects cannot be graded by running code.
+          </div>
+        </Card>
+      ) : (
+        <div className="grid grid-2 g3 cq-grid-2">
+          {view.exercises.map((exercise) => (
+            <Card
+              key={exercise.id}
+              hover
+              onClick={() => navigate(`/exercise/${exercise.id}`)}
+              style={{
+                cursor: 'pointer',
+                borderLeft: exercise.passed ? '2px solid var(--success)' : undefined,
+              }}
+            >
+              <div className="row justify-between items-center mb2">
+                <Badge
+                  variant={exercise.passed ? 'success' : 'neutral'}
+                  icon={exercise.passed ? 'check' : 'practice'}
+                >
+                  {exercise.passed ? 'passed' : exercise.kind.toLowerCase().replace('_', ' ')}
+                </Badge>
+                <span className="t-caption">{exercise.estimatedMinutes} min</span>
+              </div>
+              <div className="t-h4" style={{ fontSize: 13 }}>
+                {exercise.title}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-/** Only the right answer and a wrong choice are coloured. */
-function isMarked(index: number, selected: number | null, result: RecallAnswerResult): boolean {
-  return index === result.correctIndex || index === selected;
+/** What the assistant is told about a question the user pointed at. */
+function describeQuestion(index: number, question: PracticeQuestionView): string {
+  const lines = [`Question ${index + 1} (${question.kind}): ${question.prompt}`];
+
+  if (question.options.length > 0) {
+    lines.push(
+      `Options:\n${question.options
+        .map((option, i) => `${String.fromCharCode(65 + i)}. ${option}`)
+        .join('\n')}`,
+    );
+  }
+
+  const given = question.given;
+  if (given?.selectedIndex !== null && given?.selectedIndex !== undefined) {
+    lines.push(
+      `They answered ${String.fromCharCode(65 + given.selectedIndex)}, which was ${
+        given.correct ? 'right' : 'wrong'
+      }.`,
+    );
+  }
+  if (given?.answer) lines.push(`They wrote:\n${given.answer}`);
+
+  return lines.join('\n\n');
 }
 
-function optionBorder(
-  index: number,
-  selected: number | null,
-  result: RecallAnswerResult | null,
-): string | undefined {
-  if (!result) return undefined;
-  if (index === result.correctIndex) return 'var(--success)';
-  if (index === selected) return 'var(--error)';
+function optionBorder(index: number, given: PracticeQuestionView['given']): string | undefined {
+  if (!given || given.selectedIndex === null) return undefined;
+  if (index === given.selectedIndex) return given.correct ? 'var(--success)' : 'var(--error)';
   return undefined;
 }

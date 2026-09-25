@@ -9,6 +9,17 @@ import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js'
 import { GenerationService } from '../../generation/application/generation.service.js';
 import { RoadmapService } from '../../roadmap/application/roadmap.service.js';
 
+/** What to offer after a concept is finished. */
+export interface NextUpView {
+  /** Where it came from, so the panel can say why it is being offered. */
+  source: 'routine' | 'course';
+  title: string;
+  rationale: string;
+  conceptId: string | null;
+  exerciseId: string | null;
+  kind: string;
+}
+
 export interface RoutineItemView {
   id: string;
   kind: string;
@@ -262,6 +273,77 @@ export class RoutinesService {
    * `PracticeSetService` once the whole of its practice is done; an exercise
    * row — a project, a standalone problem — is ticked off by passing it.
    */
+  /**
+   * What to do after finishing a concept.
+   *
+   * Offered rather than navigated to. Being moved off a page you may still be
+   * reading is worse than one extra click, and the click is what makes it
+   * clear the last thing actually finished.
+   *
+   * Today's plan first, because that is the order the user agreed to. Only
+   * when the plan is clear does it fall back to the course, so somebody
+   * working ahead is not told they are finished for the day when they have
+   * chosen not to be.
+   */
+  async nextAfter(userId: string, conceptId: string): Promise<NextUpView | null> {
+    const date = startOfToday();
+    const routine = await this.find(userId, date);
+
+    if (routine) {
+      const pending = await this.prisma.routineItem.findFirst({
+        where: {
+          routineId: routine.id,
+          status: { in: ['PENDING', 'IN_PROGRESS'] },
+          // Not the one they just finished. Its row may not be ticked off
+          // yet — a project row, say — and offering it back would be a loop.
+          NOT: { conceptId },
+        },
+        orderBy: { orderIndex: 'asc' },
+      });
+
+      if (pending) {
+        return {
+          source: 'routine',
+          title: pending.title,
+          rationale: pending.rationale,
+          conceptId: pending.conceptId,
+          exerciseId: pending.exerciseId,
+          kind: pending.kind,
+        };
+      }
+    }
+
+    // Nothing left today. The next concept in the course, for somebody who
+    // wants to keep going.
+    const current = await this.prisma.concept.findUnique({
+      where: { id: conceptId },
+      select: { technologyId: true, orderIndex: true, curriculumVersionId: true },
+    });
+    if (!current) return null;
+
+    const next = await this.prisma.concept.findFirst({
+      where: {
+        technologyId: current.technologyId,
+        curriculumVersionId: current.curriculumVersionId,
+        archivedAt: null,
+        orderIndex: { gt: current.orderIndex },
+      },
+      orderBy: { orderIndex: 'asc' },
+      select: { id: true, name: true },
+    });
+
+    if (!next) return null;
+
+    return {
+      source: 'course',
+      title: next.name,
+      rationale: 'Today’s plan is clear. This is what comes next in the course.',
+      conceptId: next.id,
+      exerciseId: null,
+      kind: 'LEARN',
+    };
+  }
+
   async markConceptDone(userId: string, conceptId: string): Promise<void> {
     await this.finish({ conceptId, routine: { userId } });
   }

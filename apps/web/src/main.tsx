@@ -6,6 +6,7 @@ import { RouterProvider } from 'react-router-dom';
 import { ApiError } from '~/lib/api';
 
 import './styles/design-system.css';
+import './styles/assistant.css';
 
 import { router } from './app/router';
 

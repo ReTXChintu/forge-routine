@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 import { CodeBlock } from '~/components/CodeBlock';
 import { Markdown } from '~/components/Markdown';
 import { AiTag, Card, Spinner } from '~/components/ui';
@@ -18,11 +20,33 @@ import { useConceptExplainer } from '~/lib/queries';
 export function ConceptExplainer({
   conceptId,
   concept,
+  onScreenText,
 }: {
   conceptId: string | undefined;
   concept: { name: string; description: string; commonMistakes: string[] };
+  /** Feeds the assistant what is on this tab. It reads; it never writes. */
+  onScreenText?: (text: string) => void;
 }) {
   const { data: explainer, isLoading, error } = useConceptExplainer(conceptId);
+
+  // Handed over once the page has something on it, so "explain this again
+  // differently" is answerable without the user quoting it back.
+  useEffect(() => {
+    if (!onScreenText) return;
+
+    onScreenText(
+      explainer?.available
+        ? [
+            `They are reading the explanation of ${concept.name}.`,
+            explainer.summary,
+            explainer.realWorld,
+          ]
+            .filter(Boolean)
+            .join('\n\n')
+            .slice(0, MAX_SCREEN_CHARS)
+        : `They are reading ${concept.name}: ${concept.description}`,
+    );
+  }, [onScreenText, explainer, concept.name, concept.description]);
 
   if (isLoading) {
     return <Spinner label="Writing the explanation — this happens once per concept" />;
@@ -135,3 +159,12 @@ export function ConceptExplainer({
     </div>
   );
 }
+
+/**
+ * How much of the page the assistant is given.
+ *
+ * Generous enough for the explanation it is most often asked about, and
+ * capped because every question would otherwise carry a few thousand tokens
+ * of context the user did not ask to pay for.
+ */
+const MAX_SCREEN_CHARS = 6_000;

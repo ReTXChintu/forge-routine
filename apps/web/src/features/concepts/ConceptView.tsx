@@ -1,49 +1,46 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { Assistant } from '~/components/Assistant';
 import { Icon } from '~/components/Icon';
-import {
-  Badge,
-  Button,
-  Card,
-  SectionHead,
-  Spinner,
-  StatRow,
-  StateBlock,
-  Tabs,
-} from '~/components/ui';
-import { useConceptDetail, useExercises } from '~/lib/queries';
+import { Badge, Card, SectionHead, Spinner, StatRow, StateBlock, Tabs } from '~/components/ui';
+import { useConceptDetail } from '~/lib/queries';
 
-import { ConceptChat } from './ConceptChat';
 import { ConceptExplainer } from './ConceptExplainer';
 import { ConceptPractice } from './ConceptPractice';
+import { NextUp } from './NextUp';
 
 /**
- * One concept: what it covers, what blocks it, and what to practise.
+ * One concept: read it, then be tested on it.
  *
- * Full width, three columns — the material on the left, the skill model and
- * prerequisites on the right. A locked concept says exactly what is in the
- * way, by name; "complete a prerequisite" is not something anyone can act
- * on.
+ * Two tabs, not three. Asking questions used to be a third — which meant
+ * leaving the thing you had a question about in order to ask about it. It is
+ * now the assistant in the corner, which stays beside whichever tab is open
+ * and is told what that tab currently shows.
+ *
+ * A locked concept says exactly what is in the way, by name; "complete a
+ * prerequisite" is not something anyone can act on.
  */
 
-const KIND_ICON: Record<string, string> = {
-  CODING: 'practice',
-  RECALL: 'brain',
-  DEBUGGING: 'bug',
-  BLIND_CODING: 'eye',
-  EXPLANATION: 'interview',
-  PROJECT: 'layers',
-};
-
-const TABS = ['Understand', 'Ask', 'Practise'] as const;
+const TABS = ['Learn', 'Practice'] as const;
 
 export function ConceptView() {
   const { conceptId } = useParams<{ conceptId: string }>();
   const [tab, setTab] = useState<string>(TABS[0]);
   const { data: concept, isLoading } = useConceptDetail(conceptId);
-  const { data: exercises } = useExercises(conceptId);
   const navigate = useNavigate();
+
+  /**
+   * What the assistant can see: this tab, and nothing else.
+   *
+   * Cleared when the tab changes, so it can never answer about a screen the
+   * user has already left.
+   */
+  const [screen, setScreen] = useState<string | null>(null);
+  const changeTab = (next: string) => {
+    setScreen(null);
+    setTab(next);
+  };
 
   if (isLoading) return <Spinner label="Loading concept" />;
 
@@ -103,15 +100,33 @@ export function ConceptView() {
         </Card>
       )}
 
-      <Tabs tabs={TABS} active={tab} onChange={setTab} className="mb5" />
+      <Tabs tabs={TABS} active={tab} onChange={changeTab} className="mb5" />
 
-      {tab === 'Understand' && <ConceptExplainer conceptId={conceptId} concept={concept} />}
+      {tab === 'Learn' && (
+        <>
+          <ConceptExplainer conceptId={conceptId} concept={concept} onScreenText={setScreen} />
+          {/* Offered from Learn too: someone who already knows a concept
+              should be able to move on without working through it. */}
+          <div className="mt5">
+            <NextUp conceptId={conceptId} />
+          </div>
+        </>
+      )}
 
-      {tab === 'Ask' && <ConceptChat conceptId={conceptId} conceptName={concept.name} />}
-
-      {tab === 'Practise' && (
+      {tab === 'Practice' && (
         <div className="grid grid-3 g5 cq-grid-3">
           <div className="col g5" style={{ gridColumn: 'span 2' }}>
+            <ConceptPractice
+              conceptId={conceptId}
+              conceptName={concept.name}
+              locked={locked}
+              onScreenText={setScreen}
+            />
+
+            <NextUp conceptId={conceptId} />
+          </div>
+
+          <div className="col g5">
             {concept.learningObjectives.length > 0 && (
               <Card>
                 <div className="t-h3 mb3">What you should be able to do</div>
@@ -144,43 +159,6 @@ export function ConceptView() {
               </Card>
             )}
 
-            <ConceptPractice conceptId={conceptId} exercises={exercises ?? []} locked={locked} />
-
-            {(exercises ?? []).length > 2 && (
-              <Card>
-                <div className="t-h3 mb3">The rest of the exercises</div>
-                {/* The set uses the first two. These are here because
-                    somebody working through a concept properly will want
-                    the others, not because the set was wrong to stop. */}
-                <div className="grid grid-2 g3 cq-grid-2">
-                  {(exercises ?? []).slice(2).map((exercise) => (
-                    <div
-                      key={exercise.id}
-                      className="card p3"
-                      style={{
-                        background: 'var(--surface-2)',
-                        cursor: locked ? 'not-allowed' : 'pointer',
-                        opacity: locked ? 0.5 : 1,
-                      }}
-                      onClick={() => !locked && navigate(`/exercise/${exercise.id}`)}
-                    >
-                      <div className="row justify-between items-center mb2">
-                        <Badge variant="neutral" icon={KIND_ICON[exercise.kind] ?? 'practice'}>
-                          {exercise.kind.toLowerCase().replace('_', ' ')}
-                        </Badge>
-                        <span className="t-caption">{exercise.estimatedMinutes} min</span>
-                      </div>
-                      <div className="t-h4" style={{ fontSize: 13 }}>
-                        {exercise.title}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-          </div>
-
-          <div className="col g5">
             <Card>
               <div className="t-h3 mb3">Your skill here</div>
 
@@ -220,22 +198,13 @@ export function ConceptView() {
                 </div>
               </Card>
             )}
-
-            {!locked && (exercises ?? []).length > 0 && (
-              <Button
-                block
-                variant="secondary"
-                icon="code"
-                onClick={() => navigate(`/exercise/${exercises![0]!.id}`)}
-              >
-                {/* The set ends in code. This is for someone who already
-                    knows the concept and only wants the exercise. */}
-                Skip to the code
-              </Button>
-            )}
           </div>
         </div>
       )}
+
+      {/* Outside the tabs, so it survives switching between them — and told
+          only what the open tab describes of itself. */}
+      <Assistant conceptId={conceptId} conceptName={concept.name} screen={screen} />
     </>
   );
 }

@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -22,6 +23,7 @@ import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe.js'
 import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard.js';
 import {
   RoutinesService,
+  type NextUpView,
   type RoutineItemView,
   type RoutineView,
 } from '../application/routines.service.js';
@@ -38,6 +40,15 @@ export class RoutinesController {
   @ApiOperation({ summary: "Today's routine, or null if it has not been generated" })
   today(@CurrentUser() user: AuthenticatedUser): Promise<RoutineView | null> {
     return this.routines.today(user.userId);
+  }
+
+  @Get('next')
+  @ApiOperation({ summary: 'What to do after finishing a concept — today’s plan, then the course' })
+  next(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('after') after: string,
+  ): Promise<NextUpView | null> {
+    return this.routines.nextAfter(user.userId, after);
   }
 
   @Post('generate')

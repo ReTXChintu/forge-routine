@@ -34,7 +34,15 @@ import {
   type TheoryAnswerResult,
 } from '../application/practice-set.service.js';
 
-const askSchema = z.object({ question: z.string().min(1).max(2_000) });
+const askSchema = z.object({
+  question: z.string().min(1).max(2_000),
+  /**
+   * What the user is looking at, as the client describes it. Capped well
+   * below the model's window: a whole editor plus a question is context, a
+   * whole file tree is a bill.
+   */
+  screen: z.string().max(8_000).optional(),
+});
 type AskInput = z.infer<typeof askSchema>;
 
 const theoryAnswerSchema = z.object({ answer: z.string().min(1).max(4_000) });
@@ -97,7 +105,7 @@ export class ConceptsController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(askSchema)) body: AskInput,
   ): Promise<ChatMessageView[]> {
-    return this.tutor.ask(user.userId, id, body.question);
+    return this.tutor.ask(user.userId, id, body.question, body.screen ?? null);
   }
 
   @Get(':id/practice')

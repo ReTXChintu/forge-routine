@@ -11,6 +11,7 @@ import type {
   HintKind,
 } from '@forgeroutine/shared-types';
 
+import { Assistant } from '~/components/Assistant';
 import { Icon } from '~/components/Icon';
 import { SessionClock } from '~/components/SessionClock';
 import { Badge, Button, Spinner, StateBlock, Tabs } from '~/components/ui';
@@ -126,9 +127,7 @@ export function ExerciseWorkspace() {
       // Their own work first, if there is any. A debugging exercise falls
       // back to the faulty code, because that is the problem, and a fresh
       // one to the starter.
-      setCode(
-        result.draftCode ?? result.exercise.brokenCode ?? result.exercise.starterCode ?? '',
-      );
+      setCode(result.draftCode ?? result.exercise.brokenCode ?? result.exercise.starterCode ?? '');
       setRestored(result.draftCode !== null);
       setDiagnosis('');
       setDiagnosisResult(null);
@@ -229,6 +228,47 @@ export function ExerciseWorkspace() {
 
   if (!view) return <StateBlock icon="alert" title="Exercise not found" />;
 
+  /**
+   * What the assistant is shown: the problem, their code, and how it failed.
+   *
+   * Built on demand rather than held in state, so it is whatever is true when
+   * they actually ask. Failing test names and stderr are the part that makes
+   * "why is this wrong" answerable at all.
+   */
+  const screenText = () => {
+    const parts = [
+      `Exercise: ${view.title}`,
+      `What it asks: ${view.objective}`,
+      view.requirements ? `Requirements:\n${view.requirements}` : '',
+      started ? `Their code (${view.language}):\n${code}` : 'They have not started yet.',
+    ];
+
+    if (execution) {
+      parts.push(
+        `Last run: ${execution.testsPassed} of ${execution.testsTotal} tests passed.`,
+        ...execution.cases
+          .filter((testCase) => !testCase.passed)
+          .slice(0, 3)
+          .map((testCase) =>
+            [
+              `Failing: ${testCase.name}`,
+              testCase.error,
+              testCase.expected !== undefined
+                ? `expected ${testCase.expected}, got ${testCase.received}`
+                : '',
+            ]
+              .filter(Boolean)
+              .join(' — '),
+          ),
+      );
+      if (execution.stderr) parts.push(`stderr:\n${execution.stderr.slice(0, 800)}`);
+    }
+
+    // Capped: an assistant question should not quietly carry a few thousand
+    // tokens of context the user did not ask to pay for.
+    return parts.filter(Boolean).join('\n\n').slice(0, 7_000);
+  };
+
   const diagnosisTooShort =
     view.requiresDiagnosis && diagnosis.trim().split(/\s+/).filter(Boolean).length < 5;
 
@@ -295,7 +335,6 @@ export function ExerciseWorkspace() {
               >
                 Start
               </Button>
-
             </>
           ) : (
             <Button
@@ -453,6 +492,15 @@ export function ExerciseWorkspace() {
           )}
         </div>
       </div>
+
+      {/*
+        Alongside the hint ladder rather than instead of it. The ladder is
+        graded and gated — it decides how much help this attempt has earned
+        and records that it was taken. The assistant is not scored; it reads
+        what is on screen and names what is wrong. It cannot type into the
+        editor: it has no mechanism to, which is the rule, not an omission.
+      */}
+      <Assistant conceptId={view.conceptId} conceptName={view.title} screen={screenText()} />
 
       <div
         className="col"

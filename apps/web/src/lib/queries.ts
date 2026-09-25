@@ -564,28 +564,6 @@ export function useRecallDue(enabled = true): UseQueryResult<RecallPromptView[]>
   });
 }
 
-/**
- * The questions for one concept, for a routine RECALL item.
- *
- * Separate from `useRecallDue` because it is a different question: that one
- * asks "what is fading", this one asks "what is on today's plan", and they
- * must not share a cache entry.
- */
-export function useConceptQuestions(
-  conceptId: string | null,
-  limit = 3,
-): UseQueryResult<RecallPromptView[]> {
-  return useQuery({
-    queryKey: ['recall', 'concept', conceptId, limit] as const,
-    queryFn: () =>
-      apiRequest<RecallPromptView[]>(
-        `/recall/due?conceptId=${encodeURIComponent(conceptId!)}&limit=${limit}`,
-      ),
-    enabled: conceptId !== null,
-    staleTime: 60_000,
-  });
-}
-
 export function useAnswerRecall() {
   const queryClient = useQueryClient();
 
@@ -1117,10 +1095,13 @@ export function useAskConcept(conceptId: string | undefined) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (question: string) =>
+    // `screen` is whatever the open tab can describe of itself. Sent per
+    // question rather than stored: it describes a moment, and a transcript
+    // replaying last week's editor contents would be worse than none.
+    mutationFn: ({ question, screen }: { question: string; screen?: string }) =>
       apiRequest<ChatMessageView[]>(`/concepts/${conceptId}/chat`, {
         method: 'POST',
-        body: { question },
+        body: screen ? { question, screen } : { question },
       }),
     onSuccess: (turns) => {
       // Appended rather than refetched: the answer is already here, and a
@@ -1133,7 +1114,17 @@ export function useAskConcept(conceptId: string | undefined) {
   });
 }
 
-// -- Practice sets -----------------------------------------------------------
+// -- Practice ----------------------------------------------------------------
+
+export interface GivenAnswer {
+  selectedIndex: number | null;
+  correct: boolean | null;
+  answer: string | null;
+  selfRating: number | null;
+  explanation: string | null;
+  modelAnswer: string | null;
+  keyPoints: string[];
+}
 
 export interface PracticeQuestionView {
   id: string;
@@ -1142,13 +1133,95 @@ export interface PracticeQuestionView {
   /** MCQ only, and never the answer: the client cannot mark its own homework. */
   options: string[];
   difficulty: number;
-  previousAnswer: string | null;
+  batch: number;
+  given: GivenAnswer | null;
 }
 
-export interface PracticeSetView {
+export interface PracticeExerciseView {
+  id: string;
+  title: string;
+  kind: string;
+  difficulty: number;
+  estimatedMinutes: number;
+  batch: number;
+  passed: boolean;
+}
+
+export interface CompletionState {
+  complete: boolean;
+  questionsAnswered: number;
+  questionsServed: number;
+  exercisesPassed: number;
+  exercisesServed: number;
+  outstanding: { questions: number; exercises: number };
+}
+
+export interface PracticeView {
   questions: PracticeQuestionView[];
-  available: boolean;
-  unavailableReason: string | null;
+  exercises: PracticeExerciseView[];
+  completion: CompletionState;
+  routineDone: boolean;
+  problem: string | null;
+}
+
+const practiceKey = (conceptId: string | undefined) => ['concepts', conceptId, 'practice'] as const;
+
+/**
+ * The questions and exercises this user was handed on a concept.
+ *
+ * `staleTime: Infinity` because the first visit generates: a background
+ * refetch would be a second model call, and nothing about a served batch
+ * changes except through the mutations below, which write the cache directly.
+ */
+export function usePractice(conceptId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: practiceKey(conceptId),
+    queryFn: () => apiRequest<PracticeView>(`/concepts/${conceptId}/practice`),
+    enabled: enabled && Boolean(conceptId),
+    staleTime: Infinity,
+    retry: false,
+  });
+}
+
+/** Five more questions, or one more exercise. Both return the whole view. */
+export function useGeneratePractice(conceptId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (what: 'questions' | 'code') =>
+      apiRequest<PracticeView>(`/concepts/${conceptId}/practice/${what}`, { method: 'POST' }),
+    onSuccess: (view) => {
+      queryClient.setQueryData(practiceKey(conceptId), view);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.routineToday });
+    },
+  });
+}
+
+export interface McqAnswerResult {
+  correct: boolean;
+  correctIndex: number;
+  explanation: string;
+  completion: CompletionState;
+}
+
+/**
+ * Answers a question of either kind.
+ *
+ * All three mutations refresh the practice view rather than patching it: the
+ * server decides whether that answer finished the concept, and a client that
+ * worked it out for itself would be a second copy of the rule.
+ */
+export function useAnswerMcq(conceptId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ questionId, selectedIndex }: { questionId: string; selectedIndex: number }) =>
+      apiRequest<McqAnswerResult>(`/concepts/questions/${questionId}/choice`, {
+        method: 'POST',
+        body: { selectedIndex },
+      }),
+    onSuccess: () => refreshAfterAnswer(queryClient, conceptId),
+  });
 }
 
 export interface TheoryAnswerResult {
@@ -1156,47 +1229,66 @@ export interface TheoryAnswerResult {
   keyPoints: string[];
 }
 
-/**
- * The questions on one concept.
- *
- * `staleTime: Infinity` because the set is generated once per concept and
- * shared: refetching it mid-session would reshuffle the questions under
- * someone halfway through answering them.
- */
-export function usePracticeSet(conceptId: string | undefined, enabled: boolean) {
-  return useQuery({
-    queryKey: ['concepts', conceptId, 'practice-set'] as const,
-    queryFn: () => apiRequest<PracticeSetView>(`/concepts/${conceptId}/practice-set`),
-    enabled: enabled && Boolean(conceptId),
-    staleTime: Infinity,
-    retry: false,
-  });
-}
+export function useAnswerTheory(conceptId: string | undefined) {
+  const queryClient = useQueryClient();
 
-/** Submits a written answer, and only then receives the model answer. */
-export function useAnswerTheory() {
   return useMutation({
     mutationFn: ({ questionId, answer }: { questionId: string; answer: string }) =>
       apiRequest<TheoryAnswerResult>(`/concepts/questions/${questionId}/answer`, {
         method: 'POST',
         body: { answer },
       }),
+    onSuccess: () => refreshAfterAnswer(queryClient, conceptId),
   });
 }
 
-/** Their own verdict on what they wrote. Feeds the review schedule. */
-export function useRateTheory() {
+export function useRateTheory(conceptId: string | undefined) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({ questionId, selfRating }: { questionId: string; selfRating: number }) =>
-      apiRequest<{ nextDueAt: string }>(`/concepts/questions/${questionId}/rating`, {
+      apiRequest<{ completion: CompletionState }>(`/concepts/questions/${questionId}/rating`, {
         method: 'POST',
         body: { selfRating },
       }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.recallDue });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.weakest });
-    },
+    onSuccess: () => refreshAfterAnswer(queryClient, conceptId),
+  });
+}
+
+function refreshAfterAnswer(
+  queryClient: ReturnType<typeof useQueryClient>,
+  conceptId: string | undefined,
+) {
+  void queryClient.invalidateQueries({ queryKey: practiceKey(conceptId) });
+  // An answer can be the one that finishes the concept, which ticks off a
+  // routine row server-side.
+  void queryClient.invalidateQueries({ queryKey: queryKeys.routineToday });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.weakest });
+}
+
+// -- What comes next ---------------------------------------------------------
+
+export interface NextUpView {
+  source: 'routine' | 'course';
+  title: string;
+  rationale: string;
+  conceptId: string | null;
+  exerciseId: string | null;
+  kind: string;
+}
+
+/**
+ * What to do after this concept.
+ *
+ * Fetched only once the concept is finished, so a half-done page does not
+ * spend a query asking what comes after it.
+ */
+export function useNextUp(conceptId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['routines', 'next', conceptId] as const,
+    queryFn: () =>
+      apiRequest<NextUpView | null>(`/routines/next?after=${encodeURIComponent(conceptId!)}`),
+    enabled: enabled && Boolean(conceptId),
+    staleTime: 30_000,
   });
 }

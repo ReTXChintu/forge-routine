@@ -152,7 +152,12 @@ export class ConceptTutorService {
    * transcript for good, long after it was true. A transient failure
    * should leave no trace; the client keeps the typed question.
    */
-  async ask(userId: string, conceptId: string, question: string): Promise<ChatMessageView[]> {
+  async ask(
+    userId: string,
+    conceptId: string,
+    question: string,
+    screen: string | null = null,
+  ): Promise<ChatMessageView[]> {
     const trimmed = question.trim();
     if (trimmed.length === 0) throw Problems.badRequest('Ask something first.');
 
@@ -193,6 +198,10 @@ export class ConceptTutorService {
             .reverse()
             .map((turn) => ({ role: turn.role as 'user' | 'assistant', content: turn.content })),
           question: trimmed,
+          // Not stored with the turn. It describes a moment, and a
+          // transcript replaying last week's editor contents as context
+          // would be worse than having none.
+          screen,
         },
         { userId },
       );

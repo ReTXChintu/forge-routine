@@ -14,7 +14,6 @@ import {
 } from '~/components/ui';
 import { RecallPrompt } from '~/features/recall/RecallPrompt';
 import {
-  useConceptQuestions,
   useGenerateRoutine,
   useRecallDue,
   useTodayRoutine,
@@ -57,7 +56,6 @@ export function TodayView() {
   const { data: duePrompts } = useRecallDue();
   const [promptIndex, setPromptIndex] = useState(0);
   const [showPrompt, setShowPrompt] = useState(false);
-  const [quizItem, setQuizItem] = useState<RoutineItemView | null>(null);
 
   if (isLoading) return <Spinner label="Loading today" />;
 
@@ -84,12 +82,6 @@ export function TodayView() {
   const todayIndex = (new Date().getDay() + 6) % 7;
 
   const open = (item: RoutineItemView) => {
-    if (item.kind === 'RECALL' && item.conceptId) {
-      // Answering is the item. Sending the user to the concept page to read
-      // it again would be the opposite of what a recall item is for.
-      setQuizItem(item);
-      return;
-    }
     if (item.exerciseId) {
       navigate(`${item.kind === 'PROJECT' ? '/project' : '/exercise'}/${item.exerciseId}`);
     } else if (item.conceptId) {
@@ -172,17 +164,6 @@ export function TodayView() {
         </div>
       )}
 
-      {quizItem && (
-        <ConceptQuiz
-          item={quizItem}
-          onClose={() => setQuizItem(null)}
-          onFinished={() => {
-            updateItem.mutate({ id: quizItem.id, status: 'DONE' });
-            setQuizItem(null);
-          }}
-        />
-      )}
-
       {routine.carriedCount > 0 && (
         <Card className="mb6" style={{ borderLeft: '2px solid var(--warning)' }}>
           <div className="row items-start g3">
@@ -238,67 +219,24 @@ export function TodayView() {
 }
 
 /**
- * The questions attached to one routine item, asked in sequence.
+ * One row of the plan.
  *
- * Answering marks the item done automatically — asking the user to also
- * press "Done" after working through every question is making them report
- * on something the app already watched them do.
+ * A row is a thing to open, never a step inside one. Question batches and
+ * individual exercises used to get their own rows, which made the plan a list
+ * of the insides of tasks; a concept is now a single row covering both
+ * reading it and practising it.
+ *
+ * Two rules about finishing, and both come from work being lost:
+ *
+ *   A finished row still opens. It used to grey out with no way back in, so
+ *   revisiting something you had completed was impossible — and reviewing
+ *   what you have learned is the entire point of the schedule.
+ *
+ *   A concept row has no Done button. It ticks itself off when every question
+ *   is answered and every exercise passes. A button that can finish a concept
+ *   without the work makes the completion state a claim rather than a fact.
+ *   Rows with no such signal — a project, an interview — keep theirs.
  */
-function ConceptQuiz({
-  item,
-  onClose,
-  onFinished,
-}: {
-  item: RoutineItemView;
-  onClose: () => void;
-  onFinished: () => void;
-}) {
-  const { data: questions, isLoading } = useConceptQuestions(
-    item.conceptId,
-    Math.max(1, item.questionCount),
-  );
-  const [index, setIndex] = useState(0);
-
-  if (isLoading) return <Spinner label="Loading questions" />;
-
-  if (!questions || questions.length === 0) {
-    return (
-      <Card className="mb6">
-        <div className="t-h4">No questions on this concept yet</div>
-        <div className="t-small mt1">
-          They arrive with the curriculum. Mark the item done and carry on.
-        </div>
-        <Button variant="secondary" size="sm" className="mt3" onClick={onClose}>
-          Close
-        </Button>
-      </Card>
-    );
-  }
-
-  const prompt = questions[Math.min(index, questions.length - 1)]!;
-  const last = index >= questions.length - 1;
-
-  return (
-    <div className="mb6">
-      <div className="row items-center justify-between mb2">
-        <span className="t-caption">
-          Question {Math.min(index + 1, questions.length)} of {questions.length}
-        </span>
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          Close
-        </Button>
-      </div>
-
-      <RecallPrompt
-        key={prompt.id}
-        prompt={prompt}
-        onDone={() => (last ? onFinished() : setIndex((current) => current + 1))}
-        onSkip={last ? onClose : () => setIndex((current) => current + 1)}
-      />
-    </div>
-  );
-}
-
 function RoutineRow({
   item,
   onOpen,
@@ -314,6 +252,7 @@ function RoutineRow({
   const settled = done;
   const lateBy = item.carriedFrom ? daysLate(item.carriedFrom) : 0;
   const openable = Boolean(item.exerciseId || item.conceptId);
+  const finishesItself = item.conceptId !== null || item.exerciseId !== null;
 
   const desk =
     item.kind === 'CODE' ||
@@ -323,9 +262,11 @@ function RoutineRow({
 
   return (
     <Card
-      hover={!settled}
+      hover
       className="row justify-between items-center g4"
-      style={{ opacity: settled ? 0.55 : 1 }}
+      // Dimmed, not disabled: finished work steps back without becoming
+      // unreachable.
+      style={{ opacity: settled ? 0.7 : 1 }}
     >
       <div className="row items-center g3" style={{ minWidth: 0 }}>
         <div
@@ -371,17 +312,18 @@ function RoutineRow({
 
         {done && <Badge variant="success">Done</Badge>}
 
-        {!settled && (
-          <>
-            {openable && (
-              <Button variant="secondary" size="sm" onClick={onOpen}>
-                Open
-              </Button>
-            )}
-            <Button size="sm" onClick={onComplete}>
-              Done
-            </Button>
-          </>
+        {/* Always offered, finished or not. A completed row that cannot be
+            reopened means you cannot revisit what you learned. */}
+        {openable && (
+          <Button variant={settled ? 'ghost' : 'secondary'} size="sm" onClick={onOpen}>
+            {settled ? 'Revisit' : 'Open'}
+          </Button>
+        )}
+
+        {!settled && !finishesItself && (
+          <Button size="sm" onClick={onComplete}>
+            Done
+          </Button>
         )}
       </div>
     </Card>

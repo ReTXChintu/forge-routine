@@ -12,7 +12,7 @@ import {
 import { HINT_LADDER } from '@forgeroutine/ai';
 import type { AppConfig } from '@forgeroutine/config';
 import type { HintKind, HintResponse } from '@forgeroutine/shared-types';
-import { dayKey } from '@forgeroutine/utils';
+import { learningDate } from '@forgeroutine/utils';
 import type { HintRequestInput } from '@forgeroutine/validation';
 
 import { Problems } from '../../../common/http/problem-details.js';
@@ -239,7 +239,10 @@ export class AssistanceService {
     const budget = this.config.env.AI_DAILY_TOKEN_BUDGET;
     if (budget === 0) return false;
 
-    const today = new Date(`${dayKey(new Date())}T00:00:00.000Z`);
+    // The same 06:00 boundary as everything else, so a late session draws on
+    // the allowance for the day it feels like rather than getting a fresh one
+    // at midnight and none of it the next evening.
+    const today = learningDate(new Date(), this.config.env.APP_TIMEZONE);
     const usage = await this.prisma.tokenUsageDaily.findUnique({
       where: { userId_day: { userId, day: today } },
       select: { tokens: true },

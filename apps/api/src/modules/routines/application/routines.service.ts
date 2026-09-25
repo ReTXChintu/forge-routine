@@ -1,10 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
+import type { AppConfig } from '@forgeroutine/config';
 import { currentConcept } from '@forgeroutine/curriculum';
 import type { Prisma } from '@forgeroutine/database';
-import { dayKey } from '@forgeroutine/utils';
+import { learningDate, learningDayKey } from '@forgeroutine/utils';
 
 import { Problems } from '../../../common/http/problem-details.js';
+import { APP_CONFIG } from '../../../infrastructure/config/config.module.js';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
 import { GenerationService } from '../../generation/application/generation.service.js';
 import { RoadmapService } from '../../roadmap/application/roadmap.service.js';
@@ -82,7 +84,26 @@ export class RoutinesService {
     private readonly prisma: PrismaService,
     private readonly roadmap: RoadmapService,
     private readonly generation: GenerationService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
+
+  /** The zone every "today" here is measured in. */
+  private get zone(): string {
+    return this.config.env.APP_TIMEZONE;
+  }
+
+  /**
+   * Which day it is, for planning purposes.
+   *
+   * A learning day runs 06:00 to 06:00, so work at 01:00 belongs to the
+   * evening it started in. Midnight is the middle of a session, not the gap
+   * between two: rolling over there marked a session half finished, carried
+   * its own second half forward as a backlog, and reset the day's minutes
+   * while the user was still typing.
+   */
+  private learningToday(): Date {
+    return learningDate(new Date(), this.zone);
+  }
 
   /**
    * Today's plan, built on first look.
@@ -93,7 +114,7 @@ export class RoutinesService {
    * schedule. There was nothing left for the button to ask.
    */
   async today(userId: string): Promise<RoutineView> {
-    const existing = await this.find(userId, startOfToday());
+    const existing = await this.find(userId, this.learningToday());
     if (existing) return this.toView(userId, existing.id);
 
     return this.generate(userId);
@@ -107,7 +128,7 @@ export class RoutinesService {
     // at all when AI is switched off.
     void this.generation.enqueueNext(userId).catch(() => undefined);
 
-    const date = startOfToday();
+    const date = this.learningToday();
     const existing = await this.find(userId, date);
 
     // Regenerating mid-day would discard work already marked done, so an
@@ -223,7 +244,7 @@ export class RoutinesService {
     const routine = await this.persist(userId, date, planned, existing?.id);
 
     this.logger.log(
-      `Routine for ${userId} on ${dayKey(date)}: ${planned.length} items, ${used}/${budget} min`,
+      `Routine for ${userId} on ${learningDayKey(date, this.zone)}: ${planned.length} items, ${used}/${budget} min`,
     );
 
     return this.toView(userId, routine);
@@ -286,7 +307,7 @@ export class RoutinesService {
    * chosen not to be.
    */
   async nextAfter(userId: string, conceptId: string): Promise<NextUpView | null> {
-    const date = startOfToday();
+    const date = this.learningToday();
     const routine = await this.find(userId, date);
 
     if (routine) {
@@ -697,12 +718,6 @@ const DSA_LEARN_MINUTES = 8;
  * rather than what somebody might choose to do.
  */
 const PRACTICE_MINUTES = 15;
-
-function startOfToday(): Date {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
 
 function toItemView(item: {
   id: string;

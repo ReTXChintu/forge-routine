@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
+import type { AppConfig } from '@forgeroutine/config';
 import type {
   DashboardOverview,
   IndependentCodingScore,
@@ -10,8 +11,10 @@ import {
   computeIndependentCodingScore,
   greetingFor,
   mean,
+  startOfLearningDay,
 } from '@forgeroutine/utils';
 
+import { APP_CONFIG } from '../../../infrastructure/config/config.module.js';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
 import { GenerationService } from '../../generation/application/generation.service.js';
 import { SkillsService } from '../../skills/application/skills.service.js';
@@ -22,6 +25,7 @@ export class ProgressService {
     private readonly prisma: PrismaService,
     private readonly skills: SkillsService,
     private readonly generation: GenerationService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   /**
@@ -80,8 +84,10 @@ export class ProgressService {
     void this.generation.enqueueNext(userId).catch(() => undefined);
 
     const now = new Date();
-    const startOfToday = new Date(now);
-    startOfToday.setHours(0, 0, 0, 0);
+    // 06:00, not midnight. A day that rolls over at 00:00 zeroes this counter
+    // in the middle of a late session, which makes the one measured number on
+    // the dashboard disagree with what the user just did.
+    const dayStart = startOfLearningDay(now, this.config.env.APP_TIMEZONE);
 
     const [independence, weakest, preferences, todaySessions, activeTechnologies] =
       await Promise.all([
@@ -89,7 +95,7 @@ export class ProgressService {
         this.skills.getWeakest(userId, 3),
         this.prisma.userPreferences.findUnique({ where: { userId } }),
         this.prisma.learningSession.findMany({
-          where: { userId, startedAt: { gte: startOfToday } },
+          where: { userId, startedAt: { gte: dayStart } },
           select: { durationMs: true },
         }),
         this.prisma.userTechnology.findMany({
@@ -105,7 +111,7 @@ export class ProgressService {
     );
 
     return {
-      greeting: greetingFor(now),
+      greeting: greetingFor(now, this.config.env.APP_TIMEZONE),
       todayMinutesDone,
       todayMinutesTarget: preferences?.dailyMinutes ?? 45,
       independence,

@@ -16,6 +16,16 @@ const booleanish = z
 
 const durationString = z.string().regex(/^\d+[smhd]$/, 'Expected a duration like 15m, 24h, 30d');
 
+/** Asked of the runtime rather than matched against a list that would go stale. */
+function isKnownTimeZone(zone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -25,6 +35,22 @@ export const envSchema = z
     API_HOST: z.string().default('0.0.0.0'),
     API_GLOBAL_PREFIX: z.string().default('api'),
     CORS_ORIGINS: z.string().default('http://localhost:50004'),
+
+    /**
+     * The zone every "today" is measured in — an IANA name like Asia/Kolkata.
+     *
+     * Explicit rather than taken from the host, because the host is usually
+     * UTC and the user is not. Getting this wrong does not throw; it silently
+     * files a Monday evening's work under Sunday, so it is validated here
+     * against the zones the runtime actually knows.
+     *
+     * Defaults to the machine's own zone, which is what the code did before
+     * this existed, so an untouched .env behaves exactly as it used to.
+     */
+    APP_TIMEZONE: z
+      .string()
+      .default(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
+      .refine(isKnownTimeZone, 'APP_TIMEZONE must be an IANA zone name, e.g. Asia/Kolkata'),
 
     DATABASE_URL: z.string().url().startsWith('postgres'),
     DIRECT_DATABASE_URL: z.string().url().optional().or(z.literal('')),

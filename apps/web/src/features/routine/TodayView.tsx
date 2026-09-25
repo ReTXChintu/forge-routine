@@ -79,7 +79,13 @@ export function TodayView() {
 
   const remaining = routine.items.filter((item) => item.status === 'PENDING');
   const finished = routine.items.length > 0 && remaining.length === 0;
-  const todayIndex = (new Date().getDay() + 6) % 7;
+
+  // Taken from the plan's own date rather than the browser's clock. A learning
+  // day runs 06:00 to 06:00, so at 01:00 the plan on screen is still
+  // yesterday's — and a strip that highlighted the calendar day would point at
+  // a column the user has not reached.
+  const planDate = new Date(routine.date);
+  const todayIndex = (planDate.getUTCDay() + 6) % 7;
 
   const open = (item: RoutineItemView) => {
     if (item.exerciseId) {
@@ -198,6 +204,7 @@ export function TodayView() {
           <RoutineRow
             key={item.id}
             item={item}
+            planDate={planDate}
             onOpen={() => open(item)}
             onComplete={() => complete(item)}
           />
@@ -239,10 +246,13 @@ export function TodayView() {
  */
 function RoutineRow({
   item,
+  planDate,
   onOpen,
   onComplete,
 }: {
   item: RoutineItemView;
+  /** The learning day this plan is for, so lateness is measured against it. */
+  planDate: Date;
   onOpen: () => void;
   onComplete: () => void;
 }) {
@@ -250,7 +260,7 @@ function RoutineRow({
   // No skipped state any more. Unfinished work moves to tomorrow, so the
   // only settled state is done.
   const settled = done;
-  const lateBy = item.carriedFrom ? daysLate(item.carriedFrom) : 0;
+  const lateBy = item.carriedFrom ? daysLate(item.carriedFrom, planDate) : 0;
   const openable = Boolean(item.exerciseId || item.conceptId);
   const finishesItself = item.conceptId !== null || item.exerciseId !== null;
 
@@ -330,12 +340,16 @@ function RoutineRow({
   );
 }
 
-/** Whole days between a carried item's original day and today. */
-function daysLate(carriedFrom: string): number {
+/**
+ * Whole learning days between a carried item's original day and this plan's.
+ *
+ * Both dates arrive as midnight UTC of a logical date, so this is plain
+ * subtraction. Reading the browser's clock instead would call an item carried
+ * overnight "1 day late" at 01:00, before the day it was carried to had even
+ * begun.
+ */
+function daysLate(carriedFrom: string, planDate: Date): number {
   const then = new Date(carriedFrom);
-  then.setHours(0, 0, 0, 0);
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
 
-  return Math.max(0, Math.round((now.getTime() - then.getTime()) / 86_400_000));
+  return Math.max(0, Math.round((planDate.getTime() - then.getTime()) / 86_400_000));
 }

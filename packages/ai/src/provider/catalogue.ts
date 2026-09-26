@@ -7,9 +7,14 @@
  * disagree within a month.
  */
 
-export type AIVendor = 'OPENAI' | 'ANTHROPIC' | 'GEMINI';
+export type AIVendor = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'CLAUDE_CODE';
 
-export const AI_VENDORS: readonly AIVendor[] = ['OPENAI', 'ANTHROPIC', 'GEMINI'] as const;
+export const AI_VENDORS: readonly AIVendor[] = [
+  'OPENAI',
+  'ANTHROPIC',
+  'GEMINI',
+  'CLAUDE_CODE',
+] as const;
 
 export interface VendorProfile {
   id: AIVendor;
@@ -28,6 +33,14 @@ export interface VendorProfile {
   defaultEmbedding: string | null;
   /** Said plainly in the UI, so the choice is not made blind. */
   note: string;
+  /**
+   * True where there is no key to paste, because credentials live elsewhere.
+   *
+   * Only Claude Code, which runs a CLI that is already signed in. The settings
+   * screen reads this to stop asking for something that does not exist, and
+   * the service reads it to allow a credential row without a key.
+   */
+  keyless?: boolean;
 }
 
 export const AI_VENDOR_PROFILES: Record<AIVendor, VendorProfile> = {
@@ -52,6 +65,24 @@ export const AI_VENDOR_PROFILES: Record<AIVendor, VendorProfile> = {
     defaultReasoning: 'claude-opus-5',
     defaultEmbedding: null,
     note: 'No embeddings endpoint. Nothing in the product needs one yet.',
+  },
+  CLAUDE_CODE: {
+    id: 'CLAUDE_CODE',
+    label: 'Claude Code (local)',
+    keyUrl: 'https://code.claude.com/docs/en/overview',
+    // A process, not an endpoint. Kept non-empty so every profile reads the
+    // same way; nothing dials it.
+    baseUrl: 'local://claude-code',
+    keyPrefix: '',
+    keyless: true,
+    defaultFast: 'haiku',
+    defaultReasoning: 'opus',
+    defaultEmbedding: null,
+    note:
+      'Runs the Claude Code CLI on this machine and answers as whoever it is signed in as, ' +
+      'so there is no key to paste. Only available where the server itself runs — not on a ' +
+      'remote deployment. Slower than the API, and every call carries Claude Code’s own ' +
+      'context, so it suits the assistant better than bulk generation.',
   },
   GEMINI: {
     id: 'GEMINI',

@@ -13,7 +13,7 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 
-import type { ModelOption } from '@forgeroutine/ai';
+import { AI_VENDORS, type AIVendor, type ModelOption } from '@forgeroutine/ai';
 
 import {
   CurrentUser,
@@ -30,7 +30,9 @@ import {
 
 const selectSchema = z.object({
   /** Null means "follow the server's configuration". */
-  provider: z.enum(['OPENAI', 'ANTHROPIC', 'GEMINI']).nullable(),
+  // Built from the catalogue rather than restated: a vendor added there and
+  // not here would be rejected by validation with no clue why.
+  provider: z.enum(AI_VENDORS as unknown as [AIVendor, ...AIVendor[]]).nullable(),
 });
 
 const keySchema = z.object({

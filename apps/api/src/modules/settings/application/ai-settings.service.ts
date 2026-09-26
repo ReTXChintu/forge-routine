@@ -22,6 +22,8 @@ export interface VendorSettingView {
   keyUrl: string;
   keyPrefix: string;
   note: string;
+  /** True where there is no key to paste, so the form hides its field. */
+  keyless: boolean;
   /** Whether this user has saved a key for this vendor. */
   configured: boolean;
   /** Last four characters, so two keys can be told apart. Never the key. */
@@ -98,6 +100,7 @@ export class AISettingsService {
           keyUrl: profile.keyUrl,
           keyPrefix: profile.keyPrefix,
           note: profile.note,
+          keyless: profile.keyless === true,
           configured: saved !== undefined,
           keyLast4: saved?.keyLast4 ?? null,
           verifiedAt: saved?.verifiedAt?.toISOString() ?? null,
@@ -164,8 +167,11 @@ export class AISettingsService {
       select: { id: true },
     });
 
-    if (apiKey.length === 0 && !existing) {
+    if (apiKey.length === 0 && !existing && !profile.keyless) {
       throw Problems.badRequest(`Add a ${profile.label} API key first.`);
+    }
+    if (apiKey.length > 0 && profile.keyless) {
+      throw Problems.badRequest(`${profile.label} does not take a key.`);
     }
     if (apiKey.length > 0 && apiKey.length < 8) {
       throw Problems.badRequest('That does not look like an API key.');
@@ -194,7 +200,16 @@ export class AISettingsService {
       });
     } else {
       await this.prisma.aICredential.create({
-        data: { userId, provider: vendor, ...models, ...credentials } as never,
+        data: {
+          userId,
+          provider: vendor,
+          // Both columns are non-null. A keyless vendor has nothing to put in
+          // them, and an empty string says that more honestly than a
+          // placeholder that reads like a truncated key.
+          ...(profile.keyless ? { keyCipher: '', keyLast4: '' } : {}),
+          ...models,
+          ...credentials,
+        } as never,
       });
     }
 
@@ -459,7 +474,12 @@ export class AISettingsService {
 
     return {
       vendor,
-      apiKey: decryptSecret(credential.keyCipher, this.requireEncryptionKey()),
+      // A keyless vendor carries its credentials elsewhere — Claude Code
+      // answers as whatever its CLI is signed in as — so there is no cipher
+      // to decrypt, and demanding ENCRYPTION_KEY for it would be theatre.
+      apiKey: profile.keyless
+        ? ''
+        : decryptSecret(credential.keyCipher, this.requireEncryptionKey()),
       modelFast: credential.modelFast ?? profile.defaultFast,
       modelReasoning: credential.modelReasoning ?? profile.defaultReasoning,
       embeddingModel: profile.defaultEmbedding,

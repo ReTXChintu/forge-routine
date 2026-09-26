@@ -926,7 +926,7 @@ export function useSubmitWritten() {
 
 // -- Settings: AI provider ---------------------------------------------------
 
-export type AIVendorId = 'OPENAI' | 'ANTHROPIC' | 'GEMINI';
+export type AIVendorId = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'CLAUDE_CODE';
 
 export interface VendorSettingView {
   id: AIVendorId;
@@ -934,6 +934,8 @@ export interface VendorSettingView {
   keyUrl: string;
   keyPrefix: string;
   note: string;
+  /** True where there is no key to paste, so the form hides its field. */
+  keyless: boolean;
   configured: boolean;
   /** Last four characters only. The key itself is never sent to the client. */
   keyLast4: string | null;

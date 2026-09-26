@@ -1217,6 +1217,11 @@ enum AIProviderKind {
   OPENAI
   ANTHROPIC
   GEMINI
+  /// Claude through the locally installed Claude Code CLI. Needs no key —
+  /// it answers as whatever that CLI is signed in as — and only works where
+  /// the API process itself runs, so a local or desktop build rather than a
+  /// deployed server.
+  CLAUDE_CODE
 }
 
 /// What a concept question asks for.

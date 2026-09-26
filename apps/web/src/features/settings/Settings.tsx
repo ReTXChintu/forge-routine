@@ -172,7 +172,11 @@ function VendorCard({ vendor, disabled }: { vendor: VendorSettingView; disabled:
       <div className="row items-center justify-between g3 mb3 wrap">
         <div className="row items-center g2">
           <span className="t-h4">{vendor.label}</span>
-          {vendor.configured ? (
+          {vendor.keyless ? (
+            <Badge variant={vendor.configured ? 'success' : 'neutral'} icon="monitor">
+              {vendor.configured ? 'enabled' : 'local CLI'}
+            </Badge>
+          ) : vendor.configured ? (
             <Badge variant="success" icon="check">
               ••••{vendor.keyLast4}
             </Badge>
@@ -183,36 +187,53 @@ function VendorCard({ vendor, disabled }: { vendor: VendorSettingView; disabled:
         </div>
 
         <a className="t-caption" href={vendor.keyUrl} target="_blank" rel="noreferrer">
-          Get a key ↗
+          {vendor.keyless ? 'How to install it ↗' : 'Get a key ↗'}
         </a>
       </div>
 
       <div className="t-small mb4">{vendor.note}</div>
 
       <div className="row g2 wrap items-end">
-        <div style={{ flex: 1, minWidth: 220 }}>
-          <label className="field-label">{vendor.configured ? 'Replace key' : 'API key'}</label>
-          <input
-            className={`input ${looksWrong ? 'has-error' : ''}`}
-            type="password"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder={`${vendor.keyPrefix}…`}
-            value={apiKey}
-            disabled={disabled}
-            onChange={(event) => setApiKey(event.target.value)}
-          />
-          {looksWrong && (
-            <div className="field-error">
-              {vendor.label} keys normally start with{' '}
-              <span className="mono">{vendor.keyPrefix}</span>. Saving anyway is fine if you know
-              better.
-            </div>
-          )}
-        </div>
+        {/*
+          A keyless vendor has no field. Claude Code answers as whatever its
+          CLI is signed in as, so asking for a key would be asking for
+          something that does not exist — it is enabled, tested and removed
+          like the others, just without one.
+        */}
+        {!vendor.keyless && (
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <label className="field-label">{vendor.configured ? 'Replace key' : 'API key'}</label>
+            <input
+              className={`input ${looksWrong ? 'has-error' : ''}`}
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={`${vendor.keyPrefix}…`}
+              value={apiKey}
+              disabled={disabled}
+              onChange={(event) => setApiKey(event.target.value)}
+            />
+            {looksWrong && (
+              <div className="field-error">
+                {vendor.label} keys normally start with{' '}
+                <span className="mono">{vendor.keyPrefix}</span>. Saving anyway is fine if you know
+                better.
+              </div>
+            )}
+          </div>
+        )}
 
-        <Button onClick={submit} disabled={disabled || apiKey.trim().length < 8 || save.isPending}>
-          {save.isPending ? 'Saving…' : 'Save'}
+        <Button
+          onClick={submit}
+          disabled={
+            disabled ||
+            save.isPending ||
+            // Keyless: nothing to type, so nothing to validate. The button
+            // enables it, which is the only thing there is to do.
+            (!vendor.keyless && apiKey.trim().length < 8)
+          }
+        >
+          {save.isPending ? 'Saving…' : vendor.keyless ? 'Enable' : 'Save'}
         </Button>
 
         {vendor.configured && (

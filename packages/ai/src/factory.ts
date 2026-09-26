@@ -1,6 +1,7 @@
 import { type AIProvider } from './provider/ai-provider.port.js';
 import { AnthropicProvider } from './provider/anthropic/anthropic.provider.js';
 import { AI_VENDOR_PROFILES } from './provider/catalogue.js';
+import { ClaudeCodeProvider } from './provider/claude-code/claude-code.provider.js';
 import { GeminiProvider } from './provider/gemini/gemini.provider.js';
 import { OpenAIProvider } from './provider/openai/openai.provider.js';
 import type { ResolvedVendor } from './provider/routing.provider.js';
@@ -32,6 +33,18 @@ export function buildAIProvider(resolved: ResolvedVendor, options: BuildOptions)
         modelReasoning: resolved.modelReasoning,
         timeoutMs: options.timeoutMs,
         maxRetries: options.maxRetries,
+      });
+
+    case 'CLAUDE_CODE':
+      // No key: the CLI carries its own credentials, which is the whole
+      // reason this vendor exists.
+      return new ClaudeCodeProvider({
+        modelFast: resolved.modelFast,
+        modelReasoning: resolved.modelReasoning,
+        // Generous against the other vendors. Process start plus an agent
+        // loop is seconds even for a short answer, and a timeout that fires
+        // on a working call is worse than a slow one.
+        timeoutMs: Math.max(options.timeoutMs, 120_000),
       });
 
     case 'GEMINI':

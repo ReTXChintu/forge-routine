@@ -63,6 +63,7 @@ describe('AI provider settings', () => {
     expect(response.body.serverDefault).toBeUndefined();
     expect(response.body.vendors.map((v: { id: string }) => v.id).sort()).toEqual([
       'ANTHROPIC',
+      'CLAUDE_CODE',
       'GEMINI',
       'OPENAI',
     ]);
@@ -70,6 +71,50 @@ describe('AI provider settings', () => {
       expect(vendor.configured).toBe(false);
       expect(vendor.keyLast4).toBeNull();
     }
+  });
+
+  it('marks exactly one vendor as keyless', async () => {
+    // Claude Code runs a CLI that is already signed in, so there is no key to
+    // paste — the settings form reads this to stop asking for something that
+    // does not exist. Every other vendor must still demand one.
+    const response = await http.get('/api/v1/settings/ai').set(auth()).expect(200);
+
+    const keyless = response.body.vendors.filter((v: { keyless: boolean }) => v.keyless);
+    expect(keyless.map((v: { id: string }) => v.id)).toEqual(['CLAUDE_CODE']);
+  });
+
+  it('enables the keyless vendor with no key, and refuses one if offered', async () => {
+    // The whole point: no ENCRYPTION_KEY needed, nothing to store, and a key
+    // pasted here would be silently ignored rather than used — so it is
+    // rejected instead.
+    await http
+      .put('/api/v1/settings/ai/keys/CLAUDE_CODE')
+      .set(auth())
+      .send({ apiKey: 'sk-ant-should-be-refused' })
+      .expect(400);
+
+    const enabled = await http
+      .put('/api/v1/settings/ai/keys/CLAUDE_CODE')
+      .set(auth())
+      .send({})
+      .expect(200);
+
+    const claudeCode = enabled.body.vendors.find((v: { id: string }) => v.id === 'CLAUDE_CODE');
+    expect(claudeCode.configured).toBe(true);
+    // Nothing to show: an empty string rather than a placeholder that reads
+    // like a truncated key.
+    expect(claudeCode.keyLast4).toBe('');
+
+    // And it can be selected, which a vendor with no credential row cannot.
+    const selected = await http
+      .put('/api/v1/settings/ai/provider')
+      .set(auth())
+      .send({ provider: 'CLAUDE_CODE' })
+      .expect(200);
+    expect(selected.body.selected).toBe('CLAUDE_CODE');
+
+    // Put the suite back where it found it: later cases assume no selection.
+    await http.delete('/api/v1/settings/ai/keys/CLAUDE_CODE').set(auth()).expect(200);
   });
 
   it('refuses to select a vendor with no key', async () => {

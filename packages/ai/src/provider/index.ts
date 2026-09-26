@@ -12,5 +12,10 @@ export {
   type AnthropicProviderOptions,
 } from './anthropic/anthropic.provider.js';
 export { GeminiProvider, type GeminiProviderOptions } from './gemini/gemini.provider.js';
+export {
+  ClaudeCodeProvider,
+  resolveBinary,
+  type ClaudeCodeProviderOptions,
+} from './claude-code/claude-code.provider.js';
 export { toGeminiSchema } from './gemini/gemini-schema.js';
 export { FakeAIProvider, type FakeResponse } from './testing/fake.provider.js';

@@ -119,3 +119,46 @@ describe('Markdown', () => {
     expect(anchor?.getAttribute('rel')).toContain('noreferrer');
   });
 });
+
+/**
+ * A multiple-choice prompt, as stored.
+ *
+ * Reported as "displayed in single line so unreadable": the code arrives with
+ * real newlines, and plain text collapses every one of them.
+ */
+const MCQ_PROMPT = [
+  'Consider the following code snippet:',
+  '',
+  '```js',
+  'function createCounters() {',
+  '  var functions = [];',
+  '  for (var i = 0; i < 3; i++) {',
+  '    functions.push(function() {',
+  '      return i;',
+  '    });',
+  '  }',
+  '  return functions;',
+  '}',
+  '```',
+  '',
+  'What is logged to the console, and why?',
+].join('\n');
+
+describe('a question that shows code', () => {
+  it('keeps the code on separate lines', () => {
+    const { container } = render(<Markdown content={MCQ_PROMPT} />);
+
+    const pre = container.querySelector('pre');
+    expect(pre).not.toBeNull();
+    // The newlines survive, which is the whole complaint.
+    expect(pre!.textContent).toContain('function createCounters() {\n');
+    expect(pre!.textContent).toContain('  var functions = [];');
+  });
+
+  it('keeps the prose outside the code block', () => {
+    render(<Markdown content={MCQ_PROMPT} />);
+
+    expect(screen.getByText(/What is logged to the console/)).toBeTruthy();
+    expect(screen.getByText(/Consider the following code snippet/)).toBeTruthy();
+  });
+});

@@ -28,6 +28,7 @@
     "db:reset": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/reset-db.mjs",
     "db:cancel-generation": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/cancel-pending-generation.mjs",
     "db:generation-plan": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/generation-plan.mjs",
+    "db:fence-questions": "pnpm --filter @forgeroutine/database exec dotenv -e ../../.env -- node ../../scripts/fence-question-code.mjs",
     "release": "release-it",
     "release:minor": "release-it minor",
     "release:patch": "release-it patch",

@@ -1,7 +1,15 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig((options) => ({
-  entry: ['src/index.ts'],
+  /**
+   * A second entry so the browser can take one module without the barrel.
+   *
+   * `src/index.ts` re-exports secret-box, which imports node:crypto — so any
+   * web import of this package drags Node's crypto into the bundle and the
+   * build fails on it. Subpath entries let a browser consumer take exactly
+   * what it needs, without a second copy of the code living in the web app.
+   */
+  entry: ['src/index.ts', 'src/fence-code.ts'],
   format: ['esm', 'cjs'],
   dts: true,
   sourcemap: true,

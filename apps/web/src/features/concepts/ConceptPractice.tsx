@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { fenceCode } from '@forgeroutine/utils/fence-code';
+
 import { Icon } from '~/components/Icon';
-import { Markdown } from '~/components/Markdown';
+import { InlineMarkdown, Markdown } from '~/components/Markdown';
 import { Badge, Button, Card, ProgressBar, Spinner } from '~/components/ui';
 import {
   useAnswerMcq,
@@ -214,9 +216,16 @@ function QuestionCard({
       style={{ borderLeft: question.given ? '2px solid var(--border-strong)' : undefined }}
     >
       <div className="row items-start justify-between g3 mb3">
-        <div className="t-h4" style={{ lineHeight: 1.6, maxWidth: '78ch' }}>
+        <div style={{ lineHeight: 1.6, maxWidth: '78ch', minWidth: 0 }}>
           <span className="t-caption mono mr2">{index + 1}.</span>
-          {question.prompt}
+          {/*
+            Rendered as markdown, not as text. A question that shows the code
+            it is asking about arrives with real newlines, and plain text
+            collapses every one of them into a single unreadable line.
+            `fenceCode` covers the questions written before the prompt began
+            demanding fences, and the times a model ignores it.
+          */}
+          <Markdown content={fenceCode(question.prompt)} />
         </div>
         <Badge variant={question.kind === 'THEORY' ? 'primary' : 'neutral'}>
           {question.kind === 'THEORY' ? 'in your own words' : 'multiple choice'}
@@ -268,7 +277,10 @@ function MultipleChoice({
               <span className="t-caption mono" style={{ width: 16 }}>
                 {String.fromCharCode(65 + optionIndex)}
               </span>
-              <span className="t-body">{option}</span>
+              {/* Inline only: a block element inside a button is invalid. */}
+              <span className="t-body">
+                <InlineMarkdown content={option} />
+              </span>
               {settled && optionIndex === given.selectedIndex && (
                 <span
                   style={{

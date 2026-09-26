@@ -5,3 +5,4 @@ export * from './slug.js';
 export * from './independence.js';
 export * from './spaced-repetition.js';
 export * from './secret-box.js';
+export * from './fence-code.js';

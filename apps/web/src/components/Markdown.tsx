@@ -19,6 +19,17 @@ export function Markdown({ content }: { content: string }) {
   return <div className="col g3">{renderBlocks(content)}</div>;
 }
 
+/**
+ * Inline markdown only — code spans, bold, italic, links. No blocks.
+ *
+ * For the places a block would be invalid HTML. A button's content model is
+ * phrasing content, so the `<p>` and `<div>` that `Markdown` emits cannot go
+ * inside one, and a multiple-choice option is a button.
+ */
+export function InlineMarkdown({ content }: { content: string }) {
+  return <>{renderInline(content)}</>;
+}
+
 /** Splits on fences first, because nothing inside one is markdown. */
 function renderBlocks(content: string): ReactNode[] {
   const nodes: ReactNode[] = [];

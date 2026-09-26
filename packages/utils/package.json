@@ -11,6 +11,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./fence-code": {
+      "types": "./dist/fence-code.d.ts",
+      "import": "./dist/fence-code.js",
+      "require": "./dist/fence-code.cjs"
     }
   },
   "files": [

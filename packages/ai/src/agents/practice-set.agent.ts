@@ -94,7 +94,9 @@ Explanations for multiple choice say why the right answer is right AND why the t
 
 Spread the difficulty. Start where someone who has just read the page can succeed, and end somewhere that separates understanding from familiarity.
 
-Do not ask about anything outside this concept. Do not write questions whose answer is a fact about the documentation rather than about the idea.`;
+Do not ask about anything outside this concept. Do not write questions whose answer is a fact about the documentation rather than about the idea.
+
+When a question shows code, put that code in a fenced block — three backticks, the language, a newline, the code, three backticks — and keep the prose outside the fence. Without the fence the snippet renders as one unbroken line and the reader cannot see the thing they are being asked about. Short identifiers mentioned inside a sentence take single backticks instead.`;
 
 export const practiceSetAgent = {
   name: 'practice-set' as const,

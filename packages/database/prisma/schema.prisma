@@ -77,6 +77,13 @@ model AICredential {
   /// Vendor model ids. Null means the shipped default for that vendor.
   modelFast      String?
   modelReasoning String?
+  /// The model the assistant answers with, chosen from the chat panel itself.
+  ///
+  /// Its own field rather than reusing `modelFast`, because that tier is also
+  /// what grades code submissions — raising it to get better tutoring would
+  /// silently change how work is marked, which is not a trade anyone would
+  /// choose on purpose. Null follows `modelFast`.
+  modelTutor     String?
   /// Set when a test call last succeeded. Null means never verified.
   verifiedAt DateTime?
   createdAt  DateTime @default(now())

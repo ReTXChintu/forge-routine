@@ -25,6 +25,7 @@ import {
   AISettingsService,
   parseVendor,
   type AISettingsView,
+  type TutorModelView,
 } from '../application/ai-settings.service.js';
 
 const selectSchema = z.object({
@@ -37,10 +38,15 @@ const keySchema = z.object({
   apiKey: z.string().max(400).nullish(),
   modelFast: z.string().max(120).nullish(),
   modelReasoning: z.string().max(120).nullish(),
+  modelTutor: z.string().max(120).nullish(),
 });
+
+/** Null means "follow the fast tier" rather than pinning one model. */
+const tutorSchema = z.object({ model: z.string().max(120).nullable() });
 
 type SelectInput = z.infer<typeof selectSchema>;
 type KeyInput = z.infer<typeof keySchema>;
+type TutorInput = z.infer<typeof tutorSchema>;
 
 /**
  * Settings for which model vendor a user's AI calls go to.
@@ -69,6 +75,21 @@ export class AISettingsController {
     @Body(new ZodValidationPipe(selectSchema)) body: SelectInput,
   ): Promise<AISettingsView> {
     return this.settings.select(user.userId, body.provider);
+  }
+
+  @Get('tutor')
+  @ApiOperation({ summary: 'The assistant’s model, and what it can be switched to' })
+  tutor(@CurrentUser() user: AuthenticatedUser): Promise<TutorModelView> {
+    return this.settings.tutorView(user.userId);
+  }
+
+  @Put('tutor')
+  @ApiOperation({ summary: 'Switch the assistant’s model. Null follows the fast tier.' })
+  setTutor(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(tutorSchema)) body: TutorInput,
+  ): Promise<TutorModelView> {
+    return this.settings.setTutorModel(user.userId, body.model);
   }
 
   @Get('keys/:provider/models')

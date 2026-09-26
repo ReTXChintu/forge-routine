@@ -57,6 +57,33 @@ const NEW_TURNS = [
   },
 ];
 
+const TUTOR = {
+  vendor: 'ANTHROPIC',
+  vendorLabel: 'Claude',
+  selected: null,
+  effective: 'claude-haiku-4-5',
+  options: [
+    { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
+    { id: 'claude-opus-5', label: 'Claude Opus 5' },
+  ],
+};
+
+/**
+ * One router for every call the panel makes, so a test that cares about the
+ * chat does not have to know the panel also asks which model it is using.
+ */
+function route({ askFails = false } = {}) {
+  return (path: string, options?: { method?: string }) => {
+    if (path.includes('/settings/ai/tutor')) {
+      return Promise.resolve(options?.method === 'PUT' ? { ...TUTOR, selected: 'x' } : TUTOR);
+    }
+    if (options?.method === 'POST') {
+      return askFails ? Promise.reject(new Error('model is busy')) : Promise.resolve(NEW_TURNS);
+    }
+    return Promise.resolve(HISTORY);
+  };
+}
+
 function mount() {
   // Retries off: a failing call should surface immediately rather than after
   // three silent attempts, which is also what makes the failure case fast.
@@ -95,10 +122,7 @@ beforeEach(() => {
 
 describe('asking the assistant', () => {
   it('shows the reply without needing a refetch', async () => {
-    apiRequest.mockImplementation((_path: string, options?: { method?: string }) => {
-      if (options?.method === 'POST') return Promise.resolve(NEW_TURNS);
-      return Promise.resolve(HISTORY);
-    });
+    apiRequest.mockImplementation(route());
 
     await openPanel();
     ask('Show me');
@@ -114,10 +138,7 @@ describe('asking the assistant', () => {
   });
 
   it('keeps the question in the box when the model fails', async () => {
-    apiRequest.mockImplementation((_path: string, options?: { method?: string }) => {
-      if (options?.method === 'POST') return Promise.reject(new Error('model is busy'));
-      return Promise.resolve(HISTORY);
-    });
+    apiRequest.mockImplementation(route({ askFails: true }));
 
     await openPanel();
     const box = screen.getByPlaceholderText(/why is my answer wrong/i);
@@ -131,10 +152,7 @@ describe('asking the assistant', () => {
   });
 
   it('sends what is on screen along with the question', async () => {
-    apiRequest.mockImplementation((_path: string, options?: { method?: string }) => {
-      if (options?.method === 'POST') return Promise.resolve(NEW_TURNS);
-      return Promise.resolve(HISTORY);
-    });
+    apiRequest.mockImplementation(route());
 
     await openPanel();
     ask('Explain');
@@ -148,8 +166,29 @@ describe('asking the assistant', () => {
     });
   });
 
+  it('lets the model be switched without leaving the conversation', async () => {
+    apiRequest.mockImplementation(route());
+
+    await openPanel();
+
+    const picker = (await screen.findByRole('combobox')) as HTMLSelectElement;
+    // Following the tier is an option, not a blank.
+    expect(picker.value).toBe('');
+    expect(screen.getByText(/Default \(claude-haiku-4-5\)/)).toBeTruthy();
+
+    fireEvent.change(picker, { target: { value: 'claude-opus-5' } });
+
+    await waitFor(() => {
+      const put = apiRequest.mock.calls.find(
+        (call) => (call[1] as { method?: string } | undefined)?.method === 'PUT',
+      );
+      expect(put).toBeDefined();
+      expect((put![1] as { body: { model: string } }).body.model).toBe('claude-opus-5');
+    });
+  });
+
   it('does not fetch the thread until it is opened', () => {
-    apiRequest.mockResolvedValue(HISTORY);
+    apiRequest.mockImplementation(route());
 
     mount();
 

@@ -11,6 +11,7 @@ import {
 import { Problems } from '../../../common/http/problem-details.js';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
 import { AI_PROVIDER, type OptionalAIProvider } from '../../ai/ai.tokens.js';
+import { AISettingsService } from '../../settings/application/ai-settings.service.js';
 
 export interface ExplainerView {
   summary: string;
@@ -55,6 +56,7 @@ export class ConceptTutorService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly settings: AISettingsService,
     @Inject(AI_PROVIDER) private readonly ai: OptionalAIProvider,
   ) {}
 
@@ -176,13 +178,16 @@ export class ConceptTutorService {
       );
     }
 
-    const [learner, priorTurns] = await Promise.all([
+    const [learner, priorTurns, modelOverride] = await Promise.all([
       this.learnerContext(userId, conceptId),
       this.prisma.conceptChatMessage.findMany({
         where: { userId, conceptId },
         orderBy: { createdAt: 'desc' },
         take: HISTORY_TURNS,
       }),
+      // The model the user picked for the assistant, if they pinned one.
+      // Its own setting rather than the fast tier, which also grades code.
+      this.settings.tutorModel(userId),
     ]);
 
     try {
@@ -203,7 +208,7 @@ export class ConceptTutorService {
           // would be worse than having none.
           screen,
         },
-        { userId },
+        { userId, ...(modelOverride ? { modelOverride } : {}) },
       );
 
       // Both at once, so a crash between them cannot leave a question

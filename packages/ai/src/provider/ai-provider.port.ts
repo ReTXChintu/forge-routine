@@ -29,6 +29,15 @@ export interface CallContext {
   agent: string;
   promptVersion: string;
   signal?: AbortSignal;
+  /**
+   * A concrete model id, overriding the prompt's tier for this call.
+   *
+   * Routing, which is why it lives here rather than on the prompt: the agent
+   * states what *kind* of thinking it needs, and the caller may know which
+   * model this particular user picked for this particular surface. The
+   * assistant's model picker is the one that uses it.
+   */
+  modelOverride?: string;
 }
 
 export interface TokenUsage {

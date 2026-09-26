@@ -29,8 +29,21 @@ export interface VendorSettingView {
   verifiedAt: string | null;
   modelFast: string;
   modelReasoning: string;
+  /** What the assistant answers with. Falls back to the fast tier. */
+  modelTutor: string;
   defaultFast: string;
   defaultReasoning: string;
+}
+
+/** What the assistant's model picker needs to render itself. */
+export interface TutorModelView {
+  vendor: AIVendor | null;
+  vendorLabel: string | null;
+  /** Null when following the fast tier rather than pinned to one model. */
+  selected: string | null;
+  /** What will actually be used, pinned or not. */
+  effective: string | null;
+  options: ModelOption[];
 }
 
 export interface AISettingsView {
@@ -90,6 +103,7 @@ export class AISettingsService {
           verifiedAt: saved?.verifiedAt?.toISOString() ?? null,
           modelFast: saved?.modelFast ?? profile.defaultFast,
           modelReasoning: saved?.modelReasoning ?? profile.defaultReasoning,
+          modelTutor: saved?.modelTutor ?? saved?.modelFast ?? profile.defaultFast,
           defaultFast: profile.defaultFast,
           defaultReasoning: profile.defaultReasoning,
         };
@@ -135,7 +149,12 @@ export class AISettingsService {
   async saveKey(
     userId: string,
     vendor: AIVendor,
-    input: { apiKey?: string | null; modelFast?: string | null; modelReasoning?: string | null },
+    input: {
+      apiKey?: string | null;
+      modelFast?: string | null;
+      modelReasoning?: string | null;
+      modelTutor?: string | null;
+    },
   ): Promise<AISettingsView> {
     const apiKey = input.apiKey?.trim() ?? '';
     const profile = AI_VENDOR_PROFILES[vendor];
@@ -155,6 +174,7 @@ export class AISettingsService {
     const models = {
       modelFast: blankToNull(input.modelFast),
       modelReasoning: blankToNull(input.modelReasoning),
+      modelTutor: blankToNull(input.modelTutor),
       // Cleared on a model change as well as a key change. A tick earned
       // by a different model vouches for nothing about this one.
       verifiedAt: null,
@@ -192,6 +212,96 @@ export class AISettingsService {
    * out through a failed call naming a model they never picked — which is
    * exactly how `gemini-2.5-flash` outlived its own support window here.
    */
+  /**
+   * The assistant's own model, and what it could be switched to.
+   *
+   * Answered for whichever vendor the user is on, so the chat panel does not
+   * have to know which that is.
+   */
+  async tutorView(userId: string): Promise<TutorModelView> {
+    const preferences = await this.prisma.userPreferences.findUnique({
+      where: { userId },
+      select: { aiProvider: true },
+    });
+
+    const vendor = (preferences?.aiProvider as AIVendor | null) ?? null;
+    if (!vendor) {
+      return { vendor: null, vendorLabel: null, selected: null, effective: null, options: [] };
+    }
+
+    const profile = AI_VENDOR_PROFILES[vendor];
+    const credential = await this.prisma.aICredential.findUnique({
+      where: { userId_provider: { userId, provider: vendor } },
+    });
+
+    const effective = credential?.modelTutor ?? credential?.modelFast ?? profile.defaultFast;
+
+    // The live list, but never at the cost of the picker. A vendor that is
+    // slow or down should leave the current model showing, not empty the
+    // dropdown and make it look as though nothing is configured.
+    let options: ModelOption[] = [];
+    if (credential) {
+      options = await this.listModels(userId, vendor).catch(() => []);
+    }
+
+    return {
+      vendor,
+      vendorLabel: profile.label,
+      selected: credential?.modelTutor ?? null,
+      effective,
+      options,
+    };
+  }
+
+  /** Switches the assistant's model. Null goes back to following the fast tier. */
+  async setTutorModel(userId: string, model: string | null): Promise<TutorModelView> {
+    const preferences = await this.prisma.userPreferences.findUnique({
+      where: { userId },
+      select: { aiProvider: true },
+    });
+
+    const vendor = (preferences?.aiProvider as AIVendor | null) ?? null;
+    if (!vendor) throw Problems.badRequest('Choose an AI provider in Settings first.');
+
+    const credential = await this.prisma.aICredential.findUnique({
+      where: { userId_provider: { userId, provider: vendor } },
+      select: { id: true },
+    });
+    if (!credential) throw Problems.badRequest('Add a key for this provider first.');
+
+    await this.prisma.aICredential.update({
+      where: { id: credential.id },
+      // Deliberately not clearing verifiedAt, unlike saveKey: the tick says
+      // the key works, and picking a different model does not call that into
+      // question the way replacing the key would.
+      data: { modelTutor: blankToNull(model) },
+    });
+
+    return this.tutorView(userId);
+  }
+
+  /**
+   * The model id the assistant should answer with, or null to use its tier.
+   *
+   * Read on every chat turn, so it is one indexed lookup and nothing else.
+   */
+  async tutorModel(userId: string): Promise<string | null> {
+    const preferences = await this.prisma.userPreferences.findUnique({
+      where: { userId },
+      select: { aiProvider: true },
+    });
+
+    const vendor = (preferences?.aiProvider as AIVendor | null) ?? null;
+    if (!vendor) return null;
+
+    const credential = await this.prisma.aICredential.findUnique({
+      where: { userId_provider: { userId, provider: vendor } },
+      select: { modelTutor: true },
+    });
+
+    return credential?.modelTutor ?? null;
+  }
+
   async listModels(userId: string, vendor: AIVendor): Promise<ModelOption[]> {
     const credential = await this.prisma.aICredential.findUnique({
       where: { userId_provider: { userId, provider: vendor } },

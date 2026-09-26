@@ -4,7 +4,7 @@ import { Icon } from '~/components/Icon';
 import { Markdown } from '~/components/Markdown';
 import { AiTag, Button, Spinner } from '~/components/ui';
 import { ApiError } from '~/lib/api';
-import { useAskConcept, useConceptChat } from '~/lib/queries';
+import { useAskConcept, useConceptChat, useSetTutorModel, useTutorModel } from '~/lib/queries';
 
 /**
  * The assistant, sitting in the corner of whatever you are working on.
@@ -127,6 +127,8 @@ export function Assistant({
         </button>
       </div>
 
+      <ModelPicker open={open} />
+
       <div className="divider" />
 
       {/*
@@ -196,5 +198,48 @@ export function Assistant({
         </Button>
       </div>
     </aside>
+  );
+}
+
+/**
+ * Which model answers here, switchable without leaving the conversation.
+ *
+ * Its own setting rather than the fast tier, which the submission evaluator
+ * also uses — raising that to get better tutoring would quietly change how
+ * code is graded, and nobody would choose that trade on purpose.
+ *
+ * Renders nothing at all when there is no vendor configured or the vendor
+ * could not be asked for its models. A dropdown with nothing in it says
+ * "broken"; absence says "not set up", which is the truth.
+ */
+function ModelPicker({ open }: { open: boolean }) {
+  const { data: tutor } = useTutorModel(open);
+  const setModel = useSetTutorModel();
+
+  if (!tutor?.vendor || tutor.options.length === 0) return null;
+
+  return (
+    <div className="row items-center justify-between g2 px3" style={{ paddingBottom: 10 }}>
+      <span className="t-caption" style={{ flexShrink: 0 }}>
+        {tutor.vendorLabel}
+      </span>
+
+      <select
+        className="select"
+        style={{ height: 30, fontSize: 12.5, maxWidth: 240 }}
+        value={tutor.selected ?? ''}
+        disabled={setModel.isPending}
+        onChange={(event) => setModel.mutate(event.target.value || null)}
+      >
+        {/* Following the tier is a real choice, not the absence of one, so it
+            is an option rather than a blank. */}
+        <option value="">Default ({tutor.effective})</option>
+        {tutor.options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }

@@ -1292,3 +1292,43 @@ export function useNextUp(conceptId: string | undefined, enabled: boolean) {
     staleTime: 30_000,
   });
 }
+
+// -- The assistant's model ---------------------------------------------------
+
+export interface TutorModelView {
+  vendor: string | null;
+  vendorLabel: string | null;
+  /** Null when following the fast tier rather than pinned to one model. */
+  selected: string | null;
+  /** What will actually be used, pinned or not. */
+  effective: string | null;
+  options: ModelOption[];
+}
+
+const tutorModelKey = ['settings', 'ai', 'tutor'] as const;
+
+/**
+ * Which model the assistant answers with.
+ *
+ * Fetched only once the panel is open: it asks the vendor for its live model
+ * list, and a closed panel has no business making that call.
+ */
+export function useTutorModel(enabled: boolean) {
+  return useQuery({
+    queryKey: tutorModelKey,
+    queryFn: () => apiRequest<TutorModelView>('/settings/ai/tutor'),
+    enabled,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
+export function useSetTutorModel() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (model: string | null) =>
+      apiRequest<TutorModelView>('/settings/ai/tutor', { method: 'PUT', body: { model } }),
+    onSuccess: (view) => queryClient.setQueryData(tutorModelKey, view),
+  });
+}

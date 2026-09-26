@@ -50,12 +50,21 @@ export class OpenAIProvider implements AIProvider {
     });
   }
 
-  private resolveModel(prompt: PromptSpec): string {
+  /**
+   * The model for one call.
+   *
+   * A caller-supplied `modelOverride` wins over the prompt's tier. The agent
+   * says what kind of thinking it needs; the caller may know which model this
+   * user picked for this surface, and that is the more specific fact.
+   */
+  private resolveModel(prompt: PromptSpec, context?: CallContext): string {
+    if (context?.modelOverride) return context.modelOverride;
+
     return prompt.model === 'reasoning' ? this.options.modelReasoning : this.options.modelFast;
   }
 
   async generate(req: GenerateRequest): Promise<GenerateResult> {
-    const model = this.resolveModel(req.prompt);
+    const model = this.resolveModel(req.prompt, req.context);
     const startedAt = Date.now();
 
     try {
@@ -84,7 +93,7 @@ export class OpenAIProvider implements AIProvider {
   }
 
   async *stream(req: GenerateRequest): AsyncIterable<StreamChunk> {
-    const model = this.resolveModel(req.prompt);
+    const model = this.resolveModel(req.prompt, req.context);
 
     try {
       const stream = await this.client.chat.completions.create(
@@ -121,7 +130,7 @@ export class OpenAIProvider implements AIProvider {
    * than the domain receiving a guess.
    */
   async structured<T>(req: StructuredRequest<T>): Promise<StructuredResult<T>> {
-    const model = this.resolveModel(req.prompt);
+    const model = this.resolveModel(req.prompt, req.context);
     const startedAt = Date.now();
 
     // jsonSchema7, not openApi3: strict mode expresses nullability as

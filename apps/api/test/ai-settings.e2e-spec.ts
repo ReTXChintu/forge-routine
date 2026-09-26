@@ -157,6 +157,70 @@ describe('AI provider settings', () => {
     expect(anthropic.keyLast4).toBe('TAIL');
   });
 
+  it('keeps the assistant’s model separate from the tier that grades code', async () => {
+    // The whole reason modelTutor exists. The fast tier is shared by the
+    // assistant and the submission evaluator, so pinning a better model for
+    // tutoring must not change how code is marked.
+    const before = await http.get('/api/v1/settings/ai').set(auth()).expect(200);
+    const fastBefore = before.body.vendors.find(
+      (v: { id: string }) => v.id === 'ANTHROPIC',
+    ).modelFast;
+
+    const response = await http
+      .put('/api/v1/settings/ai/tutor')
+      .set(auth())
+      .send({ model: 'claude-sonnet-5' })
+      .expect(200);
+
+    expect(response.body.selected).toBe('claude-sonnet-5');
+    expect(response.body.effective).toBe('claude-sonnet-5');
+
+    const after = await http.get('/api/v1/settings/ai').set(auth()).expect(200);
+    const anthropic = after.body.vendors.find((v: { id: string }) => v.id === 'ANTHROPIC');
+    expect(anthropic.modelTutor).toBe('claude-sonnet-5');
+    expect(anthropic.modelFast).toBe(fastBefore);
+  });
+
+  it('follows the fast tier again when the pin is cleared', async () => {
+    const response = await http
+      .put('/api/v1/settings/ai/tutor')
+      .set(auth())
+      .send({ model: null })
+      .expect(200);
+
+    const settings = await http.get('/api/v1/settings/ai').set(auth()).expect(200);
+    const anthropic = settings.body.vendors.find((v: { id: string }) => v.id === 'ANTHROPIC');
+
+    // Nothing pinned, but something is still in use — the tier's model.
+    expect(response.body.selected).toBeNull();
+    expect(response.body.effective).toBe(anthropic.modelFast);
+  });
+
+  it('keeps the verified tick when only the model changes', async () => {
+    // Unlike saving a key or a tier model, which clears it: the tick says the
+    // key works, and picking a different model does not call that into doubt.
+    await http
+      .put('/api/v1/settings/ai/keys/ANTHROPIC')
+      .set(auth())
+      .send({ apiKey: 'sk-ant-verify-TICK' })
+      .expect(200);
+
+    await prisma.aICredential.updateMany({
+      where: { user: { email: user.email }, provider: 'ANTHROPIC' },
+      data: { verifiedAt: new Date() },
+    });
+
+    await http
+      .put('/api/v1/settings/ai/tutor')
+      .set(auth())
+      .send({ model: 'claude-haiku-4-5' })
+      .expect(200);
+
+    const settings = await http.get('/api/v1/settings/ai').set(auth()).expect(200);
+    const anthropic = settings.body.vendors.find((v: { id: string }) => v.id === 'ANTHROPIC');
+    expect(anthropic.verifiedAt).not.toBeNull();
+  });
+
   it('will not create a credential from models alone', async () => {
     // Saving models for a vendor with no key would leave a row that looks
     // configured but cannot make a call.

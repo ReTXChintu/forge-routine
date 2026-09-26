@@ -50,7 +50,22 @@ export function Assistant({
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    if (!open) return;
+
+    // Guarded rather than called straight. An effect that throws unmounts the
+    // subtree, so an absent or refused scrollIntoView would take the whole
+    // panel down — the reply arrives, the spinner clears, and nothing is on
+    // screen. Not a hypothetical: it is missing in jsdom entirely, and
+    // convenience APIs going absent in environments this app actually runs in
+    // is the same trap that `lib/browser.ts` exists for.
+    const bottom = bottomRef.current;
+    if (typeof bottom?.scrollIntoView !== 'function') return;
+
+    try {
+      bottom.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    } catch {
+      // Scrolling is a convenience. Losing the answer over it is not.
+    }
   }, [open, messages?.length, ask.isPending]);
 
   // Escape closes it, like every other panel that covers your work.
@@ -114,7 +129,15 @@ export function Assistant({
 
       <div className="divider" />
 
-      <div className="col g4 flex-1 scroll-y p3">
+      {/*
+        minHeight 0 is load-bearing. A flex child that holds the scrollbar has
+        to be allowed to shrink below its content, or it grows to fit the whole
+        thread instead: the newest messages render past the bottom of a
+        position-fixed panel, nothing scrolls, and a reply that arrived
+        correctly is simply off screen. The workspace's editor column carries
+        the same line for the same reason.
+      */}
+      <div className="col g4 flex-1 scroll-y p3" style={{ minHeight: 0 }}>
         {isLoading ? (
           <Spinner label="Loading" />
         ) : (

@@ -369,12 +369,13 @@ export class ClaudeCodeProvider implements AIProvider {
           reject(
             new AIUnavailable(
               context.agent,
-              // The common case by far: the CLI is not installed, or this
-              // process cannot see it on PATH. Named, because "spawn ENOENT"
-              // tells a user nothing they can act on.
+              // "spawn ENOENT" tells a user nothing they can act on, and
+              // "install it" is wrong for the common case of an installed CLI
+              // a service process cannot see.
               new Error(
-                `Could not start the Claude Code CLI (${error.message}). ` +
-                  'Install it and sign in, or choose a different provider.',
+                isMissing(error)
+                  ? describeMissingBinary()
+                  : `Could not start the Claude Code CLI (${error.message}).`,
               ),
             ),
           ),
@@ -476,38 +477,126 @@ function usageOf(result: CliResult) {
  */
 let cachedBinary: string | null = null;
 
+/** Where the last search looked, so a failure can say so rather than shrug. */
+let lastSearched: string[] = [];
+
+/**
+ * Where a globally installed CLI ends up, beyond PATH.
+ *
+ * PATH is the right answer and usually the only one needed — but a server
+ * started by a process manager, a service, or an IDE often inherits a
+ * different environment from the shell the CLI was installed from, and then
+ * "not on PATH" means "this process cannot see it" rather than "it is not
+ * installed". These are the npm and Claude Code install locations, checked
+ * only after PATH has failed.
+ */
+function fallbackDirs(): string[] {
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? '';
+  const dirs: string[] = [];
+
+  if (process.platform === 'win32') {
+    // nvm-for-windows points this at whichever version is active.
+    if (process.env.NVM_SYMLINK) dirs.push(process.env.NVM_SYMLINK);
+    if (process.env.APPDATA) dirs.push(join(process.env.APPDATA, 'npm'));
+    if (process.env.ProgramFiles) dirs.push(join(process.env.ProgramFiles, 'nodejs'));
+  } else {
+    dirs.push('/usr/local/bin', '/usr/bin', '/opt/homebrew/bin');
+  }
+
+  if (home) dirs.push(join(home, '.local', 'bin'), join(home, '.claude', 'local'));
+
+  return dirs;
+}
+
+/**
+ * Something `spawn` can run without a shell.
+ *
+ * On macOS and Linux `claude` is an executable script and the name is enough,
+ * so PATH resolution is left to the OS. On Windows npm installs three shims —
+ * `claude`, `claude.cmd`, `claude.ps1` — none of which Node can execute
+ * without a shell, while a shell would re-split the JSON schema argument. The
+ * `.cmd` is a fixed-shape wrapper around a real `claude.exe`, so reading the
+ * path out of it gives something spawnable directly and the quoting problem
+ * disappears rather than being escaped around.
+ *
+ * `CLAUDE_CODE_BIN` overrides the search outright, which is the answer for any
+ * layout this does not know about.
+ *
+ * Only a *successful* result is cached. Caching the fallback was a bug: one
+ * failed lookup — the CLI installed after the server started, a process whose
+ * environment was still warming up — left the process permanently convinced
+ * it was missing, with a restart the only cure.
+ */
 export async function resolveBinary(): Promise<string> {
   if (cachedBinary) return cachedBinary;
-  if (process.platform !== 'win32') {
-    cachedBinary = 'claude';
+
+  const configured = process.env.CLAUDE_CODE_BIN?.trim();
+  if (configured) {
+    // Taken as given. If it is wrong, the spawn says so, naming it — better
+    // than silently searching past an explicit instruction.
+    cachedBinary = configured;
     return cachedBinary;
   }
 
-  const dirs = (process.env.PATH ?? '').split(delimiter).filter(Boolean);
+  const fromPath = (process.env.PATH ?? '').split(delimiter).filter(Boolean);
+  const dirs = [...fromPath, ...fallbackDirs()];
+  lastSearched = dirs;
 
   for (const dir of dirs) {
-    // An .exe on PATH is directly spawnable and needs no unwrapping.
-    const exe = join(dir, 'claude.exe');
-    if (await exists(exe)) {
-      cachedBinary = exe;
-      return cachedBinary;
-    }
-
-    const cmd = join(dir, 'claude.cmd');
-    if (!(await exists(cmd))) continue;
-
-    const target = await targetOf(cmd);
-    if (target && (await exists(target))) {
-      cachedBinary = target;
+    const found = await lookIn(dir);
+    if (found) {
+      cachedBinary = found;
       return cachedBinary;
     }
   }
 
-  // Nothing found. Returned rather than thrown so the failure arrives from
-  // the spawn, where it is already reported as "install it and sign in"
-  // instead of as a resolver detail nobody asked about.
-  cachedBinary = 'claude';
-  return cachedBinary;
+  // Not found, and deliberately not cached. Returning the bare name lets the
+  // spawn produce the failure, which is where it can be reported with
+  // everything that was tried.
+  return 'claude';
+}
+
+/** Whatever in this directory is directly spawnable, if anything. */
+async function lookIn(dir: string): Promise<string | null> {
+  if (process.platform !== 'win32') {
+    const direct = join(dir, 'claude');
+    return (await exists(direct)) ? direct : null;
+  }
+
+  // An .exe needs no unwrapping.
+  const exe = join(dir, 'claude.exe');
+  if (await exists(exe)) return exe;
+
+  const cmd = join(dir, 'claude.cmd');
+  if (!(await exists(cmd))) return null;
+
+  const target = await targetOf(cmd);
+
+  return target && (await exists(target)) ? target : null;
+}
+
+/**
+ * What to tell the user when it could not be started.
+ *
+ * "Install it and sign in" is actively misleading to somebody who has done
+ * both — the usual cause is a server process whose environment does not
+ * include the directory the CLI lives in. So the message says what was
+ * searched and how to settle it, rather than assuming which it is.
+ */
+export function describeMissingBinary(): string {
+  const configured = process.env.CLAUDE_CODE_BIN?.trim();
+  if (configured) {
+    return `CLAUDE_CODE_BIN is set to "${configured}", and that could not be run.`;
+  }
+
+  const shown = lastSearched.slice(0, 8).join(', ');
+
+  return (
+    'Could not find the Claude Code CLI. If it is installed, this process cannot see it — ' +
+    'a server started outside your shell often has a different PATH. Set CLAUDE_CODE_BIN to ' +
+    'the full path of the executable (`where claude` on Windows, `which claude` elsewhere). ' +
+    `Looked in: ${shown || '(PATH was empty)'}.`
+  );
 }
 
 /** The executable an npm `.cmd` shim calls, if it names one. */
@@ -541,4 +630,9 @@ async function exists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** ENOENT specifically — the file is not there, as opposed to refusing to run. */
+function isMissing(error: unknown): boolean {
+  return (error as { code?: string } | null)?.code === 'ENOENT';
 }

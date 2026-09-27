@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { AIContractViolation, AIUnavailable, describeAIFailure } from '../ai-provider.port.js';
 
-import { ClaudeCodeProvider } from './claude-code.provider.js';
+import { ClaudeCodeProvider, resolveBinary } from './claude-code.provider.js';
 
 /**
  * The provider that runs a process instead of calling an endpoint.
@@ -170,6 +170,22 @@ describe('Claude Code as a provider', () => {
     expect(provider.lastArgs[provider.lastArgs.indexOf('--model') + 1]).toBe('sonnet');
   });
 
+  it('takes CLAUDE_CODE_BIN over any search', async () => {
+    // The escape hatch for a layout the search does not know about, and for a
+    // server process whose PATH does not include the CLI.
+    const previous = process.env.CLAUDE_CODE_BIN;
+    process.env.CLAUDE_CODE_BIN = process.execPath;
+
+    try {
+      // Cleared between assertions because a successful resolution is cached
+      // for the process — which is correct, and would otherwise hide this.
+      expect(await resolveBinary()).toBe(process.execPath);
+    } finally {
+      if (previous === undefined) delete process.env.CLAUDE_CODE_BIN;
+      else process.env.CLAUDE_CODE_BIN = previous;
+    }
+  });
+
   it('reports a missing CLI as something the user can act on', async () => {
     const provider = new ClaudeCodeProvider({
       modelFast: 'haiku',
@@ -184,9 +200,12 @@ describe('Claude Code as a provider', () => {
       provider.structured({ prompt: prompt(), schema, schemaName: 'A', context: ctx }),
     );
 
-    // "spawn ENOENT" tells a user nothing. Naming the CLI and what to do
-    // about it is the whole point of catching this.
+    // "spawn ENOENT" tells a user nothing, and "install it" is wrong for the
+    // common case: an installed CLI that a service process cannot see. So the
+    // message has to name the way out and what it actually searched.
     expect(detail).toContain('Claude Code CLI');
+    expect(detail).toContain('CLAUDE_CODE_BIN');
+    expect(detail).toContain('Looked in:');
   });
 
   it('passes the CLI’s own words through when it does not return JSON', async () => {

@@ -936,6 +936,10 @@ export interface VendorSettingView {
   note: string;
   /** True where there is no key to paste, so the form hides its field. */
   keyless: boolean;
+  /** False when this vendor cannot work on this machine at all. */
+  available: boolean;
+  /** Why not, in words the reader can act on. Null when available. */
+  unavailableReason: string | null;
   configured: boolean;
   /** Last four characters only. The key itself is never sent to the client. */
   keyLast4: string | null;

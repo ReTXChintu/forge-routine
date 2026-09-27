@@ -2,6 +2,8 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import {
   AI_VENDOR_PROFILES,
+  describeMissingBinary,
+  findBinary,
   buildAIProvider,
   describeAIFailure,
   isAIVendor,
@@ -24,6 +26,17 @@ export interface VendorSettingView {
   note: string;
   /** True where there is no key to paste, so the form hides its field. */
   keyless: boolean;
+  /**
+   * False when this vendor cannot work on this machine at all.
+   *
+   * Only ever false for Claude Code, which runs a CLI that has to be
+   * installed here. It shipped without this and offered itself on a deployed
+   * server with no CLI on it — selectable, and then failing on the first
+   * question with a spawn error.
+   */
+  available: boolean;
+  /** Why not, in words the reader can act on. Null when available. */
+  unavailableReason: string | null;
   /** Whether this user has saved a key for this vendor. */
   configured: boolean;
   /** Last four characters, so two keys can be told apart. Never the key. */
@@ -88,6 +101,7 @@ export class AISettingsService {
     ]);
 
     const byVendor = new Map(credentials.map((row) => [row.provider as AIVendor, row]));
+    const availability = await this.availability();
 
     return {
       selected: (preferences?.aiProvider as AIVendor | null) ?? null,
@@ -101,6 +115,8 @@ export class AISettingsService {
           keyPrefix: profile.keyPrefix,
           note: profile.note,
           keyless: profile.keyless === true,
+          available: availability.get(profile.id)?.available ?? true,
+          unavailableReason: availability.get(profile.id)?.reason ?? null,
           configured: saved !== undefined,
           keyLast4: saved?.keyLast4 ?? null,
           verifiedAt: saved?.verifiedAt?.toISOString() ?? null,
@@ -114,9 +130,43 @@ export class AISettingsService {
     };
   }
 
+  /** Refuses a vendor whose requirements this machine does not meet. */
+  private async assertCanRunHere(vendor: AIVendor): Promise<void> {
+    const verdict = (await this.availability()).get(vendor);
+    if (!verdict || verdict.available) return;
+
+    throw Problems.badRequest(verdict.reason ?? 'That provider cannot run on this server.');
+  }
+
+  /**
+   * Which vendors can run here at all, as opposed to needing configuration.
+   *
+   * Every HTTP vendor can always be reached in principle, so this only has an
+   * answer for Claude Code, which runs a process on this machine.
+   */
+  private async availability(): Promise<
+    Map<AIVendor, { available: boolean; reason: string | null }>
+  > {
+    const found = await findBinary();
+
+    return new Map([
+      [
+        'CLAUDE_CODE' as AIVendor,
+        found
+          ? { available: true, reason: null }
+          : { available: false, reason: describeMissingBinary() },
+      ],
+    ]);
+  }
+
   /** Chooses the vendor. Null turns AI off for this user. */
   async select(userId: string, vendor: AIVendor | null): Promise<AISettingsView> {
     if (vendor !== null) {
+      // Checked again here, not only on save: a credential row can outlive the
+      // machine that could use it — enabled locally, then the same database
+      // read by the deployed server, where there is no CLI to run.
+      await this.assertCanRunHere(vendor);
+
       const credential = await this.prisma.aICredential.findUnique({
         where: { userId_provider: { userId, provider: vendor } },
         select: { id: true },
@@ -166,6 +216,11 @@ export class AISettingsService {
       where: { userId_provider: { userId, provider: vendor } },
       select: { id: true },
     });
+
+    // A vendor that cannot run on this machine must not become "configured":
+    // that is what let it be selected on a server with no CLI, and then fail
+    // on every question afterwards.
+    await this.assertCanRunHere(vendor);
 
     if (apiKey.length === 0 && !existing && !profile.keyless) {
       throw Problems.badRequest(`Add a ${profile.label} API key first.`);
@@ -441,6 +496,24 @@ export class AISettingsService {
 
     const vendor = force ?? (await this.selectedVendor(userId));
     if (!vendor) return null;
+
+    // The selection is per user, but Claude Code is per *machine* — it runs a
+    // CLI that has to be installed here. One database shared between a laptop
+    // and a deployed server therefore carries a choice made on one to the
+    // other, where it cannot work. Caught here rather than at the spawn, so
+    // the agents take their declared fallbacks instead of every call failing.
+    // Only vendors with an entry have a requirement to fail; an HTTP vendor has
+    // none and must fall through. Written out rather than as `!x?.available`,
+    // which is `!undefined` — true — for every other vendor, and would have
+    // switched AI off for all of them.
+    const verdict = (await this.availability()).get(vendor);
+    if (verdict && !verdict.available) {
+      this.logger.warn(
+        `${vendor} is selected for ${userId} but cannot run on this machine, so AI is off ` +
+          'here. Select a different provider, or set CLAUDE_CODE_BIN if the CLI is installed.',
+      );
+      return null;
+    }
 
     const credential = await this.prisma.aICredential.findUnique({
       where: { userId_provider: { userId, provider: vendor } },

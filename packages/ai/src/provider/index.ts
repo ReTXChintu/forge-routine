@@ -14,6 +14,8 @@ export {
 export { GeminiProvider, type GeminiProviderOptions } from './gemini/gemini.provider.js';
 export {
   ClaudeCodeProvider,
+  describeMissingBinary,
+  findBinary,
   resolveBinary,
   type ClaudeCodeProviderOptions,
 } from './claude-code/claude-code.provider.js';

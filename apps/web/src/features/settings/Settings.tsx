@@ -118,9 +118,15 @@ function AIProviderPanel({ settings }: { settings: AISettingsView }) {
             <span
               key={vendor.id}
               className={`chip ${settings.selected === vendor.id ? 'selected' : ''}`}
-              style={{ opacity: vendor.configured ? 1 : 0.5 }}
-              title={vendor.configured ? undefined : 'Add a key first'}
-              onClick={() => vendor.configured && select.mutate(vendor.id)}
+              style={{ opacity: vendor.configured && vendor.available ? 1 : 0.5 }}
+              title={
+                !vendor.available
+                  ? (vendor.unavailableReason ?? 'Not available on this machine')
+                  : vendor.configured
+                    ? undefined
+                    : 'Add a key first'
+              }
+              onClick={() => vendor.configured && vendor.available && select.mutate(vendor.id)}
             >
               {settings.selected === vendor.id && <Icon name="check" size={12} />}
               {vendor.label}
@@ -193,6 +199,25 @@ function VendorCard({ vendor, disabled }: { vendor: VendorSettingView; disabled:
 
       <div className="t-small mb4">{vendor.note}</div>
 
+      {/*
+        Said before it can be chosen, not after it fails. This shipped
+        offering itself on a deployed server with no CLI installed, where
+        picking it produced a spawn error on the first question.
+      */}
+      {!vendor.available && (
+        <div
+          className="card p3 mb4"
+          style={{ background: 'var(--surface-2)', borderLeft: '2px solid var(--warning)' }}
+        >
+          <div className="row items-start g2">
+            <span style={{ color: 'var(--warning)', marginTop: 2 }}>
+              <Icon name="alert" size={14} />
+            </span>
+            <div className="t-small">{vendor.unavailableReason}</div>
+          </div>
+        </div>
+      )}
+
       <div className="row g2 wrap items-end">
         {/*
           A keyless vendor has no field. Claude Code answers as whatever its
@@ -228,6 +253,7 @@ function VendorCard({ vendor, disabled }: { vendor: VendorSettingView; disabled:
           disabled={
             disabled ||
             save.isPending ||
+            !vendor.available ||
             // Keyless: nothing to type, so nothing to validate. The button
             // enables it, which is the only thing there is to do.
             (!vendor.keyless && apiKey.trim().length < 8)

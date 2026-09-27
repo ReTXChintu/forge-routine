@@ -83,6 +83,55 @@ describe('AI provider settings', () => {
     expect(keyless.map((v: { id: string }) => v.id)).toEqual(['CLAUDE_CODE']);
   });
 
+  it('reports whether the local CLI vendor can run on this machine', async () => {
+    // Every HTTP vendor can always be reached in principle; Claude Code runs a
+    // process that has to exist here, so it is the only one that can answer
+    // "no" — and it must answer before being chosen, not on the first question.
+    const response = await http.get('/api/v1/settings/ai').set(auth()).expect(200);
+
+    for (const vendor of response.body.vendors) {
+      if (vendor.id === 'CLAUDE_CODE') continue;
+      expect(vendor.available).toBe(true);
+      expect(vendor.unavailableReason).toBeNull();
+    }
+
+    const claudeCode = response.body.vendors.find((v: { id: string }) => v.id === 'CLAUDE_CODE');
+    expect(typeof claudeCode.available).toBe('boolean');
+    // Whichever way it goes, an unavailable vendor must say why in words the
+    // reader can act on rather than leaving them to find out by failing.
+    if (!claudeCode.available) {
+      expect(claudeCode.unavailableReason).toContain('CLAUDE_CODE_BIN');
+    }
+  });
+
+  it('refuses to enable or select a vendor this machine cannot run', async () => {
+    // The case that caused the report: one database shared between a laptop and
+    // a deployed server carries a selection from the machine that can run it to
+    // the one that cannot. Simulated by pointing the override at nothing.
+    const previous = process.env.CLAUDE_CODE_BIN;
+    process.env.CLAUDE_CODE_BIN = '';
+
+    try {
+      const available = (
+        await http.get('/api/v1/settings/ai').set(auth()).expect(200)
+      ).body.vendors.find((v: { id: string }) => v.id === 'CLAUDE_CODE').available;
+
+      // Only meaningful where the CLI is genuinely absent. On a machine that
+      // has it, the guard has nothing to refuse and this asserts nothing.
+      if (available) return;
+
+      await http.put('/api/v1/settings/ai/keys/CLAUDE_CODE').set(auth()).send({}).expect(400);
+      await http
+        .put('/api/v1/settings/ai/provider')
+        .set(auth())
+        .send({ provider: 'CLAUDE_CODE' })
+        .expect(400);
+    } finally {
+      if (previous === undefined) delete process.env.CLAUDE_CODE_BIN;
+      else process.env.CLAUDE_CODE_BIN = previous;
+    }
+  });
+
   it('enables the keyless vendor with no key, and refuses one if offered', async () => {
     // The whole point: no ENCRYPTION_KEY needed, nothing to store, and a key
     // pasted here would be silently ignored rather than used — so it is

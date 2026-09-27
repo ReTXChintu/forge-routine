@@ -528,12 +528,27 @@ function fallbackDirs(): string[] {
  * it was missing, with a restart the only cure.
  */
 export async function resolveBinary(): Promise<string> {
+  // The bare name when nothing was found: the spawn then produces the failure,
+  // which is where it can be reported with everything that was tried.
+  return (await findBinary()) ?? 'claude';
+}
+
+/**
+ * The CLI's path, or null when this machine does not have one.
+ *
+ * Separate from `resolveBinary` because the settings screen needs the honest
+ * answer rather than a value to attempt. A provider that cannot possibly work
+ * here should say so before it is chosen, not fail on the first question —
+ * which is exactly what happened when this shipped offering itself on a
+ * deployed server that has no CLI on it.
+ */
+export async function findBinary(): Promise<string | null> {
   if (cachedBinary) return cachedBinary;
 
   const configured = process.env.CLAUDE_CODE_BIN?.trim();
   if (configured) {
-    // Taken as given. If it is wrong, the spawn says so, naming it — better
-    // than silently searching past an explicit instruction.
+    // Taken as given. If it is wrong the spawn says so, naming it, which beats
+    // silently searching past an explicit instruction.
     cachedBinary = configured;
     return cachedBinary;
   }
@@ -550,10 +565,8 @@ export async function resolveBinary(): Promise<string> {
     }
   }
 
-  // Not found, and deliberately not cached. Returning the bare name lets the
-  // spawn produce the failure, which is where it can be reported with
-  // everything that was tried.
-  return 'claude';
+  // Deliberately not cached: the CLI may be installed after the server starts.
+  return null;
 }
 
 /** Whatever in this directory is directly spawnable, if anything. */

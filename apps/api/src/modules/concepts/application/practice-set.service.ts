@@ -29,6 +29,15 @@ import { interleave } from '../domain/practice-order.js';
 export interface GivenAnswer {
   selectedIndex: number | null;
   correct: boolean | null;
+  /**
+   * Which option was right, once they have picked one.
+   *
+   * Sent because a wrong answer is useless without it: the page marked the
+   * chosen option with a cross and never said which one was correct, so the
+   * explanation was arguing about something the reader could not see. Null
+   * until an option is picked, and for written questions always.
+   */
+  correctIndex: number | null;
   answer: string | null;
   selfRating: number | null;
   /** Revealed here only because they have already answered. */
@@ -811,6 +820,7 @@ export class PracticeSetService {
 function toGiven(
   question: {
     explanation: string;
+    correctIndex: number;
     modelAnswer: string | null;
     keyPoints: string[];
   },
@@ -826,6 +836,10 @@ function toGiven(
   return {
     selectedIndex: given.selectedIndex,
     correct: given.correct,
+    // Only once an option has been picked. `correctIndex` defaults to 0 on a
+    // written question's row, where it means nothing, so it must not leak out
+    // as though it did.
+    correctIndex: given.selectedIndex !== null ? question.correctIndex : null,
     answer: given.answer,
     selfRating: given.selfRating,
     explanation: question.explanation,

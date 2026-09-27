@@ -1125,6 +1125,8 @@ export function useAskConcept(conceptId: string | undefined) {
 export interface GivenAnswer {
   selectedIndex: number | null;
   correct: boolean | null;
+  /** Which option was right. Null until one is picked, and for written questions. */
+  correctIndex: number | null;
   answer: string | null;
   selfRating: number | null;
   explanation: string | null;

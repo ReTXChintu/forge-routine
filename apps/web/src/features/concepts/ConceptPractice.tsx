@@ -268,9 +268,10 @@ function MultipleChoice({
               cursor: settled ? 'default' : 'pointer',
               background: 'var(--surface-2)',
               borderColor: optionBorder(optionIndex, given),
-              // Only the chosen answer is marked. Greying the rest would say
-              // which were never in contention, which is half the question.
-              opacity: settled && optionIndex !== given.selectedIndex ? 0.5 : 1,
+              // Two options are marked once answered: the right one, and the
+              // one they chose. Dimming the rest keeps those two readable
+              // without saying anything about which of the others were close.
+              opacity: settled && !isMarked(optionIndex, given) ? 0.5 : 1,
             }}
           >
             <span className="row items-center g2">
@@ -281,14 +282,21 @@ function MultipleChoice({
               <span className="t-body">
                 <InlineMarkdown content={option} />
               </span>
-              {settled && optionIndex === given.selectedIndex && (
-                <span
-                  style={{
-                    color: given.correct ? 'var(--success)' : 'var(--error)',
-                    marginLeft: 'auto',
-                  }}
-                >
-                  <Icon name={given.correct ? 'check' : 'x'} size={14} />
+              {/*
+                The right answer, always shown once they have answered. It
+                was missing entirely: a wrong pick got a cross and nothing
+                said which option was correct, leaving the explanation
+                arguing about something invisible.
+              */}
+              {settled && optionIndex === given.correctIndex && (
+                <span style={{ color: 'var(--success)', marginLeft: 'auto' }}>
+                  <Icon name="check" size={14} />
+                </span>
+              )}
+
+              {settled && !given.correct && optionIndex === given.selectedIndex && (
+                <span style={{ color: 'var(--error)', marginLeft: 'auto' }}>
+                  <Icon name="x" size={14} />
                 </span>
               )}
             </span>
@@ -505,8 +513,20 @@ function describeQuestion(index: number, question: PracticeQuestionView): string
   return lines.join('\n\n');
 }
 
+/** The right answer, and a wrong choice. Everything else stays unmarked. */
+function isMarked(index: number, given: PracticeQuestionView['given']): boolean {
+  if (!given) return false;
+
+  return index === given.correctIndex || index === given.selectedIndex;
+}
+
 function optionBorder(index: number, given: PracticeQuestionView['given']): string | undefined {
   if (!given || given.selectedIndex === null) return undefined;
-  if (index === given.selectedIndex) return given.correct ? 'var(--success)' : 'var(--error)';
+
+  // Green wins where they got it right, so a correct answer is not outlined
+  // twice in two colours.
+  if (index === given.correctIndex) return 'var(--success)';
+  if (index === given.selectedIndex) return 'var(--error)';
+
   return undefined;
 }

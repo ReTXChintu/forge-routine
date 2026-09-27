@@ -91,6 +91,14 @@ export function ExerciseWorkspace() {
    * stops asking for work that is already finished.
    */
   const [solvedAt, setSolvedAt] = useState<string | null>(null);
+  /**
+   * True once this attempt has passed and the server has closed it.
+   *
+   * Distinct from `solvedAt`, which can be true from a previous visit while a
+   * fresh attempt is open. Only this one means "a further submission would be
+   * refused", which is what decides whether a diagnosis can still be revised.
+   */
+  const [attemptClosed, setAttemptClosed] = useState(false);
   const [restored, setRestored] = useState(false);
 
   // Advisory signals only. They never reach the Independent Coding Score —
@@ -129,6 +137,7 @@ export function ExerciseWorkspace() {
       // one to the starter.
       setCode(result.draftCode ?? result.exercise.brokenCode ?? result.exercise.starterCode ?? '');
       setRestored(result.draftCode !== null);
+      setAttemptClosed(false);
       setDiagnosis('');
       setDiagnosisResult(null);
       setExecution(null);
@@ -179,7 +188,10 @@ export function ExerciseWorkspace() {
     // Passing is the completion. The server has already ticked off the
     // routine item this exercise was planned for; the header says so here
     // rather than leaving the user hunting for a button to press.
-    if (result.attemptOutcome === 'PASSED') setSolvedAt(new Date().toISOString());
+    if (result.attemptOutcome === 'PASSED') {
+      setSolvedAt(new Date().toISOString());
+      setAttemptClosed(true);
+    }
   };
 
   const handleHint = async (kind: HintKind, overrideGate = false) => {
@@ -476,6 +488,7 @@ export function ExerciseWorkspace() {
               onChange={setDiagnosis}
               result={diagnosisResult}
               submitted={Boolean(diagnosisResult)}
+              canResubmit={!attemptClosed}
               onSubmit={() => void handleSubmit()}
               submitting={submitCode.isPending}
               canSubmit={started && code.trim().length > 0}

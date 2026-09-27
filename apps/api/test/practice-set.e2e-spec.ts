@@ -54,7 +54,12 @@ interface Question {
   id: string;
   kind: 'MCQ' | 'THEORY';
   options: string[];
-  given: { selectedIndex: number | null; selfRating: number | null } | null;
+  given: {
+    selectedIndex: number | null;
+    correctIndex: number | null;
+    correct: boolean | null;
+    selfRating: number | null;
+  } | null;
 }
 
 interface View {
@@ -191,6 +196,16 @@ afterAll(async () => {
   await app?.close();
 });
 
+/**
+ * The server's own rule, restated once here.
+ *
+ * A multiple-choice pick counts; prose counts only once it has been judged,
+ * because the reveal-then-rate step is where a written answer is actually
+ * compared against anything.
+ */
+const isAnswered = (given: NonNullable<Question['given']>) =>
+  given.selectedIndex !== null || given.selfRating !== null;
+
 const practice = async (): Promise<View> =>
   (await http.get(`/api/v1/concepts/${conceptId}/practice`).set(auth()).expect(200)).body;
 
@@ -240,6 +255,56 @@ describe('practice on a concept', () => {
     expect(wrong.body.completion.outstanding.questions).toBe(4);
   });
 
+  it('says which option was right, especially when they got it wrong', async () => {
+    // Reported as "when I answer wrong the correct answer is not shown". The
+    // page marked the chosen option with a cross and never said which one was
+    // correct, so the explanation argued about something invisible.
+    const mcq = (await practice()).questions.find(
+      (question) => question.kind === 'MCQ' && question.given === null,
+    )!;
+
+    await http
+      .post(`/api/v1/concepts/questions/${mcq.id}/choice`)
+      .set(auth())
+      .send({ selectedIndex: 2 })
+      .expect(200);
+
+    const answered = (await practice()).questions.find((question) => question.id === mcq.id)!;
+
+    expect(answered.given!.correct).toBe(false);
+    expect(answered.given!.selectedIndex).toBe(2);
+    // The whole point: available from the view, not only from the reply to
+    // the click, because the page re-renders from the view afterwards.
+    expect(answered.given!.correctIndex).toBe(0);
+  });
+
+  it('withholds the right option until one is picked', async () => {
+    const unanswered = (await practice()).questions.filter(
+      (question) => question.kind === 'MCQ' && question.given === null,
+    );
+
+    // `given` is null before answering, so there is nothing to leak — which is
+    // the property, stated rather than assumed.
+    for (const question of unanswered) {
+      expect(question.given).toBeNull();
+    }
+  });
+
+  it('never claims a right option for a written question', async () => {
+    // `correctIndex` defaults to 0 on a THEORY row, where it means nothing. It
+    // must not travel out looking like an answer key.
+    const theory = (await practice()).questions.find((question) => question.kind === 'THEORY')!;
+
+    await http
+      .post(`/api/v1/concepts/questions/${theory.id}/answer`)
+      .set(auth())
+      .send({ answer: 'One shared binding across the loop.' })
+      .expect(200);
+
+    const answered = (await practice()).questions.find((question) => question.id === theory.id)!;
+    expect(answered.given!.correctIndex).toBeNull();
+  });
+
   it('reveals the model answer only once theirs is in', async () => {
     const view = await practice();
     const theory = view.questions.find((q) => q.kind === 'THEORY')!;
@@ -259,9 +324,16 @@ describe('practice on a concept', () => {
     const answered = view.questions.find((q) => q.kind === 'THEORY' && q.given !== null)!;
 
     expect(answered.given!.selfRating).toBeNull();
-    // Four outstanding: two multiple choice and the two written ones, one of
-    // which has prose but no verdict yet.
-    expect(view.completion.outstanding.questions).toBe(4);
+
+    // Stated as a relationship, not a total: earlier cases in this file answer
+    // questions, so a magic number here breaks whenever one is added. What
+    // matters is that prose with no verdict still counts as outstanding —
+    // submitting an answer is not the same as having compared it to anything.
+    const unjudged = view.questions.filter(
+      (question) => question.given !== null && !isAnswered(question.given),
+    );
+    expect(unjudged.map((question) => question.id)).toContain(answered.id);
+    expect(view.completion.outstanding.questions).toBeGreaterThanOrEqual(unjudged.length);
   });
 
   it('finishes the concept once everything served is done, with nothing to press', async () => {

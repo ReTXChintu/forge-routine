@@ -8,6 +8,7 @@ import { learningDate, learningDayKey } from '@forgeroutine/utils';
 import { Problems } from '../../../common/http/problem-details.js';
 import { APP_CONFIG } from '../../../infrastructure/config/config.module.js';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { completionState, isAnswered } from '../../concepts/domain/practice-completion.js';
 import { GenerationService } from '../../generation/application/generation.service.js';
 import { RoadmapService } from '../../roadmap/application/roadmap.service.js';
 
@@ -141,12 +142,35 @@ export class RoutinesService {
     const planned: PlannedItem[] = [];
     const claimed = new Set<string>();
 
-    const [carried, dueReviews, dsa, roadmapItems] = await Promise.all([
+    const [carriedRaw, dueReviews, dsa, roadmapItems] = await Promise.all([
       this.unfinishedBefore(userId, date),
       this.dueReviews(userId),
       this.dsaBlock(userId),
       this.nextRoadmapItems(userId),
     ]);
+
+    // Concepts whose practice this user has already finished.
+    //
+    // Completion is recorded when an answer lands, against the rows that
+    // existed at that moment — so a concept finished on Tuesday was invisible
+    // to Wednesday's planner, which carried the old row forward and planned a
+    // fresh one beside it. Asking here as well makes the plan agree with the
+    // work regardless of which order the two happened in.
+    const finished = await this.completedConcepts(
+      userId,
+      [...carriedRaw, ...dsa, ...roadmapItems.map(toConceptCarrier)]
+        .map((item) => item.conceptId)
+        .filter((id): id is string => id !== null),
+    );
+
+    const carried = carriedRaw.filter((item) => {
+      // A LEARN row for a finished concept is done, not outstanding. An
+      // exercise row still stands on its own: a project or a standalone
+      // problem is finished by passing it, not by its concept completing.
+      if (item.exerciseId) return true;
+
+      return !(item.conceptId && finished.has(item.conceptId));
+    });
 
     // -- 0. Yesterday, and every day before it ----------------------------
     // Ahead of the budget check and never dropped. This is what makes the
@@ -191,6 +215,7 @@ export class RoutinesService {
       // the same problem in two rows.
       if (item.exerciseId && claimed.has(item.exerciseId)) continue;
       if (item.conceptId && item.kind === 'LEARN' && claimed.has(item.conceptId)) continue;
+      if (item.conceptId && finished.has(item.conceptId)) continue;
 
       planned.push(item);
       used += item.minutes;
@@ -202,6 +227,11 @@ export class RoutinesService {
     for (const item of roadmapItems) {
       if (used >= budget) break;
       if (item.exerciseId && claimed.has(item.exerciseId)) continue;
+      // Also by concept, not only by exercise. Without this a concept already
+      // carried forward was planned a second time beside its own carried row,
+      // and the day listed the same thing twice.
+      if (item.conceptId && claimed.has(item.conceptId)) continue;
+      if (item.conceptId && finished.has(item.conceptId)) continue;
 
       // Include an item that overruns only if nothing has been planned yet:
       // a 60-minute project against a 45-minute budget is better offered
@@ -239,6 +269,8 @@ export class RoutinesService {
         carriedFrom: null,
       });
       used += minutes;
+      if (item.conceptId) claimed.add(item.conceptId);
+      if (item.exerciseId) claimed.add(item.exerciseId);
     }
 
     const routine = await this.persist(userId, date, planned, existing?.id);
@@ -404,6 +436,62 @@ export class RoutinesService {
     }
   }
 
+  /**
+   * Of these concepts, the ones whose practice this user has already finished.
+   *
+   * The same rule the concept page applies, asked from the other side: every
+   * question served has an answer, and every exercise served has been passed.
+   * Shared as a function rather than restated, because two copies of "what
+   * finished means" would disagree the first time either moved.
+   *
+   * A concept that has never been opened has nothing served and is therefore
+   * not finished, which is what keeps new material being planned.
+   */
+  private async completedConcepts(
+    userId: string,
+    conceptIds: readonly string[],
+  ): Promise<Set<string>> {
+    const unique = [...new Set(conceptIds)];
+    if (unique.length === 0) return new Set();
+
+    const [assignments, answers, passed] = await Promise.all([
+      this.prisma.practiceAssignment.findMany({
+        where: { userId, conceptId: { in: unique } },
+        select: { conceptId: true, questionId: true, exerciseId: true },
+      }),
+      this.prisma.conceptQuestionAnswer.findMany({
+        where: { userId, conceptId: { in: unique } },
+        select: { questionId: true, selectedIndex: true, selfRating: true },
+      }),
+      this.prisma.exerciseAttempt.findMany({
+        where: { userId, outcome: 'PASSED', exercise: { conceptId: { in: unique } } },
+        select: { exerciseId: true },
+      }),
+    ]);
+
+    const answered = new Set(answers.filter((row) => isAnswered(row)).map((row) => row.questionId));
+    const passedIds = new Set(passed.map((row) => row.exerciseId));
+
+    const done = new Set<string>();
+
+    for (const conceptId of unique) {
+      const mine = assignments.filter((row) => row.conceptId === conceptId);
+
+      const state = completionState(
+        mine
+          .filter((row) => row.questionId !== null)
+          .map((row) => ({ questionId: row.questionId!, answered: answered.has(row.questionId!) })),
+        mine
+          .filter((row) => row.exerciseId !== null)
+          .map((row) => ({ exerciseId: row.exerciseId!, passed: passedIds.has(row.exerciseId!) })),
+      );
+
+      if (state.complete) done.add(conceptId);
+    }
+
+    return done;
+  }
+
   // -- Composition ----------------------------------------------------------
 
   /**
@@ -436,10 +524,18 @@ export class RoutinesService {
     const seen = new Set<string>();
 
     return stale.flatMap((item) => {
-      // The same concept can be outstanding from several days. Carrying
-      // every copy would show one task three times; carrying the oldest
-      // keeps the age honest.
-      const key = `${item.kind}:${item.conceptId ?? ''}:${item.exerciseId ?? ''}`;
+      // A row from the design where question batches were their own task.
+      // The planner stopped creating them, but carry-over kept copying the
+      // old ones forward for ever — putting the inside of a task back in the
+      // list of tasks, which is the thing that design change removed. Its
+      // concept is carried anyway, and the questions live on that page.
+      if (item.kind === 'RECALL') return [];
+
+      // Keyed on the concept rather than the kind as well. A concept that
+      // was once three rows — read it, questions on it, code for it — is one
+      // row now, and carrying each old kind separately would restore the
+      // list this was meant to collapse.
+      const key = item.exerciseId ?? item.conceptId ?? item.id;
       if (seen.has(key)) return [];
       seen.add(key);
 
@@ -743,4 +839,9 @@ function toItemView(item: {
     questionCount: item.questionCount,
     carriedFrom: item.carriedFrom?.toISOString() ?? null,
   };
+}
+
+/** Reads a roadmap item as something with a conceptId, for the finished check. */
+function toConceptCarrier(item: { conceptId: string | null }): { conceptId: string | null } {
+  return { conceptId: item.conceptId };
 }

@@ -153,6 +153,15 @@ describe("today's routine", () => {
     }
   });
 
+  it('plans a concept once, not once per source', async () => {
+    // A concept carried from an earlier day was planned again beside its own
+    // carried row, because the roadmap loop deduped on exercise only. The day
+    // then listed the same thing twice.
+    const concepts = items.filter((item) => item.conceptId !== null).map((item) => item.conceptId);
+
+    expect(new Set(concepts).size).toBe(concepts.length);
+  });
+
   it('explains why every item is there', async () => {
     // An opaque routine is not a trusted one, and an empty rationale on one
     // row is how that starts.
@@ -217,6 +226,40 @@ describe("today's routine", () => {
     expect(after.filter((item) => item.status === 'PENDING')).toHaveLength(0);
     expect(after.some((item) => item.status === 'CARRIED')).toBe(true);
   });
+
+  it('does not carry question batches from the old design', async () => {
+    // The planner stopped creating RECALL rows, but carry-over kept copying
+    // the existing ones forward for ever — putting the inside of a task back
+    // into the list of tasks.
+    const account = await prisma.user.findUnique({ where: { email: user.email } });
+    const routine = await prisma.routine.findFirst({
+      where: { userId: account!.id },
+      orderBy: { date: 'desc' },
+      include: { items: true },
+    });
+
+    // Parked several days back, not one: an earlier case in this file already
+    // moved a routine to yesterday, and `(userId, date)` is unique.
+    const earlier = new Date(routine!.date);
+    earlier.setDate(earlier.getDate() - 5);
+
+    await prisma.routineItem.create({
+      data: {
+        routineId: routine!.id,
+        kind: 'RECALL',
+        status: 'PENDING',
+        title: '2 questions on something',
+        minutes: 5,
+        orderIndex: 800,
+        conceptId: items.find((item) => item.conceptId !== null)!.conceptId,
+      },
+    });
+    await prisma.routine.update({ where: { id: routine!.id }, data: { date: earlier } });
+
+    const replanned = await http.get('/api/v1/routines/today').set(auth()).expect(200);
+
+    expect(replanned.body.items.filter((item: Item) => item.kind === 'RECALL')).toHaveLength(0);
+  }, 120_000);
 
   it('refuses to skip an item', async () => {
     const latest = await http.get('/api/v1/routines/today').set(auth()).expect(200);

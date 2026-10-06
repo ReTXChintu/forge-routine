@@ -79,7 +79,11 @@ export function ChallengeWorkspace() {
         </div>
 
         <div className="row items-center g3">
-          <SessionClock durationMs={session.durationMs} counting={session.counting} />
+          <SessionClock
+            durationMs={session.durationMs}
+            counting={session.counting}
+            pausedBecause={session.pausedBecause}
+          />
           <Badge variant="primary">{challenge.kind.replace('_', ' ').toLowerCase()}</Badge>
         </div>
       </div>

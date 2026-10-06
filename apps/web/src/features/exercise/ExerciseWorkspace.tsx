@@ -312,7 +312,11 @@ export function ExerciseWorkspace() {
         </div>
 
         <div className="row items-center g3">
-          <SessionClock durationMs={session.durationMs} counting={session.counting} />
+          <SessionClock
+            durationMs={session.durationMs}
+            counting={session.counting}
+            pausedBecause={session.pausedBecause}
+          />
 
           {started && <DraftStatus state={draftState} />}
 

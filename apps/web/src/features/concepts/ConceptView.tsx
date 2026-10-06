@@ -3,8 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { Assistant } from '~/components/Assistant';
 import { Icon } from '~/components/Icon';
+import { SessionClock } from '~/components/SessionClock';
 import { Badge, Card, SectionHead, Spinner, StatRow, StateBlock, Tabs } from '~/components/ui';
 import { useConceptDetail } from '~/lib/queries';
+import { useLearningSession } from '~/lib/useLearningSession';
 
 import { ConceptExplainer } from './ConceptExplainer';
 import { ConceptPractice } from './ConceptPractice';
@@ -29,6 +31,13 @@ export function ConceptView() {
   const [tab, setTab] = useState<string>(TABS[0]);
   const { data: concept, isLoading } = useConceptDetail(conceptId);
   const navigate = useNavigate();
+
+  // Counts from the moment the concept opens, across both tabs, and pauses
+  // when nobody is here. This page had no timer at all — reading and
+  // answering questions, most of the actual study, recorded nothing.
+  // Called before the early returns below, as hooks must be; the concept id
+  // comes from the route, so it does not wait for the page to load.
+  const session = useLearningSession(conceptId);
 
   /**
    * What the assistant can see: this tab, and nothing else.
@@ -75,9 +84,16 @@ export function ConceptView() {
         title={concept.name}
         description={concept.description}
         right={
-          <Badge variant={concept.difficulty >= 4 ? 'warning' : 'neutral'}>
-            Level {concept.difficulty}
-          </Badge>
+          <div className="row items-center g3">
+            <SessionClock
+              durationMs={session.durationMs}
+              counting={session.counting}
+              pausedBecause={session.pausedBecause}
+            />
+            <Badge variant={concept.difficulty >= 4 ? 'warning' : 'neutral'}>
+              Level {concept.difficulty}
+            </Badge>
+          </div>
         }
       />
 

@@ -65,7 +65,7 @@ beforeAll(async () => {
   userId = account!.id;
 
   concepts = (
-    await prisma.concept.findMany({ where: { archivedAt: null }, take: 12, select: { id: true } })
+    await prisma.concept.findMany({ where: { archivedAt: null }, take: 24, select: { id: true } })
   ).map((row) => row.id);
   expect(concepts.length).toBeGreaterThan(4);
 }, 120_000);
@@ -207,6 +207,126 @@ describe('learning sessions', () => {
 
     expect(again.body.durationMs).toBe(ended.body.durationMs);
     expect(again.body.endedAt).toBe(ended.body.endedAt);
+  });
+
+  it('banks the time up to a pause, then stops counting', async () => {
+    const started = await http
+      .post('/api/v1/sessions')
+      .set(auth())
+      .send({ conceptId: freshConcept() })
+      .expect(201);
+
+    await backdateBeat(started.body.id, 20);
+    const paused = await http
+      .post(`/api/v1/sessions/${started.body.id}/pause`)
+      .set(auth())
+      .expect(200);
+
+    // The twenty seconds before the pause are kept.
+    expect(paused.body.durationMs).toBeGreaterThanOrEqual(19_000);
+    expect(paused.body.durationMs).toBeLessThan(25_000);
+
+    const row = await prisma.learningSession.findUnique({ where: { id: started.body.id } });
+    expect(row!.lastBeatAt).toBeNull();
+    expect(row!.endedAt).toBeNull();
+  });
+
+  it('credits nothing for the time spent paused', async () => {
+    // The bug pausing exists to fix: coming back used to credit up to a minute
+    // of time spent away, because the first beat back measured from the last
+    // beat before leaving.
+    const started = await http
+      .post('/api/v1/sessions')
+      .set(auth())
+      .send({ conceptId: freshConcept() })
+      .expect(201);
+
+    await backdateBeat(started.body.id, 10);
+    const paused = await http
+      .post(`/api/v1/sessions/${started.body.id}/pause`)
+      .set(auth())
+      .expect(200);
+
+    // Away for "ten minutes" — the paused row has no beat to backdate, which is
+    // the point: there is no interval for the server to measure.
+    const resumed = await http
+      .post(`/api/v1/sessions/${started.body.id}/beat`)
+      .set(auth())
+      .expect(200);
+
+    expect(resumed.body.durationMs).toBe(paused.body.durationMs);
+
+    // And counting starts again from the moment of return.
+    await backdateBeat(started.body.id, 15);
+    const later = await http
+      .post(`/api/v1/sessions/${started.body.id}/beat`)
+      .set(auth())
+      .expect(200);
+
+    expect(later.body.durationMs - paused.body.durationMs).toBeGreaterThanOrEqual(14_000);
+    expect(later.body.durationMs - paused.body.durationMs).toBeLessThan(20_000);
+  });
+
+  it('pausing twice is the same as pausing once', async () => {
+    const started = await http
+      .post('/api/v1/sessions')
+      .set(auth())
+      .send({ conceptId: freshConcept() })
+      .expect(201);
+
+    await backdateBeat(started.body.id, 10);
+    const first = await http
+      .post(`/api/v1/sessions/${started.body.id}/pause`)
+      .set(auth())
+      .expect(200);
+    const second = await http
+      .post(`/api/v1/sessions/${started.body.id}/pause`)
+      .set(auth())
+      .expect(200);
+
+    expect(second.body.durationMs).toBe(first.body.durationMs);
+  });
+
+  it('banks nothing extra when a paused session is closed', async () => {
+    const started = await http
+      .post('/api/v1/sessions')
+      .set(auth())
+      .send({ conceptId: freshConcept() })
+      .expect(201);
+
+    await backdateBeat(started.body.id, 10);
+    const paused = await http
+      .post(`/api/v1/sessions/${started.body.id}/pause`)
+      .set(auth())
+      .expect(200);
+    const closed = await http
+      .post(`/api/v1/sessions/${started.body.id}/complete`)
+      .set(auth())
+      .expect(200);
+
+    // Closing the tab after leaving it hidden must not claim the hidden time.
+    expect(closed.body.durationMs).toBe(paused.body.durationMs);
+  });
+
+  it('resumes a paused session when the concept is opened again', async () => {
+    const concept = freshConcept();
+    const started = await http
+      .post('/api/v1/sessions')
+      .set(auth())
+      .send({ conceptId: concept })
+      .expect(201);
+    await http.post(`/api/v1/sessions/${started.body.id}/pause`).set(auth()).expect(200);
+
+    const reopened = await http
+      .post('/api/v1/sessions')
+      .set(auth())
+      .send({ conceptId: concept })
+      .expect(201);
+
+    // The same session, now counting again rather than stuck paused.
+    expect(reopened.body.id).toBe(started.body.id);
+    const row = await prisma.learningSession.findUnique({ where: { id: started.body.id } });
+    expect(row!.lastBeatAt).not.toBeNull();
   });
 
   it('refuses to beat a session belonging to someone else', async () => {

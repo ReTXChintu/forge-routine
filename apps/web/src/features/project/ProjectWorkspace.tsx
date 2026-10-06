@@ -90,7 +90,11 @@ export function ProjectWorkspace() {
         </div>
 
         <div className="row items-center g3">
-          <SessionClock durationMs={session.durationMs} counting={session.counting} />
+          <SessionClock
+            durationMs={session.durationMs}
+            counting={session.counting}
+            pausedBecause={session.pausedBecause}
+          />
 
           <Badge variant="primary" icon="layers">
             Project

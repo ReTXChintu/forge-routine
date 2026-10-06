@@ -49,7 +49,22 @@ export class SessionsService {
       orderBy: { startedAt: 'desc' },
     });
 
-    if (open) return toSession(open);
+    if (open) {
+      // A session left paused — tab hidden, window blurred, nobody typing — is
+      // resumed by somebody opening it again. Only when paused, though: an
+      // open session that is *not* paused is being counted in another tab,
+      // and resetting its clock here would throw that tab's current interval
+      // away.
+      if (open.lastBeatAt === null) {
+        const resumed = await this.prisma.learningSession.update({
+          where: { id: open.id },
+          data: { lastBeatAt: new Date() },
+        });
+        return toSession(resumed);
+      }
+
+      return toSession(open);
+    }
 
     const now = new Date();
     const row = await this.prisma.learningSession.create({
@@ -80,6 +95,19 @@ export class SessionsService {
     if (existing.endedAt) return toSession(existing);
 
     const now = new Date();
+
+    // Paused: this beat means "back". It banks nothing — the gap since the
+    // pause is exactly the time that must not count — and starts the clock
+    // again from now. Before pausing existed, coming back credited up to a
+    // minute of time spent away.
+    if (existing.lastBeatAt === null) {
+      const resumed = await this.prisma.learningSession.update({
+        where: { id },
+        data: { lastBeatAt: now },
+      });
+      return toSession(resumed);
+    }
+
     const banked = this.bankable(existing, now);
 
     const row = await this.prisma.learningSession.update({
@@ -96,6 +124,33 @@ export class SessionsService {
     return toSession(row);
   }
 
+  /**
+   * "Not here any more" — the tab was hidden, the window lost focus, or
+   * nobody touched anything for long enough.
+   *
+   * Banks the interval up to this moment, then marks the session paused by
+   * clearing `lastBeatAt`. That is what makes the next beat a resumption
+   * rather than a claim for the time in between. Idempotent: pausing a paused
+   * session changes nothing.
+   */
+  async pause(userId: string, id: string): Promise<LearningSession> {
+    const existing = await this.load(userId, id);
+    if (existing.endedAt || existing.lastBeatAt === null) return toSession(existing);
+
+    const now = new Date();
+    const banked = this.bankable(existing, now);
+
+    const row = await this.prisma.learningSession.update({
+      where: { id },
+      data: {
+        lastBeatAt: null,
+        durationMs: Math.min((existing.durationMs ?? 0) + banked, MAX_SESSION_MS),
+      },
+    });
+
+    return toSession(row);
+  }
+
   async complete(userId: string, id: string): Promise<LearningSession> {
     const existing = await this.load(userId, id);
     if (existing.endedAt) return toSession(existing);
@@ -106,7 +161,9 @@ export class SessionsService {
       where: { id },
       data: {
         endedAt: now,
-        lastBeatAt: now,
+        // A paused session stays paused: its last real beat is the honest end
+        // of the counted time, and stamping `now` would claim otherwise.
+        ...(existing.lastBeatAt !== null ? { lastBeatAt: now } : {}),
         durationMs: Math.min(
           (existing.durationMs ?? 0) + this.bankable(existing, now),
           MAX_SESSION_MS,
@@ -131,7 +188,11 @@ export class SessionsService {
    * interval, so a single lost request is forgiven rather than deducted.
    */
   private bankable(session: { lastBeatAt: Date | null; startedAt: Date }, now: Date): number {
-    const since = (session.lastBeatAt ?? session.startedAt).getTime();
+    // Null is "paused", not "never beaten": every session is created with a
+    // beat at its start. Paused time is the time that must not count.
+    if (session.lastBeatAt === null) return 0;
+
+    const since = session.lastBeatAt.getTime();
     return Math.max(0, Math.min(now.getTime() - since, MAX_GAP_MS));
   }
 

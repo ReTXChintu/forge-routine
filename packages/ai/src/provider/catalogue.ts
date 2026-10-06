@@ -7,13 +7,14 @@
  * disagree within a month.
  */
 
-export type AIVendor = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'CLAUDE_CODE';
+export type AIVendor = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'CLAUDE_CODE' | 'CODEX';
 
 export const AI_VENDORS: readonly AIVendor[] = [
   'OPENAI',
   'ANTHROPIC',
   'GEMINI',
   'CLAUDE_CODE',
+  'CODEX',
 ] as const;
 
 export interface VendorProfile {
@@ -83,6 +84,24 @@ export const AI_VENDOR_PROFILES: Record<AIVendor, VendorProfile> = {
       'so there is no key to paste. Only available where the server itself runs — not on a ' +
       'remote deployment. Slower than the API, and every call carries Claude Code’s own ' +
       'context, so it suits the assistant better than bulk generation.',
+  },
+  CODEX: {
+    id: 'CODEX',
+    label: 'ChatGPT via Codex (local)',
+    keyUrl: 'https://developers.openai.com/codex',
+    baseUrl: 'local://codex',
+    keyPrefix: '',
+    keyless: true,
+    // Codex has no command that lists the models a ChatGPT plan may use, so
+    // rather than guess names this leaves the choice to Codex's own config.
+    defaultFast: 'codex-default',
+    defaultReasoning: 'codex-default',
+    defaultEmbedding: null,
+    note:
+      'Runs the Codex CLI on this machine and answers as the ChatGPT account it is signed in as, ' +
+      'so there is no key to paste. Only available where the server itself runs — not on a ' +
+      'remote deployment. Slower than the API, so it suits the assistant better than bulk ' +
+      'generation.',
   },
   GEMINI: {
     id: 'GEMINI',

@@ -926,7 +926,7 @@ export function useSubmitWritten() {
 
 // -- Settings: AI provider ---------------------------------------------------
 
-export type AIVendorId = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'CLAUDE_CODE';
+export type AIVendorId = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'CLAUDE_CODE' | 'CODEX';
 
 export interface VendorSettingView {
   id: AIVendorId;

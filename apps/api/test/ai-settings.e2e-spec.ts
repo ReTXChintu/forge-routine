@@ -64,6 +64,7 @@ describe('AI provider settings', () => {
     expect(response.body.vendors.map((v: { id: string }) => v.id).sort()).toEqual([
       'ANTHROPIC',
       'CLAUDE_CODE',
+      'CODEX',
       'GEMINI',
       'OPENAI',
     ]);
@@ -73,34 +74,37 @@ describe('AI provider settings', () => {
     }
   });
 
-  it('marks exactly one vendor as keyless', async () => {
-    // Claude Code runs a CLI that is already signed in, so there is no key to
-    // paste — the settings form reads this to stop asking for something that
-    // does not exist. Every other vendor must still demand one.
+  it('marks only the local CLI vendors as keyless', async () => {
+    // Claude Code and Codex run a CLI that is already signed in, so there is no
+    // key to paste — the settings form reads this to stop asking for something
+    // that does not exist. Every other vendor must still demand one.
     const response = await http.get('/api/v1/settings/ai').set(auth()).expect(200);
 
     const keyless = response.body.vendors.filter((v: { keyless: boolean }) => v.keyless);
-    expect(keyless.map((v: { id: string }) => v.id)).toEqual(['CLAUDE_CODE']);
+    expect(keyless.map((v: { id: string }) => v.id).sort()).toEqual(['CLAUDE_CODE', 'CODEX']);
   });
 
-  it('reports whether the local CLI vendor can run on this machine', async () => {
-    // Every HTTP vendor can always be reached in principle; Claude Code runs a
-    // process that has to exist here, so it is the only one that can answer
-    // "no" — and it must answer before being chosen, not on the first question.
+  it('reports whether the local CLI vendors can run on this machine', async () => {
+    // Every HTTP vendor can always be reached in principle; Claude Code and
+    // Codex run a process that has to exist here, so they are the only ones
+    // that can answer "no" — and must answer before being chosen, not on the
+    // first question.
     const response = await http.get('/api/v1/settings/ai').set(auth()).expect(200);
 
-    for (const vendor of response.body.vendors) {
-      if (vendor.id === 'CLAUDE_CODE') continue;
-      expect(vendor.available).toBe(true);
-      expect(vendor.unavailableReason).toBeNull();
-    }
+    const local: Record<string, string> = { CLAUDE_CODE: 'CLAUDE_CODE_BIN', CODEX: 'CODEX_BIN' };
 
-    const claudeCode = response.body.vendors.find((v: { id: string }) => v.id === 'CLAUDE_CODE');
-    expect(typeof claudeCode.available).toBe('boolean');
-    // Whichever way it goes, an unavailable vendor must say why in words the
-    // reader can act on rather than leaving them to find out by failing.
-    if (!claudeCode.available) {
-      expect(claudeCode.unavailableReason).toContain('CLAUDE_CODE_BIN');
+    for (const vendor of response.body.vendors) {
+      const override = local[vendor.id];
+      if (!override) {
+        expect(vendor.available).toBe(true);
+        expect(vendor.unavailableReason).toBeNull();
+        continue;
+      }
+
+      expect(typeof vendor.available).toBe('boolean');
+      // Whichever way it goes, an unavailable vendor must say why in words the
+      // reader can act on rather than leaving them to find out by failing.
+      if (!vendor.available) expect(vendor.unavailableReason).toContain(override);
     }
   });
 
@@ -164,6 +168,34 @@ describe('AI provider settings', () => {
 
     // Put the suite back where it found it: later cases assume no selection.
     await http.delete('/api/v1/settings/ai/keys/CLAUDE_CODE').set(auth()).expect(200);
+  });
+
+  it('enables and selects Codex with no key, where it is installed', async () => {
+    const codex = (await http.get('/api/v1/settings/ai').set(auth()).expect(200)).body.vendors.find(
+      (v: { id: string }) => v.id === 'CODEX',
+    );
+
+    // Only meaningful where the CLI exists; elsewhere the refusal case covers it.
+    if (!codex.available) {
+      await http.put('/api/v1/settings/ai/keys/CODEX').set(auth()).send({}).expect(400);
+      return;
+    }
+
+    await http
+      .put('/api/v1/settings/ai/keys/CODEX')
+      .set(auth())
+      .send({ apiKey: 'sk-should-be-refused' })
+      .expect(400);
+    await http.put('/api/v1/settings/ai/keys/CODEX').set(auth()).send({}).expect(200);
+
+    const selected = await http
+      .put('/api/v1/settings/ai/provider')
+      .set(auth())
+      .send({ provider: 'CODEX' })
+      .expect(200);
+    expect(selected.body.selected).toBe('CODEX');
+
+    await http.delete('/api/v1/settings/ai/keys/CODEX').set(auth()).expect(200);
   });
 
   it('refuses to select a vendor with no key', async () => {

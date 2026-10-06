@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process';
 import { access, mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
@@ -20,6 +19,7 @@ import {
   type StructuredRequest,
   type StructuredResult,
 } from '../ai-provider.port.js';
+import { flattenPrompt, runCli } from '../cli/run-cli.js';
 import { stripAbsent, toStrictSchema } from '../openai/strict-schema.js';
 
 /**
@@ -248,7 +248,7 @@ export class ClaudeCodeProvider implements AIProvider {
     context: CallContext,
     jsonSchema: Record<string, unknown> | null,
   ): Promise<CliResult> {
-    const { system, conversation } = flatten(prompt);
+    const { system, conversation } = flattenPrompt(prompt);
 
     // An empty directory, so the CLI has no project to discover: run it in the
     // API's own working directory and it would load this repository's
@@ -306,140 +306,38 @@ export class ClaudeCodeProvider implements AIProvider {
     return args;
   }
 
+  /**
+   * Runs the CLI and returns its stdout, failing as Claude Code fails.
+   *
+   * The process handling itself is shared with Codex in `runCli`; what is
+   * specific here is the reading of the exit: a run that printed something is
+   * worth parsing whatever its code, because Claude Code reports most of its
+   * own failures inside a JSON envelope on stdout rather than through it.
+   */
   private async spawnCli(
     args: readonly string[],
     input: string,
     cwd: string,
     context: CallContext,
   ): Promise<string> {
-    const binary = this.options.binary ?? (await resolveBinary());
-
-    return new Promise<string>((resolve, reject) => {
-      const child = spawn(binary, this.cliArgs([...args]), {
-        cwd,
-        // Never through a shell. cmd.exe re-splits the argument list, which
-        // turns `--json-schema {"type":"object",...}` into a dozen tokens and
-        // the call fails in a way that looks like the model misbehaving.
-        // Resolving the real executable instead is what makes that avoidable
-        // — see `resolveBinary`.
-        shell: false,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-
-      let stdout = '';
-      let stderr = '';
-      let settled = false;
-
-      const finish = (run: () => void) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        run();
-      };
-
-      const timer = setTimeout(() => {
-        finish(() => {
-          child.kill();
-          reject(
-            new AIUnavailable(
-              context.agent,
-              new Error(`Claude Code did not finish within ${this.options.timeoutMs}ms`),
-            ),
-          );
-        });
-      }, this.options.timeoutMs);
-
-      // An aborted request should not leave a process running for a minute.
-      const onAbort = () =>
-        finish(() => {
-          child.kill();
-          reject(new AIUnavailable(context.agent, new Error('Cancelled')));
-        });
-      context.signal?.addEventListener('abort', onAbort, { once: true });
-
-      child.stdout.on('data', (chunk: Buffer) => {
-        stdout += chunk.toString();
-      });
-      child.stderr.on('data', (chunk: Buffer) => {
-        stderr += chunk.toString();
-      });
-
-      child.on('error', (error) =>
-        finish(() =>
-          reject(
-            new AIUnavailable(
-              context.agent,
-              // "spawn ENOENT" tells a user nothing they can act on, and
-              // "install it" is wrong for the common case of an installed CLI
-              // a service process cannot see.
-              new Error(
-                isMissing(error)
-                  ? describeMissingBinary()
-                  : `Could not start the Claude Code CLI (${error.message}).`,
-              ),
-            ),
-          ),
-        ),
-      );
-
-      child.on('close', (code) =>
-        finish(() => {
-          context.signal?.removeEventListener('abort', onAbort);
-
-          if (code === 0 || stdout.trim().length > 0) {
-            resolve(stdout.trim());
-            return;
-          }
-
-          reject(
-            new AIUnavailable(
-              context.agent,
-              new Error(
-                `Claude Code exited with ${code}: ${stderr.trim().slice(0, 400) || '(no output)'}`,
-              ),
-            ),
-          );
-        }),
-      );
-
-      // Written concurrently with the readers above. Closing the pipe is how
-      // the CLI knows the prompt is complete — it reads to EOF rather than to
-      // a length it was told in advance.
-      child.stdin.on('error', () => undefined);
-      child.stdin.end(input);
+    const { stdout, stderr, code } = await runCli({
+      binary: this.options.binary ?? (await resolveBinary()),
+      args: this.cliArgs([...args]),
+      input,
+      cwd,
+      timeoutMs: this.options.timeoutMs,
+      context,
+      tool: 'Claude Code',
+      describeMissing: describeMissingBinary,
     });
+
+    if (code === 0 || stdout.trim().length > 0) return stdout.trim();
+
+    throw new AIUnavailable(
+      context.agent,
+      new Error(`Claude Code exited with ${code}: ${stderr.trim().slice(0, 400) || '(no output)'}`),
+    );
   }
-}
-
-/**
- * Flattens a prompt into one system string and one user turn.
- *
- * `claude -p` takes a single prompt, so a conversation has to be written out
- * rather than sent as turns. Roles are labelled so the model can still tell
- * who said what; this is a real fidelity loss against the Messages API and
- * the reason this provider suits a chat better than a long transcript.
- */
-function flatten(prompt: PromptSpec): { system: string | null; conversation: string } {
-  const system = prompt.messages
-    .filter((message) => message.role === 'system')
-    .map((message) => message.content)
-    .join('\n\n');
-
-  const rest = prompt.messages.filter((message) => message.role !== 'system');
-
-  // A lone user message is by far the common case — every generation agent —
-  // and sending it unlabelled keeps those prompts exactly as written.
-  const conversation =
-    rest.length === 1
-      ? rest[0]!.content
-      : rest
-          .map(
-            (message) =>
-              `${message.role === 'assistant' ? 'Assistant' : 'User'}: ${message.content}`,
-          )
-          .join('\n\n');
-
-  return { system: system.length > 0 ? system : null, conversation };
 }
 
 /**
@@ -643,9 +541,4 @@ async function exists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-/** ENOENT specifically — the file is not there, as opposed to refusing to run. */
-function isMissing(error: unknown): boolean {
-  return (error as { code?: string } | null)?.code === 'ENOENT';
 }

@@ -3,7 +3,9 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   AI_VENDOR_PROFILES,
   describeMissingBinary,
+  describeMissingCodex,
   findBinary,
+  findCodexBinary,
   buildAIProvider,
   describeAIFailure,
   isAIVendor,
@@ -147,14 +149,22 @@ export class AISettingsService {
   private async availability(): Promise<
     Map<AIVendor, { available: boolean; reason: string | null }>
   > {
-    const found = await findBinary();
+    // Both checked together: each is a filesystem probe, and Codex's may also
+    // ask Windows where the Codex app is installed.
+    const [claudeCode, codex] = await Promise.all([findBinary(), findCodexBinary()]);
 
     return new Map([
       [
         'CLAUDE_CODE' as AIVendor,
-        found
+        claudeCode
           ? { available: true, reason: null }
           : { available: false, reason: describeMissingBinary() },
+      ],
+      [
+        'CODEX' as AIVendor,
+        codex
+          ? { available: true, reason: null }
+          : { available: false, reason: describeMissingCodex() },
       ],
     ]);
   }

@@ -1236,6 +1236,10 @@ enum AIProviderKind {
   /// the API process itself runs, so a local or desktop build rather than a
   /// deployed server.
   CLAUDE_CODE
+  /// ChatGPT through the locally installed Codex CLI. Keyless — it answers as
+  /// whatever ChatGPT account that CLI is signed in as — and, like Claude Code,
+  /// only works where the API process itself runs.
+  CODEX
 }
 
 /// What a concept question asks for.

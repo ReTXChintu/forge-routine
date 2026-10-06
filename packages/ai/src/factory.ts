@@ -2,6 +2,7 @@ import { type AIProvider } from './provider/ai-provider.port.js';
 import { AnthropicProvider } from './provider/anthropic/anthropic.provider.js';
 import { AI_VENDOR_PROFILES } from './provider/catalogue.js';
 import { ClaudeCodeProvider } from './provider/claude-code/claude-code.provider.js';
+import { CodexProvider } from './provider/codex/codex.provider.js';
 import { GeminiProvider } from './provider/gemini/gemini.provider.js';
 import { OpenAIProvider } from './provider/openai/openai.provider.js';
 import type { ResolvedVendor } from './provider/routing.provider.js';
@@ -44,6 +45,17 @@ export function buildAIProvider(resolved: ResolvedVendor, options: BuildOptions)
         // Generous against the other vendors. Process start plus an agent
         // loop is seconds even for a short answer, and a timeout that fires
         // on a working call is worse than a slow one.
+        timeoutMs: Math.max(options.timeoutMs, 120_000),
+      });
+
+    case 'CODEX':
+      // Keyless, like Claude Code: the CLI carries its own sign-in.
+      return new CodexProvider({
+        modelFast: resolved.modelFast,
+        modelReasoning: resolved.modelReasoning,
+        // Generous: process start plus an agent turn is seconds even for a
+        // short answer, and a timeout that fires on a working call is worse
+        // than a slow one.
         timeoutMs: Math.max(options.timeoutMs, 120_000),
       });
 

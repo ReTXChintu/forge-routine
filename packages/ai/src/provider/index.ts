@@ -21,3 +21,11 @@ export {
 } from './claude-code/claude-code.provider.js';
 export { toGeminiSchema } from './gemini/gemini-schema.js';
 export { FakeAIProvider, type FakeResponse } from './testing/fake.provider.js';
+export {
+  CODEX_DEFAULT_MODEL,
+  CodexProvider,
+  describeMissingCodex,
+  findCodexBinary,
+  resolveCodexBinary,
+  type CodexProviderOptions,
+} from './codex/codex.provider.js';

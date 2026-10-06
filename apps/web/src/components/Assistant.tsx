@@ -68,6 +68,26 @@ export function Assistant({
     }
   }, [open, messages?.length, ask.isPending]);
 
+  /**
+   * Tells the shell to narrow while the panel is open.
+   *
+   * An attribute on the root element rather than lifted state: the panel is
+   * rendered inside two unrelated feature screens, and the shell that would
+   * need the flag wraps both of them. Cleared on unmount as well as on close,
+   * or navigating away with it open would leave the app permanently inset
+   * beside a panel that is no longer there.
+   */
+  useEffect(() => {
+    const root = document.documentElement;
+
+    if (open) root.dataset.assistant = 'open';
+    else delete root.dataset.assistant;
+
+    return () => {
+      delete root.dataset.assistant;
+    };
+  }, [open]);
+
   // Escape closes it, like every other panel that covers your work.
   useEffect(() => {
     if (!open) return;

@@ -492,3 +492,61 @@ export default function mapAll<T, U>(items: T[], fn: Mapper<T, U>): U[] {
     expect(result.stderr.length).toBeGreaterThan(0);
   }, 20_000);
 });
+
+/**
+ * A scratchpad run: code with no tests, kept for its output.
+ *
+ * The "Try it out" button beside a worked example runs here. Nothing is
+ * graded, so a default export is pointless — and demanding one used to refuse
+ * exactly the code somebody writes to try an idea out: a few statements and a
+ * console.log.
+ */
+describe('runInSandbox: no test cases', () => {
+  it('runs top-level code and keeps what it printed', async () => {
+    const result = await runInSandbox(
+      {
+        code: 'const a = [1, 2, 3];\na.reverse();\nconsole.log(a.join(","));\n',
+        language: 'javascript',
+        testCases: [],
+      },
+      options,
+    );
+
+    expect(result.stdout).toContain('3,2,1');
+    expect(result.testsTotal).toBe(0);
+  });
+
+  it('does not demand a default export when nothing will call one', async () => {
+    const result = await runInSandbox(
+      { code: 'console.log("hello");\n', language: 'javascript', testCases: [] },
+      options,
+    );
+
+    expect(result.status).not.toBe('COMPILE_ERROR');
+    expect(result.stdout).toContain('hello');
+  });
+
+  it('still reports a real syntax error', async () => {
+    const result = await runInSandbox(
+      { code: 'const a = ;\n', language: 'javascript', testCases: [] },
+      options,
+    );
+
+    expect(result.status).toBe('COMPILE_ERROR');
+  });
+
+  it('still demands a default export once there is a test', async () => {
+    // The guarantee the change must not weaken: a graded exercise with no
+    // export has to say so, rather than failing an assertion confusingly.
+    const result = await runInSandbox(
+      {
+        code: 'console.log("no export here");\n',
+        language: 'javascript',
+        testCases: [{ name: 'calls it', hidden: false, code: 'assert.ok(solution());' }],
+      },
+      options,
+    );
+
+    expect(result.status).toBe('COMPILE_ERROR');
+  });
+});

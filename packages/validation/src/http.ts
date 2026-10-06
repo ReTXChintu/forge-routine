@@ -172,6 +172,20 @@ export const saveDraftSchema = z.object({
 
 export type SaveDraftInput = z.infer<typeof saveDraftSchema>;
 
+/**
+ * A scratchpad run: code kept for what it prints, not for whether it passes.
+ *
+ * Smaller ceiling than a submission on purpose. This is for trying an idea
+ * from a worked example, and anything approaching 8 KB is a project that
+ * belongs in an exercise with tests behind it.
+ */
+export const runScratchSchema = z.object({
+  code: z.string().min(1).max(8_192),
+  language: languageSchema,
+});
+
+export type RunScratchInput = z.infer<typeof runScratchSchema>;
+
 // -- Submissions -------------------------------------------------------------
 
 export const clientSignalsSchema = z.object({

@@ -1122,6 +1122,14 @@ export function useAskConcept(conceptId: string | undefined) {
 
 // -- Practice ----------------------------------------------------------------
 
+export interface WrittenGrade {
+  /** Out of five. */
+  score: number;
+  correct: string[];
+  wrong: string[];
+  improve: string[];
+}
+
 export interface GivenAnswer {
   selectedIndex: number | null;
   correct: boolean | null;
@@ -1132,6 +1140,8 @@ export interface GivenAnswer {
   explanation: string | null;
   modelAnswer: string | null;
   keyPoints: string[];
+  /** The mark, where one was produced. Null when self-rated or unjudged. */
+  grade: WrittenGrade | null;
 }
 
 export interface PracticeQuestionView {
@@ -1235,6 +1245,8 @@ export function useAnswerMcq(conceptId: string | undefined) {
 export interface TheoryAnswerResult {
   modelAnswer: string;
   keyPoints: string[];
+  /** Null when there was no AI to mark it, which falls back to self-rating. */
+  grade: WrittenGrade | null;
 }
 
 export function useAnswerTheory(conceptId: string | undefined) {
@@ -1338,5 +1350,29 @@ export function useSetTutorModel() {
     mutationFn: (model: string | null) =>
       apiRequest<TutorModelView>('/settings/ai/tutor', { method: 'PUT', body: { model } }),
     onSuccess: (view) => queryClient.setQueryData(tutorModelKey, view),
+  });
+}
+
+// -- Scratchpad --------------------------------------------------------------
+
+export interface ScratchRunResult {
+  status: string;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  truncated: boolean;
+}
+
+/**
+ * Runs a snippet for what it prints.
+ *
+ * No cache and no invalidation, because nothing is stored: trying an example
+ * out records nothing, scores nothing, and cannot change whether a concept
+ * counts as finished. Ignoring the button has to stay free.
+ */
+export function useRunScratch() {
+  return useMutation({
+    mutationFn: ({ code, language }: { code: string; language: 'javascript' | 'typescript' }) =>
+      apiRequest<ScratchRunResult>('/playground/run', { method: 'POST', body: { code, language } }),
   });
 }

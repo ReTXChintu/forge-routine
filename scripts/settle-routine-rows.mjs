@@ -2,8 +2,9 @@
  * Ticks off routine rows for concepts whose practice is already finished, and
  * drops the question-batch rows left over from an older design.
  *
- *   pnpm db:settle-routines           # dry run
- *   pnpm db:settle-routines --apply   # do it
+ *   pnpm db:settle-routines                           # dry run, every user
+ *   pnpm db:settle-routines --user you@example.com    # dry run, one user
+ *   pnpm db:settle-routines --user you@example.com --apply
  *
  * The planner now skips a finished concept, but it only decides what to plan
  * *next* — rows already written stay outstanding for ever. Completion is
@@ -21,10 +22,27 @@ const require = createRequire(resolve(import.meta.dirname, '../apps/api/index.js
 const { PrismaClient } = require('@prisma/client');
 
 const apply = process.argv.includes('--apply');
+const userFlag = process.argv.indexOf('--user');
+const email = userFlag >= 0 ? process.argv[userFlag + 1] : null;
 const prisma = new PrismaClient();
 
+// Scoped to one account when asked, so a repair for one person cannot touch
+// anybody else's rows by being more general than it needed to be.
+let userId;
+if (email) {
+  const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  if (!user) {
+    console.log(`No user with email ${email}. Nothing done.`);
+    process.exit(1);
+  }
+  userId = user.id;
+}
+
 const outstanding = await prisma.routineItem.findMany({
-  where: { status: { in: ['PENDING', 'IN_PROGRESS'] } },
+  where: {
+    status: { in: ['PENDING', 'IN_PROGRESS'] },
+    ...(userId ? { routine: { userId } } : {}),
+  },
   include: { routine: { select: { userId: true, id: true } } },
 });
 
@@ -39,7 +57,7 @@ async function isFinished(userId, conceptId) {
 
   const answers = await prisma.conceptQuestionAnswer.findMany({
     where: { userId, conceptId },
-    select: { questionId: true, selectedIndex: true, selfRating: true },
+    select: { questionId: true, selectedIndex: true, selfRating: true, gradeScore: true },
   });
   const passed = await prisma.exerciseAttempt.findMany({
     where: { userId, outcome: 'PASSED', exercise: { conceptId } },
@@ -47,7 +65,10 @@ async function isFinished(userId, conceptId) {
   });
 
   const answered = new Set(
-    answers.filter((a) => a.selectedIndex !== null || a.selfRating !== null).map((a) => a.questionId),
+    answers
+      // A written answer counts once judged — by a marker or by its writer.
+      .filter((a) => a.selectedIndex !== null || a.selfRating !== null || a.gradeScore !== null)
+      .map((a) => a.questionId),
   );
   const passedIds = new Set(passed.map((p) => p.exerciseId));
 
@@ -65,6 +86,10 @@ for (const item of outstanding) {
     continue;
   }
   if (!item.conceptId || item.exerciseId) continue;
+  // A review is not settled by the concept having been finished once — that is
+  // exactly when reviews fall due. It needs a fresh batch answered after it was
+  // planned, which the app settles itself as the answers land.
+  if (item.kind === 'REVIEW') continue;
   if (await isFinished(item.routine.userId, item.conceptId)) done.push(item);
 }
 

@@ -5,7 +5,7 @@ import type {
   HintRequest,
   UnitScore,
 } from './domain.js';
-import type { HintKind, SupportedLanguage } from './enums.js';
+import type { ExecutionStatus, HintKind, SupportedLanguage } from './enums.js';
 
 /** Cursor pagination envelope used by every list endpoint (docs/api.md). */
 export interface Paginated<T> {
@@ -46,6 +46,22 @@ export interface StartAttemptResponse {
    * inviting them to do it twice.
    */
   solvedAt: string | null;
+}
+
+/**
+ * What a scratchpad run reports back.
+ *
+ * Deliberately not an `ExecutionResult`: there are no tests, so there is no
+ * pass, no score and nothing to redact. Sending the fuller shape would invite
+ * a caller to read `passed` on something nobody graded.
+ */
+export interface ScratchRunResult {
+  status: ExecutionStatus;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  /** True when output hit the sandbox ceiling and was cut. */
+  truncated: boolean;
 }
 
 export interface SubmitCodeRequest {

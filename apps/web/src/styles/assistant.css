@@ -64,3 +64,35 @@
     border-left: none;
   }
 }
+
+/*
+ * The shell gives up the width rather than being covered.
+ *
+ * The panel is position: fixed, so it sits over everything by default — and
+ * reading an explanation or a failing test while the thing you are asking
+ * about is behind the panel is the opposite of the point. Padding the shell
+ * makes the app narrower instead, so both stay visible.
+ *
+ * Driven by an attribute on the root element because the panel lives inside
+ * two unrelated feature screens while the shell wrapping them is a third.
+ * Threading its open state up through both of those to reach the shell would
+ * be a larger change for exactly this result.
+ */
+.app-shell {
+  transition: padding-right 0.16s ease;
+}
+
+:root[data-assistant='open'] .app-shell {
+  padding-right: 400px;
+}
+
+/*
+ * Below the panel's own width it goes full screen, so there is no room to give
+ * up — padding the shell to zero width would leave the app as a sliver behind
+ * a panel that already covers it.
+ */
+@media (max-width: 640px) {
+  :root[data-assistant='open'] .app-shell {
+    padding-right: 0;
+  }
+}

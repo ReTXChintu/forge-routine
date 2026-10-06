@@ -848,8 +848,22 @@ model ConceptQuestionAnswer {
 
   /// THEORY: what they wrote, before seeing the model answer.
   answer     String?
-  /// THEORY: 0 missed it, 1 partly, 2 got it. Null until they have judged it.
+  /// THEORY: 0 missed it, 1 partly, 2 got it. The fallback when there is no AI
+  /// to mark it — only the person who wrote an answer can judge it otherwise.
   selfRating Int?
+
+  /// THEORY, marked by AI: 0-5 against the question's own model answer.
+  ///
+  /// Preferred over `selfRating` where it exists. A written answer exists to
+  /// surface what the writer cannot yet put into words, which is precisely
+  /// what they are least able to spot in their own work.
+  gradeScore Int?
+  /// What the answer got right, in the marker's words.
+  gradeCorrect String[] @default([])
+  /// What was wrong or missing, stated as the mistake.
+  gradeWrong   String[] @default([])
+  /// What would make it full marks. Concrete, not "add detail".
+  gradeImprove String[] @default([])
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

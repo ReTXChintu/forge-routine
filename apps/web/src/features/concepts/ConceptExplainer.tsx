@@ -5,6 +5,8 @@ import { Markdown } from '~/components/Markdown';
 import { AiTag, Card, Spinner } from '~/components/ui';
 import { useConceptExplainer } from '~/lib/queries';
 
+import { TryItOut } from './TryItOut';
+
 /**
  * The written explanation of a concept: what it is, where it shows up, and
  * what people get wrong.
@@ -82,6 +84,12 @@ export function ConceptExplainer({
     );
   }
 
+  // Only ever the two the sandbox can run. The explainer's `codeLanguage` is
+  // free-form prose from a model — "js", "JavaScript", sometimes "pseudocode" —
+  // so it is read as a hint and never passed through as a language.
+  const runnableLanguage =
+    explainer.codeLanguage?.toLowerCase().includes('ts') === true ? 'typescript' : 'javascript';
+
   return (
     <div className="col g4">
       <Card>
@@ -107,6 +115,8 @@ export function ConceptExplainer({
                 </span>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <Markdown content={example} />
+                  {/* Optional, always. Nothing it does is graded or recorded. */}
+                  <TryItOut example={example} language={runnableLanguage} />
                 </div>
               </div>
             ))}

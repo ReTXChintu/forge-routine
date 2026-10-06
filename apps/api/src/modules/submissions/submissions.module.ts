@@ -9,6 +9,7 @@ import { SkillsModule } from '../skills/skills.module.js';
 
 import { SubmissionsQueryService } from './application/submissions-query.service.js';
 import { SubmitSolutionUseCase } from './application/submit-solution.use-case.js';
+import { PlaygroundController } from './http/playground.controller.js';
 import { SubmissionsController } from './http/submissions.controller.js';
 import { InlineExecutionAdapter } from './infrastructure/inline-execution.adapter.js';
 import { QueueExecutionAdapter } from './infrastructure/queue-execution.adapter.js';
@@ -29,7 +30,7 @@ const executionProvider: Provider = {
 
 @Module({
   imports: [SkillsModule, RoutinesModule, ConceptsModule],
-  controllers: [SubmissionsController],
+  controllers: [SubmissionsController, PlaygroundController],
   providers: [SubmitSolutionUseCase, SubmissionsQueryService, executionProvider],
   exports: [SubmitSolutionUseCase],
 })

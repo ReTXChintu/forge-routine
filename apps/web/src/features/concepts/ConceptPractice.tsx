@@ -5,7 +5,7 @@ import { fenceCode } from '@forgeroutine/utils/fence-code';
 
 import { Icon } from '~/components/Icon';
 import { InlineMarkdown, Markdown } from '~/components/Markdown';
-import { Badge, Button, Card, ProgressBar, Spinner } from '~/components/ui';
+import { Badge, Button, Card, metricColor, ProgressBar, Spinner } from '~/components/ui';
 import {
   useAnswerMcq,
   useAnswerTheory,
@@ -14,6 +14,7 @@ import {
   useRateTheory,
   type PracticeQuestionView,
   type PracticeView,
+  type WrittenGrade,
 } from '~/lib/queries';
 
 /**
@@ -385,7 +386,14 @@ function WrittenAnswer({
             )}
           </div>
 
-          {judged ? (
+          {/*
+            A mark when there was something to mark with, their own verdict
+            when there was not. Never both: asking somebody to grade an answer
+            that has already been graded is asking twice.
+          */}
+          {given.grade ? (
+            <GradeCard grade={given.grade} />
+          ) : judged ? (
             <div className="t-caption row items-center g1">
               <Icon name="check" size={12} />
               You marked this “{RATINGS.find((r) => r.value === given.selfRating)?.label}”
@@ -417,10 +425,82 @@ function WrittenAnswer({
 }
 
 /**
- * Three rungs, not five.
+ * The mark, and the three things it is made of.
  *
- * Any finer scale asks the user to distinguish grades they cannot actually
- * tell apart, and the extra precision is invented rather than measured.
+ * Split rather than one block of prose because they answer different
+ * questions and a reader skims for the one they want: what landed, what was
+ * actually wrong, and what would make it full marks. Each list is empty when
+ * there is honestly nothing to say — an answer with nothing wrong should not
+ * have a flaw manufactured for it to look rigorous.
+ */
+function GradeCard({ grade }: { grade: WrittenGrade }) {
+  const pct = (grade.score / 5) * 100;
+
+  return (
+    <div
+      className="card p3"
+      style={{ background: 'var(--surface-2)', borderLeft: `2px solid ${metricColor(pct)}` }}
+    >
+      <div className="row items-center justify-between mb3">
+        <span className="t-h4">Marked</span>
+        <span className="t-code" style={{ fontWeight: 700, color: metricColor(pct) }}>
+          {grade.score} / 5
+        </span>
+      </div>
+
+      <GradeList
+        title="What you got right"
+        items={grade.correct}
+        colour="var(--success)"
+        icon="check"
+      />
+      <GradeList title="What was wrong" items={grade.wrong} colour="var(--error)" icon="x" />
+      <GradeList
+        title="What would make it five"
+        items={grade.improve}
+        colour="var(--warning)"
+        icon="arrowRight"
+      />
+    </div>
+  );
+}
+
+function GradeList({
+  title,
+  items,
+  colour,
+  icon,
+}: {
+  title: string;
+  items: string[];
+  colour: string;
+  icon: string;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <div className="col g2 mb3">
+      <div className="t-caption">{title}</div>
+      {items.map((item) => (
+        <div key={item} className="row items-start g2">
+          <span style={{ color: colour, marginTop: 3 }}>
+            <Icon name={icon} size={13} />
+          </span>
+          <span className="t-body">{item}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Three rungs, not five — and only when there is no marker.
+ *
+ * A self-assessment finer than this asks somebody to distinguish grades they
+ * cannot actually tell apart in their own work, so the extra precision would
+ * be invented rather than measured. A marker reading the answer against the
+ * one it was meant to give can honestly use five; the person who wrote it
+ * cannot.
  */
 const RATINGS = [
   { value: 0, label: 'Missed it' },

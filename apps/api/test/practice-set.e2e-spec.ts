@@ -37,6 +37,8 @@ let accessToken: string;
 let userId: string;
 let technologyId: string;
 let conceptId: string;
+/** The review row planted by one case and settled by the next. */
+let reviewItemId: string;
 let exerciseId: string;
 const questionIds: string[] = [];
 
@@ -59,6 +61,7 @@ interface Question {
     correctIndex: number | null;
     correct: boolean | null;
     selfRating: number | null;
+    gradeScore?: number | null;
   } | null;
 }
 
@@ -188,9 +191,19 @@ beforeAll(async () => {
 }, 180_000);
 
 afterAll(async () => {
-  // Cascades to the concept, its questions, its exercise and every
-  // assignment pointing at them.
-  await prisma.technology.deleteMany({ where: { id: technologyId } }).catch(() => undefined);
+  // Cascades to the concept, its questions, its exercise and every assignment
+  // pointing at them.
+  //
+  // `delete` by a value that must exist, never `deleteMany` by one that might
+  // not. This line used to be `deleteMany({ where: { id: technologyId } })`,
+  // and when `beforeAll` failed before assigning it, `technologyId` was
+  // undefined — which Prisma reads as *no filter*. It deleted every
+  // technology in the database, and the cascade took the whole curriculum and
+  // every user's attempts and skills with it. A cleanup step must not be able
+  // to widen its own scope by failing to learn what it was cleaning up.
+  if (technologyId) {
+    await prisma.technology.delete({ where: { id: technologyId } }).catch(() => undefined);
+  }
   await prisma.user.deleteMany({ where: { email: user.email } }).catch(() => undefined);
   await prisma.$disconnect();
   await app?.close();
@@ -204,7 +217,7 @@ afterAll(async () => {
  * compared against anything.
  */
 const isAnswered = (given: NonNullable<Question['given']>) =>
-  given.selectedIndex !== null || given.selfRating !== null;
+  given.selectedIndex !== null || given.selfRating !== null || (given.gradeScore ?? null) !== null;
 
 const practice = async (): Promise<View> =>
   (await http.get(`/api/v1/concepts/${conceptId}/practice`).set(auth()).expect(200)).body;
@@ -440,6 +453,154 @@ describe('practice on a concept', () => {
       .catch(() => undefined);
   });
 
+  // Placed after the second-user case on purpose: the review case plants two
+  // more questions in the shared pool, which would change what a newcomer is
+  // served first.
+  it('ticks off today’s row even when an older row for the concept was already done', async () => {
+    // The reported bug. "Has this concept's row been ticked off?" was answered
+    // by counting DONE rows from *any* day, so a row finished last week stopped
+    // today's from ever being ticked — and a concept the user had just
+    // finished stayed outstanding on the routine page.
+    const old = await prisma.routine.create({
+      data: { userId, date: new Date('2020-01-01T00:00:00.000Z'), totalMinutes: 30 },
+    });
+    await prisma.routineItem.create({
+      data: {
+        routineId: old.id,
+        kind: 'LEARN',
+        status: 'DONE',
+        title: 'Practice Test Concept, long ago',
+        minutes: 20,
+        orderIndex: 0,
+        conceptId,
+      },
+    });
+
+    const today = await http.get('/api/v1/routines/today').set(auth()).expect(200);
+    const fresh = await prisma.routineItem.create({
+      data: {
+        routineId: today.body.id,
+        kind: 'LEARN',
+        title: 'Practice Test Concept, again today',
+        minutes: 20,
+        orderIndex: 950,
+        conceptId,
+      },
+    });
+
+    // Any answer settles the concept; it is already fully answered.
+    const mcq = (await practice()).questions.find((question) => question.kind === 'MCQ')!;
+    await http
+      .post(`/api/v1/concepts/questions/${mcq.id}/choice`)
+      .set(auth())
+      .send({ selectedIndex: 0 })
+      .expect(200);
+
+    expect((await prisma.routineItem.findUnique({ where: { id: fresh.id } }))!.status).toBe('DONE');
+  });
+
+  it('does not tick off a review just because the concept was finished before', async () => {
+    // A review falls due *because* the concept was finished a while ago, so
+    // that cannot also be what completes it.
+    const today = await http.get('/api/v1/routines/today').set(auth()).expect(200);
+    const review = await prisma.routineItem.create({
+      data: {
+        routineId: today.body.id,
+        kind: 'REVIEW',
+        title: 'Review Practice Test Concept',
+        minutes: 8,
+        orderIndex: 960,
+        conceptId,
+      },
+    });
+    reviewItemId = review.id;
+
+    const mcq = (await practice()).questions.find((question) => question.kind === 'MCQ')!;
+    await http
+      .post(`/api/v1/concepts/questions/${mcq.id}/choice`)
+      .set(auth())
+      .send({ selectedIndex: 0 })
+      .expect(200);
+
+    expect((await prisma.routineItem.findUnique({ where: { id: review.id } }))!.status).toBe(
+      'PENDING',
+    );
+  });
+
+  it('ticks off a review once a fresh batch has been answered', async () => {
+    // The agreed rule: opening a review sends you to Practice, and pulling and
+    // answering a new batch there is the review. Two new questions are planted
+    // so the batch can be served without a model.
+    const planted = await Promise.all(
+      [0, 1].map((index) =>
+        prisma.conceptQuestion.create({
+          data: {
+            conceptId,
+            kind: 'MCQ',
+            prompt: `A review question (${index})`,
+            options: ['Right', 'Wrong', 'Also wrong'],
+            correctIndex: 0,
+            explanation: 'Because.',
+            difficulty: 1,
+          },
+        }),
+      ),
+    );
+
+    const pulled: View = (
+      await http.post(`/api/v1/concepts/${conceptId}/practice/questions`).set(auth()).expect(200)
+    ).body;
+    const fresh = pulled.questions.filter((question) =>
+      planted.some((row) => row.id === question.id),
+    );
+    expect(fresh).toHaveLength(2);
+
+    // Half a batch is not a review.
+    await http
+      .post(`/api/v1/concepts/questions/${fresh[0]!.id}/choice`)
+      .set(auth())
+      .send({ selectedIndex: 1 })
+      .expect(200);
+    expect((await prisma.routineItem.findUnique({ where: { id: reviewItemId } }))!.status).toBe(
+      'PENDING',
+    );
+
+    // The whole batch is — right or wrong, as everywhere else.
+    await http
+      .post(`/api/v1/concepts/questions/${fresh[1]!.id}/choice`)
+      .set(auth())
+      .send({ selectedIndex: 0 })
+      .expect(200);
+    expect((await prisma.routineItem.findUnique({ where: { id: reviewItemId } }))!.status).toBe(
+      'DONE',
+    );
+  });
+
+  it('falls back to self-rating when there is nothing to mark with', async () => {
+    // This suite runs with no AI provider configured, which is the fallback
+    // path: the model answer still comes back, the mark does not, and the
+    // user's own verdict is what settles it. Stated so the degradation is a
+    // tested property rather than a hope.
+    const theory = (await practice()).questions.find(
+      (question) => question.kind === 'THEORY' && question.given === null,
+    );
+
+    if (!theory) return;
+
+    const response = await http
+      .post(`/api/v1/concepts/questions/${theory.id}/answer`)
+      .set(auth())
+      .send({ answer: 'One binding shared by every iteration of the loop.' })
+      .expect(200);
+
+    expect(response.body.modelAnswer).not.toHaveLength(0);
+    expect(response.body.grade).toBeNull();
+
+    // And without a mark it is still outstanding, exactly as before.
+    const after = (await practice()).questions.find((question) => question.id === theory.id)!;
+    expect(isAnswered(after.given!)).toBe(false);
+  });
+
   it('will not rate a question that was never answered', async () => {
     const fresh = await prisma.conceptQuestion.create({
       data: {
@@ -467,6 +628,53 @@ describe('practice on a concept', () => {
       .post(`/api/v1/concepts/questions/${theory.id}/choice`)
       .set(auth())
       .send({ selectedIndex: 0 })
+      .expect(400);
+  });
+
+  it('runs a scratch snippet for its output, recording nothing', async () => {
+    // The "Try it out" button beside a worked example. It must stay free of
+    // consequences: optional practice that quietly becomes compulsory is
+    // worse than no button at all.
+    const before = await prisma.practiceAssignment.count({ where: { userId } });
+
+    const response = await http
+      .post('/api/v1/playground/run')
+      .set(auth())
+      .send({
+        // Top-level statements and a log, with no default export — the shape
+        // somebody writes to try an idea out, and the shape the harness used
+        // to refuse outright.
+        code: 'const a = [1, 2, 3];\na.reverse();\nconsole.log(a.join("-"));\n',
+        language: 'javascript',
+      })
+      .expect(200);
+
+    expect(response.body.stdout).toContain('3-2-1');
+    // Nothing graded: no pass, no score, nothing to redact.
+    expect(response.body.passed).toBeUndefined();
+
+    expect(await prisma.practiceAssignment.count({ where: { userId } })).toBe(before);
+    expect(
+      await prisma.exerciseAttempt.count({ where: { userId, exerciseId } }),
+    ).toBeLessThanOrEqual(2);
+  }, 60_000);
+
+  it('reports a scratch snippet’s own error rather than failing the request', async () => {
+    const response = await http
+      .post('/api/v1/playground/run')
+      .set(auth())
+      .send({ code: 'throw new Error(\"boom\");\n', language: 'javascript' })
+      .expect(200);
+
+    // A snippet that throws is a normal outcome here, not a server fault.
+    expect(`${response.body.stderr}${response.body.status}`).toMatch(/boom|ERROR/i);
+  }, 60_000);
+
+  it('refuses an empty snippet', async () => {
+    await http
+      .post('/api/v1/playground/run')
+      .set(auth())
+      .send({ code: '', language: 'javascript' })
       .expect(400);
   });
 

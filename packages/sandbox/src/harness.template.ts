@@ -213,10 +213,29 @@ async function main() {
     return;
   }
 
+  try {
+    ({ cases } = await import('./tests.mjs'));
+  } catch (error) {
+    write({
+      outcome: 'HARNESS_ERROR',
+      message: 'Failed to load test cases: ' + (error?.message ?? String(error)),
+      cases: [],
+      stdout: captured,
+      consoleCalls,
+      outputTruncated,
+    });
+    return;
+  }
+
   // Be precise about a missing default export. Falling back to the module namespace
   // object would be truthy, and the user would then face a confusing assertion
   // failure instead of being told the actual problem.
-  if (mod.default === undefined) {
+  //
+  // Asked only when there are tests, and asked after they are loaded for exactly
+  // that reason. With no cases nothing will ever call the export, so demanding one
+  // refuses a scratchpad whose whole content is top-level statements and a
+  // console.log — code that ran fine and printed what was wanted.
+  if (cases.length > 0 && mod.default === undefined) {
     const named = Object.keys(mod).filter((k) => k !== 'default');
     write({
       outcome: 'COMPILE_ERROR',
@@ -235,20 +254,6 @@ async function main() {
   }
 
   solution = mod.default;
-
-  try {
-    ({ cases } = await import('./tests.mjs'));
-  } catch (error) {
-    write({
-      outcome: 'HARNESS_ERROR',
-      message: 'Failed to load test cases: ' + (error?.message ?? String(error)),
-      cases: [],
-      stdout: captured,
-      consoleCalls,
-      outputTruncated,
-    });
-    return;
-  }
 
   const results = [];
 

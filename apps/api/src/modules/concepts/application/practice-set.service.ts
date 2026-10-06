@@ -4,6 +4,7 @@ import {
   describeAIFailure,
   exerciseAgent,
   practiceSetAgent,
+  writtenAnswerGraderAgent,
   PRACTICE_SET_VERSION,
   type GeneratedExerciseOutput,
 } from '@forgeroutine/ai';
@@ -44,6 +45,8 @@ export interface GivenAnswer {
   explanation: string | null;
   modelAnswer: string | null;
   keyPoints: string[];
+  /** The mark, where a marker produced one. Null when self-rated or unjudged. */
+  grade: WrittenGrade | null;
 }
 
 export interface PracticeQuestionView {
@@ -78,10 +81,26 @@ export interface PracticeView {
   problem: string | null;
 }
 
+export interface WrittenGrade {
+  /** Out of five. */
+  score: number;
+  correct: string[];
+  wrong: string[];
+  improve: string[];
+}
+
 export interface TheoryAnswerResult {
   /** Withheld until now on purpose — see `answerTheory`. */
   modelAnswer: string;
   keyPoints: string[];
+  /**
+   * The mark, when there was AI to produce one.
+   *
+   * Null falls back to the user judging it themselves, which is what the
+   * written half did before marking existed and is still the honest answer
+   * for an account with no provider configured.
+   */
+  grade: WrittenGrade | null;
 }
 
 export interface McqAnswerResult {
@@ -264,9 +283,11 @@ export class PracticeSetService {
         id: true,
         conceptId: true,
         kind: true,
+        prompt: true,
         modelAnswer: true,
         keyPoints: true,
         archivedAt: true,
+        concept: { select: { name: true } },
       },
     });
 
@@ -275,25 +296,99 @@ export class PracticeSetService {
       throw Problems.badRequest('That question is multiple choice. Pick an option instead.');
     }
 
+    // Marked before the model answer goes back, so one request settles it:
+    // they commit, it is judged against what they could not see, and both the
+    // mark and the answer arrive together.
+    const grade = await this.gradeWritten(userId, {
+      conceptName: question.concept.name,
+      question: question.prompt,
+      modelAnswer: question.modelAnswer ?? '',
+      keyPoints: question.keyPoints,
+      answer: trimmed,
+    });
+
     const existing = await this.prisma.conceptQuestionAnswer.findFirst({
       where: { userId, questionId },
       orderBy: { createdAt: 'desc' },
     });
 
+    const marks = {
+      gradeScore: grade?.score ?? null,
+      gradeCorrect: grade?.correct ?? [],
+      gradeWrong: grade?.wrong ?? [],
+      gradeImprove: grade?.improve ?? [],
+    };
+
     if (existing) {
-      // Rewriting clears the old verdict: judging the previous attempt says
-      // nothing about this one.
+      // Rewriting clears the old verdict, marked or self-reported: judging the
+      // previous attempt says nothing about this one.
       await this.prisma.conceptQuestionAnswer.update({
         where: { id: existing.id },
-        data: { answer: trimmed, selfRating: null },
+        data: { answer: trimmed, selfRating: null, ...marks },
       });
     } else {
       await this.prisma.conceptQuestionAnswer.create({
-        data: { userId, questionId, conceptId: question.conceptId, answer: trimmed },
+        data: { userId, questionId, conceptId: question.conceptId, answer: trimmed, ...marks },
       });
     }
 
-    return { modelAnswer: question.modelAnswer ?? '', keyPoints: question.keyPoints };
+    // A marked answer is dealt with, so this can be the moment the concept
+    // finishes. An unmarked one still waits for the user's own verdict.
+    if (grade) {
+      await this.recordRecall(userId, question.conceptId, (grade.score / 5) * 2, {
+        note: `Written answer marked ${grade.score}/5`,
+        // Higher than a self-rating's 0.1: somebody other than the author
+        // judged it, against the answer it was meant to give.
+        learningRate: 0.15,
+      });
+      await this.settle(userId, question.conceptId);
+    }
+
+    return {
+      modelAnswer: question.modelAnswer ?? '',
+      keyPoints: question.keyPoints,
+      grade,
+    };
+  }
+
+  /**
+   * Marks one written answer, or returns null when there is nothing to mark
+   * with.
+   *
+   * Never throws. A marker that is down should leave the user with the model
+   * answer and their own judgement — which is exactly what the written half
+   * did before marking existed — rather than losing the answer they just
+   * wrote.
+   */
+  private async gradeWritten(
+    userId: string,
+    input: {
+      conceptName: string;
+      question: string;
+      modelAnswer: string;
+      keyPoints: string[];
+      answer: string;
+    },
+  ): Promise<WrittenGrade | null> {
+    if (!this.ai || input.modelAnswer.length === 0) return null;
+
+    try {
+      const graded = await writtenAnswerGraderAgent.run(this.ai, input, { userId });
+
+      return {
+        score: graded.score,
+        correct: graded.correct,
+        wrong: graded.wrong,
+        improve: graded.improve,
+      };
+    } catch (error) {
+      this.logger.warn(
+        { err: error },
+        'Could not mark a written answer; falling back to self-rating',
+      );
+      this.logger.debug(describeAIFailure(error));
+      return null;
+    }
   }
 
   /**
@@ -692,7 +787,13 @@ export class PracticeSetService {
   private async settle(userId: string, conceptId: string): Promise<CompletionState> {
     const view = await this.project(userId, conceptId, null);
 
-    if (view.completion.complete && !view.routineDone) {
+    // No "already ticked off?" check in front of this any more. There used to
+    // be one, and it asked whether *any* routine row for the concept had ever
+    // been done — so a row finished last week stopped today's from ever being
+    // ticked, and a concept the user had just finished stayed outstanding.
+    // `markConceptDone` only touches rows still outstanding, so calling it
+    // every time is both correct and safe.
+    if (view.completion.complete) {
       await this.routines.markConceptDone(userId, conceptId).catch((error: unknown) =>
         // Bookkeeping. Losing the user's answer over a routine write would
         // be the worse bug.
@@ -700,15 +801,36 @@ export class PracticeSetService {
       );
     }
 
+    // Independent of the concept being finished: a review is done by
+    // answering a fresh batch, which can happen on a concept finished long ago.
+    await this.routines
+      .settleReviews(userId, conceptId)
+      .catch((error: unknown) =>
+        this.logger.warn({ err: error }, 'Could not settle the review rows for this concept'),
+      );
+
     return view.completion;
   }
 
+  /**
+   * Whether this concept's practice row is ticked off — for the badge only.
+   *
+   * Asks about the *outstanding* rows, not whether one was ever done. The old
+   * version counted any DONE row from any day, which let last week's row
+   * vouch for today's, and was also what decided whether to tick today's off
+   * at all. Reviews are left out: they settle by their own rule.
+   */
   private async isRoutineDone(userId: string, conceptId: string): Promise<boolean> {
-    const done = await this.prisma.routineItem.count({
-      where: { conceptId, status: 'DONE', routine: { userId } },
-    });
+    const where = { conceptId, kind: { not: 'REVIEW' as const }, routine: { userId } };
 
-    return done > 0;
+    const [outstanding, done] = await Promise.all([
+      this.prisma.routineItem.count({
+        where: { ...where, status: { in: ['PENDING', 'IN_PROGRESS'] } },
+      }),
+      this.prisma.routineItem.count({ where: { ...where, status: 'DONE' } }),
+    ]);
+
+    return outstanding === 0 && done > 0;
   }
 
   private async assignmentsFor(userId: string, conceptId: string) {
@@ -829,6 +951,10 @@ function toGiven(
     correct: boolean | null;
     answer: string | null;
     selfRating: number | null;
+    gradeScore: number | null;
+    gradeCorrect: string[];
+    gradeWrong: string[];
+    gradeImprove: string[];
   } | null,
 ): GivenAnswer | null {
   if (!given) return null;
@@ -845,6 +971,15 @@ function toGiven(
     explanation: question.explanation,
     modelAnswer: given.answer ? question.modelAnswer : null,
     keyPoints: given.answer ? question.keyPoints : [],
+    grade:
+      given.gradeScore !== null
+        ? {
+            score: given.gradeScore,
+            correct: given.gradeCorrect,
+            wrong: given.gradeWrong,
+            improve: given.gradeImprove,
+          }
+        : null,
   };
 }
 

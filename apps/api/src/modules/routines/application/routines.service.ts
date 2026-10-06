@@ -168,6 +168,10 @@ export class RoutinesService {
       // exercise row still stands on its own: a project or a standalone
       // problem is finished by passing it, not by its concept completing.
       if (item.exerciseId) return true;
+      // A review is not settled by the concept having been finished once —
+      // that is exactly the situation a review exists for. It carries until
+      // it is actually done, by its own rule (see `settleReviews`).
+      if (item.kind === 'REVIEW') return true;
 
       return !(item.conceptId && finished.has(item.conceptId));
     });
@@ -397,8 +401,80 @@ export class RoutinesService {
     };
   }
 
+  /**
+   * Ticks off the practice rows for a concept whose practice is finished.
+   *
+   * Not its REVIEW rows. A review is due precisely because the concept was
+   * finished a while ago, so finishing it cannot also be what completes the
+   * review — that would tick a review off without anybody reviewing anything.
+   * Reviews settle by their own rule, in `settleReviews`.
+   *
+   * Safe to call any number of times: it only touches rows still outstanding.
+   */
   async markConceptDone(userId: string, conceptId: string): Promise<void> {
-    await this.finish({ conceptId, routine: { userId } });
+    await this.finish({ conceptId, kind: { not: 'REVIEW' }, routine: { userId } });
+  }
+
+  /**
+   * Ticks off a review once a fresh batch on its concept has been answered.
+   *
+   * "Fresh" means served after the review row was planned: opening a review
+   * sends you to Practice, where pulling five more questions and answering
+   * them is the review. Questions answered before the row existed say nothing
+   * about whether the concept has held since, so they do not count — which is
+   * the whole difference between a review and having once finished it.
+   *
+   * A batch counts when every question in it has been dealt with, by the same
+   * rule as everything else: a pick, a mark, or the writer's own verdict.
+   */
+  async settleReviews(userId: string, conceptId: string): Promise<void> {
+    const reviews = await this.prisma.routineItem.findMany({
+      where: {
+        conceptId,
+        kind: 'REVIEW',
+        status: { in: ['PENDING', 'IN_PROGRESS'] },
+        routine: { userId },
+      },
+      select: { id: true, createdAt: true },
+    });
+
+    if (reviews.length === 0) return;
+
+    const [assignments, answers] = await Promise.all([
+      this.prisma.practiceAssignment.findMany({
+        where: { userId, conceptId, questionId: { not: null } },
+        select: { batch: true, questionId: true, servedAt: true },
+      }),
+      this.prisma.conceptQuestionAnswer.findMany({
+        where: { userId, conceptId },
+        select: { questionId: true, selectedIndex: true, selfRating: true, gradeScore: true },
+      }),
+    ]);
+
+    const answered = new Set(answers.filter((row) => isAnswered(row)).map((row) => row.questionId));
+
+    // Each pull of questions is one batch: when it was served, and whether
+    // every question in it has an answer.
+    const batches = new Map<number, { servedAt: number; complete: boolean }>();
+    for (const row of assignments) {
+      const at = row.servedAt.getTime();
+      const current = batches.get(row.batch) ?? { servedAt: at, complete: true };
+
+      batches.set(row.batch, {
+        servedAt: Math.min(current.servedAt, at),
+        complete: current.complete && answered.has(row.questionId!),
+      });
+    }
+
+    const reviewed = reviews.filter((review) =>
+      [...batches.values()].some(
+        (batch) => batch.complete && batch.servedAt >= review.createdAt.getTime(),
+      ),
+    );
+
+    if (reviewed.length > 0) {
+      await this.finish({ id: { in: reviewed.map((review) => review.id) } });
+    }
   }
 
   async markExerciseDone(userId: string, exerciseId: string): Promise<void> {
@@ -461,7 +537,10 @@ export class RoutinesService {
       }),
       this.prisma.conceptQuestionAnswer.findMany({
         where: { userId, conceptId: { in: unique } },
-        select: { questionId: true, selectedIndex: true, selfRating: true },
+        // gradeScore included: an AI-marked written answer is dealt with even
+        // though its author never self-rated it, and leaving it out here would
+        // keep replanning a concept the user has finished.
+        select: { questionId: true, selectedIndex: true, selfRating: true, gradeScore: true },
       }),
       this.prisma.exerciseAttempt.findMany({
         where: { userId, outcome: 'PASSED', exercise: { conceptId: { in: unique } } },

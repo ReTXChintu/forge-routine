@@ -178,3 +178,114 @@ export const practiceSetAgent = {
     };
   },
 };
+
+// -- Marking a written answer ------------------------------------------------
+
+/**
+ * Marks prose against the answer it was meant to give.
+ *
+ * Not `answerGraderAgent`, which already exists: that one scores an interview
+ * reply on four axes to decide the interviewer's next move, and returns no
+ * feedback a learner would read. Same two words, unrelated jobs.
+ *
+ * The written half of practice used to be self-marked: read the model answer,
+ * decide whether yours matched. Honest, and weak — the thing a written answer
+ * is for is surfacing what you cannot yet put into words, and that is exactly
+ * what somebody checking their own work is least able to see.
+ *
+ * Deliberately the cheap tier. This runs on every written answer, where the
+ * set itself is generated once per concept and shared, so it is the highest
+ * volume AI call in the product and the one most worth keeping small.
+ *
+ * Three fields of feedback rather than one blob, because they answer different
+ * questions and a reader skims for the one they want: what landed, what was
+ * actually wrong, and what would make it better next time.
+ */
+export const writtenAnswerGradeSchema = z.object({
+  /** Out of five. Five bands is as fine as prose can honestly be marked. */
+  score: z.number().int().min(0).max(5),
+  /** What the answer got right. Empty only when genuinely nothing did. */
+  correct: z.array(z.string().min(1).max(400)).max(4),
+  /** What is wrong or missing, stated as the mistake rather than the fix. */
+  wrong: z.array(z.string().min(1).max(400)).max(4),
+  /** What would make it a five. Concrete, not "be more detailed". */
+  improve: z.array(z.string().min(1).max(400)).max(3),
+});
+
+export type WrittenAnswerGradeOutput = z.infer<typeof writtenAnswerGradeSchema>;
+
+export interface WrittenAnswerGradeInput {
+  conceptName: string;
+  question: string;
+  /** What a good answer says, from the question's own model answer. */
+  modelAnswer: string;
+  /** The separate points a complete answer covers. */
+  keyPoints: readonly string[];
+  /** What the user actually wrote. */
+  answer: string;
+}
+
+const GRADER_SYSTEM = `You are marking one short written answer from somebody learning to program.
+
+Mark what they wrote against the model answer and its key points, out of five:
+
+5 — every key point, and correct. 4 — all the substance, with a small gap or imprecision. 3 — the main idea, missing something that matters. 2 — a relevant fragment, with the central point missed. 1 — on topic but wrong. 0 — empty, or about something else.
+
+Judge understanding, not wording. An answer that reaches the right idea by a different route, or uses different terms, is correct. Do not deduct for brevity if the substance is there, for spelling, or for not using the same vocabulary as the model answer.
+
+In "correct", name what they actually got right, quoting or paraphrasing their own words so they can see you read it. If nothing was right, leave it empty rather than inventing praise.
+
+In "wrong", say what is mistaken or missing and why it matters. Address them directly. Be specific: "you said the closure copies the value, but it holds a reference" tells them something; "incomplete understanding of closures" does not. An answer with nothing wrong gets an empty list — do not manufacture a flaw to look rigorous.
+
+In "improve", say what would make it a five, concretely. "Name what happens to the variable after the loop finishes" is usable; "add more detail" is not. Leave it empty for a five.
+
+Never restate the model answer as feedback. They can already read it.`;
+
+export const writtenAnswerGraderAgent = {
+  name: 'written-answer-grader' as const,
+  promptVersion: PROMPT_VERSION,
+  contract: writtenAnswerGradeSchema,
+
+  buildPrompt(input: WrittenAnswerGradeInput): PromptSpec {
+    return {
+      // The cheap tier on purpose: the highest-volume call in the product.
+      model: 'fast',
+      temperature: 0.2,
+      maxTokens: 900,
+      messages: [
+        { role: 'system', content: GRADER_SYSTEM },
+        {
+          role: 'user',
+          content: [
+            `Concept: ${input.conceptName}`,
+            `Question: ${input.question}`,
+            `Model answer: ${input.modelAnswer}`,
+            input.keyPoints.length > 0
+              ? `Key points a complete answer covers:\n${input.keyPoints
+                  .map((point) => `- ${point}`)
+                  .join('\n')}`
+              : '',
+            `Their answer:\n${input.answer}`,
+          ]
+            .filter(Boolean)
+            .join('\n\n'),
+        },
+      ],
+    };
+  },
+
+  async run(
+    provider: AIProvider,
+    input: WrittenAnswerGradeInput,
+    context: Omit<CallContext, 'agent' | 'promptVersion'>,
+  ): Promise<WrittenAnswerGradeOutput> {
+    const result = await provider.structured({
+      prompt: writtenAnswerGraderAgent.buildPrompt(input),
+      schema: writtenAnswerGradeSchema,
+      schemaName: 'AnswerGrade',
+      context: { ...context, agent: writtenAnswerGraderAgent.name, promptVersion: PROMPT_VERSION },
+    });
+
+    return result.data;
+  },
+};

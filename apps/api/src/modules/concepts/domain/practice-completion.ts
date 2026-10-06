@@ -71,13 +71,21 @@ export function completionState(
   };
 }
 
-/** A multiple-choice pick, or a written answer that has been judged. */
+/**
+ * A multiple-choice pick, or a written answer that has been judged.
+ *
+ * Judged by a marker or by the writer — either settles it. Submitting prose
+ * alone does not: the comparison against the model answer is the whole point,
+ * so a row with an answer and no verdict is half done.
+ *
+ * A score of 0 counts, like a wrong multiple-choice answer does. Getting it
+ * wrong is answering it; the feedback is where the learning is, and making a
+ * low mark block the concept would turn that feedback into an obstacle.
+ */
 export function isAnswered(row: {
   selectedIndex: number | null;
   selfRating: number | null;
+  gradeScore?: number | null;
 }): boolean {
-  // Submitting prose is not finishing it: the reveal-then-judge step is where
-  // a written answer is actually compared against anything, so a row with an
-  // answer and no rating is half done.
-  return row.selectedIndex !== null || row.selfRating !== null;
+  return row.selectedIndex !== null || row.selfRating !== null || (row.gradeScore ?? null) !== null;
 }

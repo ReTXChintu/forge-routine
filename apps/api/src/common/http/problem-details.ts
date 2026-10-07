@@ -66,6 +66,9 @@ export const Problems = {
   badRequest: (detail: string) =>
     problem('bad-request', 'Bad request', HttpStatus.BAD_REQUEST, detail),
 
+  tooManyRequests: (detail: string) =>
+    problem('too-many-requests', 'Too many requests', HttpStatus.TOO_MANY_REQUESTS, detail),
+
   emailTaken: () =>
     problem(
       'email-taken',

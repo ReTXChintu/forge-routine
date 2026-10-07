@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The agent's own window: its status, pairing, and tool checks. Nothing else.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

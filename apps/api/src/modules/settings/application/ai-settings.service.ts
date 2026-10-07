@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import {
+  AI_VENDORS,
   AI_VENDOR_PROFILES,
   describeMissingBinary,
   describeMissingCodex,
@@ -19,6 +20,7 @@ import { decryptSecret, encryptSecret, lastFour } from '@forgeroutine/utils';
 import { Problems } from '../../../common/http/problem-details.js';
 import { APP_CONFIG } from '../../../infrastructure/config/config.module.js';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service.js';
+import { AgentHub } from '../../agent/application/agent-hub.service.js';
 
 export interface VendorSettingView {
   id: AIVendor;
@@ -91,6 +93,7 @@ export class AISettingsService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly agents: AgentHub,
   ) {}
 
   async view(userId: string): Promise<AISettingsView> {
@@ -543,6 +546,85 @@ export class AISettingsService {
       );
       return null;
     }
+  }
+
+  /**
+   * Everything that may answer a user's call, in the order to try it.
+   *
+   * First the CLIs on the user's own machine, through a connected
+   * ForgeRoutine Agent, in the order they chose in Settings. Then every key
+   * they have saved: the selected vendor first, the rest in catalogue order.
+   * Routing moves down the list only when a vendor cannot answer at all, so
+   * a closed laptop lid costs one quick failure and the call carries on.
+   *
+   * Empty means no AI for this user, which every agent already handles.
+   */
+  async resolveChainFor(userId: string | undefined): Promise<ResolvedVendor[]> {
+    if (!userId) return [];
+
+    const [preferences, credentials] = await Promise.all([
+      this.prisma.userPreferences.findUnique({
+        where: { userId },
+        select: { aiProvider: true, localAiOrder: true },
+      }),
+      this.prisma.aICredential.findMany({ where: { userId } }),
+    ]);
+
+    const selected = (preferences?.aiProvider as AIVendor | null) ?? null;
+    const byVendor = new Map(credentials.map((row) => [row.provider as AIVendor, row]));
+    const chain: ResolvedVendor[] = [];
+
+    const onAgent = this.agents.toolsFor(userId);
+    for (const tool of (preferences?.localAiOrder ?? ['CLAUDE_CODE', 'CODEX']) as AIVendor[]) {
+      if (tool !== 'CLAUDE_CODE' && tool !== 'CODEX') continue;
+      if (!onAgent.has(tool)) continue;
+
+      const profile = AI_VENDOR_PROFILES[tool];
+      const credential = byVendor.get(tool);
+      chain.push({
+        vendor: tool,
+        apiKey: '',
+        // Models chosen for this vendor in Settings still apply; the agent
+        // only changes where the CLI runs.
+        modelFast: credential?.modelFast ?? profile.defaultFast,
+        modelReasoning: credential?.modelReasoning ?? profile.defaultReasoning,
+        embeddingModel: null,
+        executor: this.agents.executorFor(userId),
+        keepsModelOverride: selected === tool,
+      });
+    }
+
+    // "Off" in Settings means no key is spent, so with nothing selected only the
+    // agent can answer. Otherwise the selected key first, then every other one.
+    const keyOrder = selected ? [selected, ...AI_VENDORS.filter((v) => v !== selected)] : [];
+    // Only probed when it matters: it is a filesystem search, and on a server
+    // without the CLIs it would otherwise run on every call for nothing.
+    const needsProbe = keyOrder.some(
+      (vendor) => byVendor.has(vendor) && AI_VENDOR_PROFILES[vendor].keyless,
+    );
+    const availability = needsProbe ? await this.availability() : new Map();
+
+    for (const vendor of keyOrder) {
+      const credential = byVendor.get(vendor);
+      if (!credential) continue;
+      // Already in the chain through the agent; running it here as well would
+      // just repeat the same answer.
+      if (chain.some((entry) => entry.vendor === vendor)) continue;
+      const verdict = availability.get(vendor);
+      if (verdict && !verdict.available) continue;
+
+      try {
+        chain.push({ ...this.toResolved(credential), keepsModelOverride: vendor === selected });
+      } catch (error) {
+        this.logger.error(
+          `Could not decrypt the ${vendor} key for ${userId}. ` +
+            'If ENCRYPTION_KEY changed, saved keys must be re-entered.',
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
+    }
+
+    return chain;
   }
 
   /** Decrypts one stored credential and fills in the vendor's defaults. */

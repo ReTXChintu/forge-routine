@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from './infrastructure/config/config.module.js';
 import { PrismaModule } from './infrastructure/prisma/prisma.module.js';
 import { CacheModule } from './infrastructure/redis/cache.module.js';
+import { AgentModule } from './modules/agent/agent.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { ChallengesModule } from './modules/challenges/challenges.module.js';
@@ -35,7 +36,9 @@ import { TechnologiesModule } from './modules/technologies/technologies.module.j
     PrismaModule,
     CacheModule,
     // Before AiModule: the provider factory resolves each call's vendor
-    // through AISettingsService, so it must already be available.
+    // through AISettingsService, so it must already be available — and that
+    // asks the agent hub which of the user's local CLIs are connected.
+    AgentModule,
     SettingsModule,
     AiModule,
 

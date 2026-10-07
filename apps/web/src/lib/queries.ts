@@ -1052,6 +1052,75 @@ export function useTestAIKey() {
 
 // -- Concept tutor -----------------------------------------------------------
 
+// -- ForgeRoutine Agent ---------------------------------------------------------
+
+export type LocalToolId = 'CLAUDE_CODE' | 'CODEX';
+
+export interface AgentConnectionView {
+  deviceId: string;
+  version: string | null;
+  connectedAt: string;
+  tools: Record<LocalToolId, { available: boolean; detail: string | null }>;
+}
+
+export interface AgentDeviceView {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastSeenAt: string | null;
+  /** Null when the agent is not running right now. */
+  connection: AgentConnectionView | null;
+}
+
+export interface AgentSettingsView {
+  order: LocalToolId[];
+  devices: AgentDeviceView[];
+}
+
+/**
+ * Paired agents and whether each is connected. Polled while Settings is open,
+ * so starting or quitting the agent shows up without a reload.
+ */
+export function useAgentSettings(): UseQueryResult<AgentSettingsView> {
+  return useQuery({
+    queryKey: ['settings', 'ai', 'agent'] as const,
+    queryFn: () => apiRequest<AgentSettingsView>('/settings/ai/agent'),
+    refetchInterval: 5_000,
+  });
+}
+
+function useAgentMutation<TInput>(send: (input: TInput) => Promise<AgentSettingsView>) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: send,
+    onSuccess: (view) => {
+      queryClient.setQueryData(['settings', 'ai', 'agent'], view);
+    },
+  });
+}
+
+export function useCreatePairingCode() {
+  return useMutation({
+    mutationFn: () =>
+      apiRequest<{ code: string; expiresAt: string }>('/settings/ai/agent/pairing-code', {
+        method: 'POST',
+      }),
+  });
+}
+
+export function useRevokeAgent() {
+  return useAgentMutation((deviceId: string) =>
+    apiRequest<AgentSettingsView>(`/settings/ai/agent/devices/${deviceId}`, { method: 'DELETE' }),
+  );
+}
+
+export function useSetAgentOrder() {
+  return useAgentMutation((order: LocalToolId[]) =>
+    apiRequest<AgentSettingsView>('/settings/ai/agent/order', { method: 'PUT', body: { order } }),
+  );
+}
+
 export interface ExplainerView {
   summary: string;
   realWorld: string;

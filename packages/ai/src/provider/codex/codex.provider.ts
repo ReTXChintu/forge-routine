@@ -22,7 +22,13 @@ import {
   type StructuredResult,
   type TokenUsage,
 } from '../ai-provider.port.js';
-import { flattenPrompt, runCli } from '../cli/run-cli.js';
+import {
+  flattenPrompt,
+  runCli,
+  type CliExecutor,
+  type CliJob,
+  type CliOutcome,
+} from '../cli/run-cli.js';
 import { stripAbsent, toStrictSchema } from '../openai/strict-schema.js';
 
 /**
@@ -57,6 +63,8 @@ export interface CodexProviderOptions {
   timeoutMs: number;
   /** Absolute path to the CLI, for a machine where it cannot be found. */
   binary?: string;
+  /** Runs the CLI elsewhere — the user's machine, through the desktop app. */
+  executor?: CliExecutor;
 }
 
 /**
@@ -184,80 +192,115 @@ export class CodexProvider implements AIProvider {
     jsonSchema: Record<string, unknown> | null,
   ): Promise<{ text: string; usage: TokenUsage }> {
     const { system, conversation } = flattenPrompt(prompt);
+    const job: CliJob = {
+      tool: 'CODEX',
+      system,
+      conversation,
+      jsonSchema,
+      model,
+      timeoutMs: this.options.timeoutMs,
+    };
 
+    // Here, or on the user's own machine through the desktop app, which runs
+    // the identical command and returns the answer file's contents.
+    const { stdout, stderr, code, answer } = this.options.executor
+      ? await this.options.executor(job, context)
+      : await this.runLocally(job, context);
+
+    const events = parseEvents(stdout);
+
+    if (code !== 0 || answer === null) {
+      // The CLI's own words, from its events when it said anything there,
+      // otherwise from stderr. "Exited with 1" alone is not something anyone
+      // can act on — the common causes are being signed out and a model
+      // name the plan cannot use, and both say so plainly.
+      throw new AIUnavailable(
+        context.agent,
+        new Error(
+          `Codex failed (exit ${code}): ${
+            lastError(events) ?? (stderr.trim().slice(0, 400) || '(no output)')
+          }`,
+        ),
+      );
+    }
+
+    return { text: answer.trim(), usage: usageOf(events) };
+  }
+
+  /** Runs the job on this machine. */
+  private async runLocally(job: CliJob, context: CallContext): Promise<CliOutcome> {
     // An empty directory, so there is no project for Codex to read, and a
     // read-only sandbox, so it could not change one if there were.
     const cwd = await mkdtemp(join(tmpdir(), 'forgeroutine-codex-'));
     const answerPath = join(cwd, 'answer.txt');
+    const schemaPath = join(cwd, 'schema.json');
 
     try {
-      const args = [
-        'exec',
-        // Events on stdout, which is where the token counts are.
-        '--json',
-        '--sandbox',
-        'read-only',
-        // Nothing saved to Codex's own session history: these are one-off
-        // questions, and a hundred of them in the user's Codex sidebar would
-        // be clutter they never asked for.
-        '--ephemeral',
-        '--skip-git-repo-check',
-        '-C',
-        cwd,
-        '-o',
-        answerPath,
-      ];
-
-      if (jsonSchema) {
-        const schemaPath = join(cwd, 'schema.json');
-        await writeFile(schemaPath, JSON.stringify(jsonSchema), 'utf8');
-        args.push('--output-schema', schemaPath);
-      }
-
-      if (model && model !== CODEX_DEFAULT_MODEL) args.push('-m', model);
-
-      // Read from stdin.
-      args.push('-');
-
-      // There is no separate system-prompt flag, so the operator's instructions
-      // go first and are marked as such.
-      const input = system ? `${system}\n\n---\n\n${conversation}` : conversation;
+      if (job.jsonSchema) await writeFile(schemaPath, JSON.stringify(job.jsonSchema), 'utf8');
 
       const { stdout, stderr, code } = await runCli({
         binary: this.options.binary ?? (await resolveCodexBinary()),
-        args: this.cliArgs(args),
-        input,
+        args: this.cliArgs(codexArgs(job, { cwd, answerPath, schemaPath })),
+        input: codexInput(job),
         cwd,
-        timeoutMs: this.options.timeoutMs,
+        timeoutMs: job.timeoutMs,
         context,
         tool: 'Codex',
         describeMissing: describeMissingCodex,
       });
 
-      const events = parseEvents(stdout);
-      const text = await readFile(answerPath, 'utf8').catch(() => null);
-
-      if (code !== 0 || text === null) {
-        // The CLI's own words, from its events when it said anything there,
-        // otherwise from stderr. "Exited with 1" alone is not something anyone
-        // can act on — the common causes are being signed out and a model
-        // name the plan cannot use, and both say so plainly.
-        throw new AIUnavailable(
-          context.agent,
-          new Error(
-            `Codex failed (exit ${code}): ${
-              lastError(events) ?? (stderr.trim().slice(0, 400) || '(no output)')
-            }`,
-          ),
-        );
-      }
-
-      return { text: text.trim(), usage: usageOf(events) };
+      const answer = await readFile(answerPath, 'utf8').catch(() => null);
+      return { stdout, stderr, code, answer };
     } finally {
       // Holds the question and the answer; nothing in it is worth keeping.
       await rm(cwd, { recursive: true, force: true }).catch(() => undefined);
     }
   }
+}
+
+/**
+ * The CLI's arguments for one job. Mirrored exactly by the desktop app
+ * (`apps/desktop/src-tauri/src/tools.rs`); change both together.
+ */
+export function codexArgs(
+  job: CliJob,
+  paths: { cwd: string; answerPath: string; schemaPath: string },
+): string[] {
+  const args = [
+    'exec',
+    // Events on stdout, which is where the token counts are.
+    '--json',
+    '--sandbox',
+    'read-only',
+    // Nothing saved to Codex's own session history: these are one-off
+    // questions, and a hundred of them in the user's Codex sidebar would be
+    // clutter they never asked for.
+    '--ephemeral',
+    '--skip-git-repo-check',
+    '-C',
+    paths.cwd,
+    '-o',
+    paths.answerPath,
+  ];
+
+  if (job.jsonSchema) args.push('--output-schema', paths.schemaPath);
+  if (job.model && job.model !== CODEX_DEFAULT_MODEL) args.push('-m', job.model);
+
+  // Read from stdin.
+  args.push('-');
+  return args;
+}
+
+/**
+ * What goes to stdin. There is no separate system-prompt flag, so the
+ * operator's instructions go first and are marked as such.
+ */
+export function codexInput(job: CliJob): string {
+  return job.system ? `${job.system}
+
+---
+
+${job.conversation}` : job.conversation;
 }
 
 function parseEvents(stdout: string): CodexEvent[] {

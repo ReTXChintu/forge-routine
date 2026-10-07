@@ -4,8 +4,9 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import { AIContractViolation, AIUnavailable, describeAIFailure } from '../ai-provider.port.js';
+import type { CliJob } from '../cli/run-cli.js';
 
-import { CODEX_DEFAULT_MODEL, CodexProvider } from './codex.provider.js';
+import { CODEX_DEFAULT_MODEL, CodexProvider, codexArgs, codexInput } from './codex.provider.js';
 
 /**
  * ChatGPT through the Codex CLI, driven against a **stub CLI**.
@@ -299,5 +300,96 @@ describe('Codex as a provider', () => {
     await expect(provider.embed({ texts: ['x'], context: ctx } as never)).rejects.toBeInstanceOf(
       AIUnavailable,
     );
+  });
+});
+
+describe('Codex through the ForgeRoutine Agent', () => {
+  const schema = z.object({ answer: z.string(), hint: z.string().optional() });
+
+  it('hands the agent a job by meaning, and reads its outcome like a local run', async () => {
+    const jobs: CliJob[] = [];
+    const provider = new CodexProvider({
+      modelFast: CODEX_DEFAULT_MODEL,
+      modelReasoning: CODEX_DEFAULT_MODEL,
+      timeoutMs: 90_000,
+      // A path that does not exist: nothing must be spawned on this machine.
+      binary: 'never-run-locally',
+      executor: async (job) => {
+        jobs.push(job);
+        return {
+          stdout: USAGE_EVENTS.map((event) => JSON.stringify(event)).join('\n'),
+          stderr: '',
+          code: 0,
+          answer: '{"answer":"42","hint":null}',
+        };
+      },
+    });
+
+    const result = await provider.structured({
+      prompt: prompt('Q?', 'Be brief.'),
+      schema,
+      schemaName: 'probe',
+      context: ctx,
+    });
+
+    expect(result.data).toEqual({ answer: '42' });
+    expect(result.usage.promptTokens).toBe(15_491);
+    expect(jobs[0]).toMatchObject({
+      tool: 'CODEX',
+      system: 'Be brief.',
+      conversation: 'Q?',
+      model: CODEX_DEFAULT_MODEL,
+      timeoutMs: 90_000,
+      jsonSchema: expect.objectContaining({ additionalProperties: false }),
+    });
+  });
+
+  it('reports a failed remote run in the CLI’s own words', async () => {
+    const provider = new CodexProvider({
+      modelFast: CODEX_DEFAULT_MODEL,
+      modelReasoning: CODEX_DEFAULT_MODEL,
+      timeoutMs: 5_000,
+      executor: async () => ({
+        stdout: JSON.stringify({ type: 'error', message: 'Not signed in' }),
+        stderr: '',
+        code: 1,
+        answer: null,
+      }),
+    });
+
+    const message = await failureOf(() => provider.generate({ prompt: prompt(), context: ctx }));
+    expect(message).toContain('Not signed in');
+  });
+});
+
+describe('the argument list the agent must mirror', () => {
+  const job: CliJob = {
+    tool: 'CODEX',
+    system: null,
+    conversation: 'x',
+    jsonSchema: { type: 'object' },
+    model: 'gpt-5',
+    timeoutMs: 1,
+  };
+
+  it('is exactly this, so the Rust copy can be checked against it', () => {
+    expect(codexArgs(job, { cwd: 'C', answerPath: 'A', schemaPath: 'S' })).toEqual([
+      'exec',
+      '--json',
+      '--sandbox',
+      'read-only',
+      '--ephemeral',
+      '--skip-git-repo-check',
+      '-C',
+      'C',
+      '-o',
+      'A',
+      '--output-schema',
+      'S',
+      '-m',
+      'gpt-5',
+      '-',
+    ]);
+    expect(codexInput({ ...job, system: 'S' })).toBe('S\n\n---\n\nx');
   });
 });

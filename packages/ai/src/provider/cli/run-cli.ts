@@ -24,6 +24,44 @@ import { AIUnavailable, type CallContext, type PromptSpec } from '../ai-provider
  * a user can act on, because "spawn ENOENT" tells nobody anything.
  */
 
+/** The two local AI tools a CLI provider can drive. */
+export type CliTool = 'CLAUDE_CODE' | 'CODEX';
+
+/**
+ * One prompt for a CLI tool, described by meaning rather than by argv.
+ *
+ * Described this way so the same job can run in two places: here, where the
+ * provider builds the argument list itself, or on the user's own machine
+ * through the desktop app, which builds the identical list in Rust and refuses
+ * to run anything else — a page that could hand it arbitrary arguments could
+ * hand it arbitrary commands.
+ */
+export interface CliJob {
+  tool: CliTool;
+  system: string | null;
+  conversation: string;
+  /** Already strict. Null for a plain-text answer. */
+  jsonSchema: Record<string, unknown> | null;
+  /** A model name the tool understands, or the tool's own default marker. */
+  model: string;
+  timeoutMs: number;
+}
+
+/** What a run left behind; each provider reads its own success out of it. */
+export interface CliOutcome {
+  stdout: string;
+  stderr: string;
+  code: number | null;
+  /** Codex writes its final answer to a file; this is that file's contents. */
+  answer: string | null;
+}
+
+/**
+ * Runs a job somewhere other than this process. Rejects with `AIUnavailable`
+ * when it could not run at all — not connected, tool missing, timed out.
+ */
+export type CliExecutor = (job: CliJob, context: CallContext) => Promise<CliOutcome>;
+
 export interface CliRun {
   binary: string;
   args: readonly string[];

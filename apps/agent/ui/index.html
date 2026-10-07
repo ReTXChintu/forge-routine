@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ForgeRoutine Agent</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>ForgeRoutine Agent</h1>
+        <span id="status" class="pill">…</span>
+      </header>
+      <p class="lead">
+        Lets ForgeRoutine use the Claude Code and Codex already signed in on this computer. Keep it
+        running while you study; when it is closed, ForgeRoutine uses your saved API keys instead.
+      </p>
+
+      <section id="pairing" hidden>
+        <h2>Connect to your account</h2>
+        <p>
+          In ForgeRoutine, open <b>Settings → AI</b>, choose <b>Connect the agent</b>, and enter the
+          code shown there.
+        </p>
+        <form id="pair-form">
+          <input
+            id="code"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="XXXX-XXXX"
+            maxlength="12"
+            required
+          />
+          <button type="submit" id="pair-button">Connect</button>
+        </form>
+        <details>
+          <summary>Server</summary>
+          <input id="server" spellcheck="false" />
+        </details>
+      </section>
+
+      <section id="paired" hidden>
+        <dl>
+          <dt>Account</dt>
+          <dd id="email"></dd>
+          <dt>This computer</dt>
+          <dd id="device"></dd>
+          <dt>Server</dt>
+          <dd id="server-shown" class="mono"></dd>
+        </dl>
+      </section>
+
+      <p id="detail" class="detail" hidden></p>
+
+      <section>
+        <h2>On this computer</h2>
+        <ul id="tools"></ul>
+        <div class="row">
+          <button id="recheck" class="secondary">Check again</button>
+          <button id="unpair" class="ghost" hidden>Disconnect this computer</button>
+        </div>
+      </section>
+
+      <p id="error" class="error" hidden></p>
+      <footer>
+        Closing this window keeps the agent running in the tray. Quit it from the tray icon.
+      </footer>
+    </main>
+    <script src="main.js"></script>
+  </body>
+</html>

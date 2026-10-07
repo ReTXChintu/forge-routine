@@ -29,20 +29,17 @@ import { RecordingAIProvider } from './infrastructure/recording-ai.provider.js';
        * every call, which is what makes per-user routing possible without
        * touching any of them.
        *
-       * Null when no real call is possible — which now means only one
-       * thing: this server cannot store a key, so no user can supply one.
-       * Every agent handles a null provider already.
+       * Never null any more: whether a call can happen is decided per user,
+       * per call, by what they have connected and saved.
        */
       useFactory: (config: AppConfig, prisma: PrismaService, settings: AISettingsService) => {
-        // Nowhere to put a key means no user can ever supply one, so there
-        // is no path to a real call. Saying "available" here would have the
-        // generator queueing work that can only fail.
-        if (!config.secretsEnabled) return null;
-
+        // Always built, even where ENCRYPTION_KEY is unset and no key can be
+        // stored: a user's own Claude Code or Codex, reached through the
+        // ForgeRoutine Agent, needs no key at all.
         const routing = new RoutingAIProvider(
-          // No fallback. A user with no key saved gets no AI, which is the
-          // whole point: nobody spends anybody else's money by default.
-          (userId) => settings.resolveFor(userId),
+          // No server fallback. A user with no agent connected and no key
+          // saved gets no AI: nobody spends anybody else's money by default.
+          (userId) => settings.resolveChainFor(userId),
           (resolved) =>
             buildAIProvider(resolved, {
               timeoutMs: config.env.AI_REQUEST_TIMEOUT_MS,

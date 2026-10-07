@@ -13,7 +13,15 @@ export {
 } from './anthropic/anthropic.provider.js';
 export { GeminiProvider, type GeminiProviderOptions } from './gemini/gemini.provider.js';
 export {
+  type CliExecutor,
+  type CliJob,
+  type CliOutcome,
+  type CliTool,
+} from './cli/run-cli.js';
+export {
+  CLAUDE_CODE_DENIED_TOOLS,
   ClaudeCodeProvider,
+  claudeCodeArgs,
   describeMissingBinary,
   findBinary,
   resolveBinary,
@@ -24,6 +32,8 @@ export { FakeAIProvider, type FakeResponse } from './testing/fake.provider.js';
 export {
   CODEX_DEFAULT_MODEL,
   CodexProvider,
+  codexArgs,
+  codexInput,
   describeMissingCodex,
   findCodexBinary,
   resolveCodexBinary,

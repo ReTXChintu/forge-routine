@@ -46,6 +46,9 @@ export function buildAIProvider(resolved: ResolvedVendor, options: BuildOptions)
         // loop is seconds even for a short answer, and a timeout that fires
         // on a working call is worse than a slow one.
         timeoutMs: Math.max(options.timeoutMs, 120_000),
+        // Set when the CLI is on the user's machine, reached through the
+        // ForgeRoutine Agent, rather than on this server.
+        ...(resolved.executor ? { executor: resolved.executor } : {}),
       });
 
     case 'CODEX':
@@ -57,6 +60,7 @@ export function buildAIProvider(resolved: ResolvedVendor, options: BuildOptions)
         // short answer, and a timeout that fires on a working call is worse
         // than a slow one.
         timeoutMs: Math.max(options.timeoutMs, 120_000),
+        ...(resolved.executor ? { executor: resolved.executor } : {}),
       });
 
     case 'GEMINI':

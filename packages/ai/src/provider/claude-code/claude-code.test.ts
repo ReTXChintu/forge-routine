@@ -2,8 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import { AIContractViolation, AIUnavailable, describeAIFailure } from '../ai-provider.port.js';
+import type { CliJob } from '../cli/run-cli.js';
 
-import { ClaudeCodeProvider, resolveBinary } from './claude-code.provider.js';
+import {
+  CLAUDE_CODE_DENIED_TOOLS,
+  ClaudeCodeProvider,
+  claudeCodeArgs,
+  resolveBinary,
+} from './claude-code.provider.js';
 
 /**
  * The provider that runs a process instead of calling an endpoint.
@@ -281,5 +287,79 @@ describe('Claude Code as a provider', () => {
     // There is no key here to ask a vendor endpoint with, so the list is
     // ours — aliases, so it cannot name a snapshot that has been retired.
     expect(models.map((model) => model.id)).toEqual(['haiku', 'sonnet', 'opus']);
+  });
+});
+
+describe('Claude Code through the ForgeRoutine Agent', () => {
+  it('hands the agent a job by meaning, and reads the envelope it returns', async () => {
+    const jobs: CliJob[] = [];
+    const provider = new ClaudeCodeProvider({
+      modelFast: 'haiku',
+      modelReasoning: 'opus',
+      timeoutMs: 90_000,
+      binary: 'never-run-locally',
+      executor: async (job) => {
+        jobs.push(job);
+        return { stdout: OK_RESULT, stderr: '', code: 0, answer: null };
+      },
+    });
+
+    const result = await provider.structured({
+      prompt: {
+        model: 'reasoning',
+        messages: [
+          { role: 'system', content: 'S' },
+          { role: 'user', content: 'Q' },
+        ],
+      },
+      schema,
+      schemaName: 'probe',
+      context: ctx,
+    });
+
+    expect(result.data).toEqual({ answer: 'hi', score: 3 });
+    expect(jobs[0]).toMatchObject({
+      tool: 'CLAUDE_CODE',
+      system: 'S',
+      conversation: 'Q',
+      model: 'opus',
+    });
+  });
+
+  it('fails as Claude Code fails when the agent got nothing back', async () => {
+    const provider = new ClaudeCodeProvider({
+      modelFast: 'haiku',
+      modelReasoning: 'opus',
+      timeoutMs: 5_000,
+      executor: async () => ({ stdout: '', stderr: 'Not logged in', code: 1, answer: null }),
+    });
+
+    const message = await failureOf(() => provider.generate({ prompt: prompt(), context: ctx }));
+    expect(message).toContain('Not logged in');
+  });
+
+  it('builds exactly this argument list, which the Rust copy must match', () => {
+    expect(
+      claudeCodeArgs({
+        tool: 'CLAUDE_CODE',
+        system: 'S',
+        conversation: 'Q',
+        jsonSchema: { type: 'object' },
+        model: 'haiku',
+        timeoutMs: 1,
+      }),
+    ).toEqual([
+      '-p',
+      '--output-format',
+      'json',
+      '--model',
+      'haiku',
+      '--disallowedTools',
+      CLAUDE_CODE_DENIED_TOOLS.join(','),
+      '--system-prompt',
+      'S',
+      '--json-schema',
+      '{"type":"object"}',
+    ]);
   });
 });

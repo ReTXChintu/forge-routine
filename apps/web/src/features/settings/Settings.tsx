@@ -14,6 +14,8 @@ import {
   type VendorSettingView,
 } from '~/lib/queries';
 
+import { AgentPanel } from './AgentPanel';
+
 /**
  * Settings, in the prototype's shape: a tab rail on the left, one panel on
  * the right, both filling the width.
@@ -97,12 +99,14 @@ function AIProviderPanel({ settings }: { settings: AISettingsView }) {
         </Card>
       )}
 
+      <AgentPanel />
+
       <Card>
-        <div className="t-h4 mb1">Who answers</div>
+        <div className="t-h4 mb1">Which key</div>
         <div className="t-small mb4">
-          Your calls go to the provider you pick here, billed to your own key. This server keeps no
-          key of its own, so nobody spends anyone else's money — and with none selected, AI is
-          simply off for you.
+          When the agent is not running, calls go to the provider you pick here, billed to your own
+          key — and if it cannot answer, to your other saved keys. This server keeps no key of its
+          own, so nobody spends anyone else's money. Off means no key is used at all.
         </div>
 
         <div className="row g2 wrap">
@@ -138,9 +142,10 @@ function AIProviderPanel({ settings }: { settings: AISettingsView }) {
           // Not framed as an error. Everything that matters still works, and
           // saying so stops "AI off" reading as "the app is broken".
           <div className="t-caption mt3">
-            AI is off for your account. Everything else still works — exercises run and are graded
-            on their tests, the routine plans itself, and questions come from the seeded curriculum.
-            What you lose is hints, written reviews and mock interviews.
+            No key is used. Unless the agent is connected, AI is off for you. Everything else still
+            works — exercises run and are graded on their tests, the routine plans itself, and
+            questions come from the seeded curriculum. What you lose is hints, written reviews and
+            mock interviews.
           </div>
         )}
 

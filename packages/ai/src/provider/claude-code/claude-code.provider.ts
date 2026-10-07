@@ -1,4 +1,4 @@
-import { access, mkdtemp, readFile } from 'node:fs/promises';
+import { access, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
@@ -19,7 +19,13 @@ import {
   type StructuredRequest,
   type StructuredResult,
 } from '../ai-provider.port.js';
-import { flattenPrompt, runCli } from '../cli/run-cli.js';
+import {
+  flattenPrompt,
+  runCli,
+  type CliExecutor,
+  type CliJob,
+  type CliOutcome,
+} from '../cli/run-cli.js';
 import { stripAbsent, toStrictSchema } from '../openai/strict-schema.js';
 
 /**
@@ -57,6 +63,8 @@ export interface ClaudeCodeProviderOptions {
   timeoutMs: number;
   /** Absolute path to the CLI, for a machine where it is not on PATH. */
   binary?: string;
+  /** Runs the CLI elsewhere — the user's machine, through the desktop app. */
+  executor?: CliExecutor;
 }
 
 /**
@@ -70,7 +78,7 @@ export interface ClaudeCodeProviderOptions {
  * Belt and braces alongside the empty working directory below: the directory
  * limits what could be reached, this removes the means.
  */
-const DENIED_TOOLS = [
+export const CLAUDE_CODE_DENIED_TOOLS = [
   'Bash',
   'BashOutput',
   'KillShell',
@@ -249,26 +257,22 @@ export class ClaudeCodeProvider implements AIProvider {
     jsonSchema: Record<string, unknown> | null,
   ): Promise<CliResult> {
     const { system, conversation } = flattenPrompt(prompt);
-
-    // An empty directory, so the CLI has no project to discover: run it in the
-    // API's own working directory and it would load this repository's
-    // CLAUDE.md into every call about closures.
-    const cwd = await mkdtemp(join(tmpdir(), 'forgeroutine-claude-'));
-
-    const args = [
-      '-p',
-      '--output-format',
-      'json',
-      '--model',
+    const job: CliJob = {
+      tool: 'CLAUDE_CODE',
+      system,
+      conversation,
+      jsonSchema,
       model,
-      '--disallowedTools',
-      DENIED_TOOLS.join(','),
-    ];
+      timeoutMs: this.options.timeoutMs,
+    };
 
-    if (system) args.push('--system-prompt', system);
-    if (jsonSchema) args.push('--json-schema', JSON.stringify(jsonSchema));
+    // Here, or on the user's own machine through the desktop app. Read the
+    // same way either way: the desktop app runs the identical command.
+    const outcome = this.options.executor
+      ? await this.options.executor(job, context)
+      : await this.runLocally(job, context);
 
-    const raw = await this.spawnCli(args, conversation, cwd, context);
+    const raw = stdoutOf(outcome, context);
 
     let parsed: CliResult;
     try {
@@ -306,38 +310,69 @@ export class ClaudeCodeProvider implements AIProvider {
     return args;
   }
 
-  /**
-   * Runs the CLI and returns its stdout, failing as Claude Code fails.
-   *
-   * The process handling itself is shared with Codex in `runCli`; what is
-   * specific here is the reading of the exit: a run that printed something is
-   * worth parsing whatever its code, because Claude Code reports most of its
-   * own failures inside a JSON envelope on stdout rather than through it.
-   */
-  private async spawnCli(
-    args: readonly string[],
-    input: string,
-    cwd: string,
-    context: CallContext,
-  ): Promise<string> {
-    const { stdout, stderr, code } = await runCli({
-      binary: this.options.binary ?? (await resolveBinary()),
-      args: this.cliArgs([...args]),
-      input,
-      cwd,
-      timeoutMs: this.options.timeoutMs,
-      context,
-      tool: 'Claude Code',
-      describeMissing: describeMissingBinary,
-    });
+  /** Runs the job on this machine. */
+  private async runLocally(job: CliJob, context: CallContext): Promise<CliOutcome> {
+    // An empty directory, so the CLI has no project to discover: run it in the
+    // API's own working directory and it would load this repository's
+    // CLAUDE.md into every call about closures.
+    const cwd = await mkdtemp(join(tmpdir(), 'forgeroutine-claude-'));
 
-    if (code === 0 || stdout.trim().length > 0) return stdout.trim();
+    try {
+      const { stdout, stderr, code } = await runCli({
+        binary: this.options.binary ?? (await resolveBinary()),
+        args: this.cliArgs(claudeCodeArgs(job)),
+        input: job.conversation,
+        cwd,
+        timeoutMs: job.timeoutMs,
+        context,
+        tool: 'Claude Code',
+        describeMissing: describeMissingBinary,
+      });
 
-    throw new AIUnavailable(
-      context.agent,
-      new Error(`Claude Code exited with ${code}: ${stderr.trim().slice(0, 400) || '(no output)'}`),
-    );
+      return { stdout, stderr, code, answer: null };
+    } finally {
+      await rm(cwd, { recursive: true, force: true }).catch(() => undefined);
+    }
   }
+}
+
+/**
+ * The CLI's arguments for one job. Mirrored exactly by the desktop app
+ * (`apps/desktop/src-tauri/src/tools.rs`); change both together.
+ */
+export function claudeCodeArgs(job: CliJob): string[] {
+  const args = [
+    '-p',
+    '--output-format',
+    'json',
+    '--model',
+    job.model,
+    '--disallowedTools',
+    CLAUDE_CODE_DENIED_TOOLS.join(','),
+  ];
+
+  if (job.system) args.push('--system-prompt', job.system);
+  if (job.jsonSchema) args.push('--json-schema', JSON.stringify(job.jsonSchema));
+
+  return args;
+}
+
+/**
+ * The envelope text, failing as Claude Code fails.
+ *
+ * A run that printed something is worth parsing whatever its code, because
+ * Claude Code reports most of its own failures inside a JSON envelope on
+ * stdout rather than through it.
+ */
+function stdoutOf(outcome: CliOutcome, context: CallContext): string {
+  if (outcome.code === 0 || outcome.stdout.trim().length > 0) return outcome.stdout.trim();
+
+  throw new AIUnavailable(
+    context.agent,
+    new Error(
+      `Claude Code exited with ${outcome.code}: ${outcome.stderr.trim().slice(0, 400) || '(no output)'}`,
+    ),
+  );
 }
 
 /**
